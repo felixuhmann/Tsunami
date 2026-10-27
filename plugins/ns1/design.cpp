@@ -50,15 +50,31 @@ DesignParameters sampledParameters(float control){
  p.floorCap=control==0?1:float(gain(-6));
  return p;
 }
+DesignParameters controlParameters(float control){
+ const double c=std::isfinite(control)?(control<0?0.0:(control>1?1.0:double(control))):0.0;
+ if(c==0||c==0.5||c==1)return sampledParameters(float(c));
+ // {control, lowerHz, upperHz, attenuationDb, relativeThreshold, floorCapDb}
+ static const double knots[4][6]={{0,60,16000,0,0,0},{.2,60,14000,-10,.02,-6},{.8,80,12000,-70,.07,-6},{1,110,8000,-70,.8,-6}};
+ unsigned k=c<.2?0u:(c<.8?1u:2u);
+ const double* a=knots[k];const double* b=knots[k+1];const double t=(c-a[0])/(b[0]-a[0]);
+ auto at=[&](unsigned i){return a[i]+(b[i]-a[i])*t;};
+ DesignParameters p{};
+ p.lowerHz=at(1);p.upperHz=at(2);p.attenuationDb=at(3);p.relativeThreshold=float(at(4));
+ p.nominalFloor=float(gain(-18.6*17.9/32));p.floorCap=float(gain(at(5)));
+ return p;
+}
 MonoConfiguration designSampledMono(double rate,float control){return designMono(rate,sampledParameters(control));}
 MonoConfiguration designMono(double rate,const DesignParameters& p){
  if(!std::isfinite(rate)||rate<40000||rate>100000)throw std::invalid_argument("unvalidated sample rate");
  const double lower=p.lowerHz,upper=p.upperHz;
+ // The front edge filters take the edge frequencies at their 1 Hz parameter
+ // resolution (limited before design); the band layout uses the unrounded values.
+ const double frontLower=std::round(lower),frontUpper=std::round(upper);
  const double attenuation=p.attenuationDb==0?1:gain(p.attenuationDb);
- const double shape=upper<14000?1:(upper>=17000?3:1+2*(upper-14000)/3000);
+ const double shape=frontUpper<14000?1:(frontUpper>=17000?3:1+2*(frontUpper-14000)/3000);
  MonoConfiguration c{};
- c.front[0]={simple(upper,shape,rate),float(first(upper,rate)),float((1-attenuation)/2),float(-(1+attenuation)/2)};
- c.front[1]={simple(lower,1,rate),float(first(lower,rate)),float((attenuation-1)/2),float(-(1+attenuation)/2)};
+ c.front[0]={simple(frontUpper,shape,rate),float(first(frontUpper,rate)),float((1-attenuation)/2),float(-(1+attenuation)/2)};
+ c.front[1]={simple(frontLower,1,rate),float(first(frontLower,rate)),float((attenuation-1)/2),float(-(1+attenuation)/2)};
  const double spacing=std::pow(upper/lower,1.0/15.0);
  const double extent=std::pow(lower/upper,1.0/12.0);
  double center=lower;

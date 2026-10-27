@@ -3,10 +3,12 @@
 // Tsunami Suppressor (NS1 target) plugin-facing processor, mono only.
 //
 // Parameters follow the reference readback: index 0 "NS1" 0..100 % (step 0.1,
-// fresh default 0), index 1 "Bypass" Off/On. Coefficients are only established
-// at NS1 = 0, 50 and 100 %. Any other value runs the NEAREST established design
-// and controlEstablished() returns false; this is a provisional placeholder,
-// not a recovered mapping. Stereo/linked processing is not implemented and
+// fresh default 0), index 1 "Bypass" Off/On. Any NS1 value runs the continuous
+// control law controlParameters() (see design.hpp). controlEstablished() stays
+// true only at 0, 50 and 100 %, the controls covered by calibrated captures;
+// the law between them is evidenced by derivation renders and the predeclared
+// 25/75 % gate (docs/evidence/ns1).
+// Stereo/linked processing is not implemented and
 // prepare() refuses channels != 1 (the reference stereo kernel shares its
 // detector between channels, so two independent monos would be wrong).
 // prepare() also throws std::invalid_argument for sample rates outside
@@ -24,10 +26,9 @@ public:
     enum Index : unsigned { Amount = 0, Bypass = 1, ParameterCount = 2 };
     void prepare(double sampleRate, unsigned channels, unsigned /*maxBlockSize*/) {
         if (channels != 1) throw std::invalid_argument("NS1 stereo/linked processing not implemented");
-        const float sampled[3] = {0.f, .5f, 1.f};
-        for (unsigned k = 0; k < 3; ++k) designs_[k] = designSampledMono(sampleRate, sampled[k]);
-        mono_ = std::make_unique<Mono>(designs_[0], initialMonoState());
-        select();
+        designMono(sampleRate, controlParameters(0.f)); // validates the rate (throws outside 40-100 kHz)
+        rate_ = sampleRate;
+        mono_ = std::make_unique<Mono>(designMono(rate_, controlParameters(amount_ / 100.f)), initialMonoState());
     }
     void reset() noexcept { if (mono_) mono_->reset(initialMonoState()); }
     void setParameter(unsigned index, float value) noexcept {
@@ -51,10 +52,9 @@ public:
     double tailSeconds() const noexcept { return 0.5; }
 private:
     void select() noexcept {
-        const unsigned k = amount_ < 25.f ? 0u : (amount_ < 75.f ? 1u : 2u);
-        if (mono_) mono_->configure(designs_[k]);
+        if (mono_) mono_->configure(designMono(rate_, controlParameters(amount_ / 100.f)));
     }
-    std::array<MonoConfiguration, 3> designs_{};
+    double rate_ = 48000;
     std::unique_ptr<Mono> mono_;
     float amount_ = 0.f;
     bool bypass_ = false;

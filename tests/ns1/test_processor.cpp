@@ -44,6 +44,11 @@ int main(){
  }
  // Off-grid controls have no established mapping: flagged, never silently claimed.
  {Processor a;a.prepare(48000,1,512);a.setParameter(Processor::Amount,25.f);CHECK(!a.controlEstablished());}
+ // Off-grid controls run the continuous control law.
+ {Processor a;a.prepare(48000,1,512);a.setParameter(Processor::Amount,37.5f);
+  std::vector<float> out(in.size());const float* i1[]={in.data()};float* o1[]={out.data()};a.process(i1,o1,unsigned(in.size()));
+  Mono m(designMono(48000,controlParameters(.375f)),initialMonoState());
+  for(unsigned i=0;i<in.size();++i)CHECK(out[i]==m.process(in[i]));}
  // Bypass On is sample-exact identity (measured at NS1 0 and 100).
  {Processor a;a.prepare(48000,1,512);a.setParameter(Processor::Amount,100.f);a.setParameter(Processor::Bypass,1.f);
   std::vector<float> out(in.size());const float* i1[]={in.data()};float* o1[]={out.data()};a.process(i1,o1,unsigned(in.size()));
