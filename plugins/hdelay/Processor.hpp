@@ -43,6 +43,25 @@ public:
     // FUN_1800348c0, coef = e^(-1/(fs*T))). T = 500 ms fitted to the genuine BPM90 glide render
     // (PROVISIONAL value; the genuine T is a table entry that was not recovered).
     static constexpr double kGlideSec = 0.5;
+    // HiPass/LoPass cutoff taper: 19 x (20000/19)^(raw x 818/817) (log form as in H-Delay.dll
+    // FUN_18002c740 p0 x (p1/p0)^x; constants fitted to genuine readbacks 154 Hz / 588 Hz / 2.49 kHz).
+    // HiPass raw 0 = Off, LoPass raw 1 = Off.
+    static double filterCutoffHz(float raw) noexcept { return 19. * std::pow(20000. / 19., double(raw) * 818. / 817.); }
+    // 2nd-order (RBJ-form) sections on the wet read, outside the loop (PROVISIONAL placement).
+    // Q fitted on 154 Hz + 588 Hz renders: HiPass 0.80, LoPass 0.949 (fit max err 0.01 dB);
+    // held-out 2.49 kHz: max err 0.16 dB (threshold 0.5 dB).
+    static constexpr double kHpQ = 0.80, kLpQ = 0.949;
+    struct Biquad {
+        double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+        void set(bool hp, double f0, double q, double fs) noexcept {
+            const double w = 2 * M_PI * std::min(f0, .49 * fs) / fs, c = std::cos(w), al = std::sin(w) / (2 * q), a0 = 1 + al;
+            b0 = (hp ? (1 + c) : (1 - c)) / 2 / a0; b1 = (hp ? -(1 + c) : (1 - c)) / a0; b2 = b0;
+            a1 = -2 * c / a0; a2 = (1 - al) / a0;
+        }
+    };
+    struct BqState { double x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        float run(const Biquad& q, float x) noexcept { const double y = q.b0 * x + q.b1 * x1 + q.b2 * x2 - q.a1 * y1 - q.a2 * y2;
+            x2 = x1; x1 = x; y2 = y1; y1 = y; return float(y); } };
 
     void prepare(double sampleRate, unsigned channels, unsigned) {
         rate_ = std::isfinite(sampleRate) && sampleRate > 0. ? sampleRate : 48000.;
@@ -50,6 +69,7 @@ public:
         size_ = 1; while (size_ < unsigned(rate_ * 3.5) + 2 * kTaps + 4) size_ <<= 1;
         lines_.assign(channels_, std::vector<float>(size_, 0.f));
         state_.assign(channels_, 0.f);
+        hpS_.assign(channels_, {}); lpS_.assign(channels_, {});
         clear();
         glide_ = targetSamples();
     }
@@ -57,6 +77,8 @@ public:
     void clear() noexcept {
         for (auto& l : lines_) std::fill(l.begin(), l.end(), 0.f);
         std::fill(state_.begin(), state_.end(), 0.f);
+        for (auto& b : hpS_) b = {};
+        for (auto& b : lpS_) b = {};
         pos_ = 0;
     }
     void setParameter(unsigned index, float value) noexcept {
@@ -74,6 +96,10 @@ public:
         const unsigned mask = size_ - 1;
         const double target = targetSamples(), a = std::exp(-1. / (rate_ * kGlideSec));
         const float fb = p_[Feedback] * .01f;
+        const bool hpOn = p_[HiPass] > 0.f, lpOn = p_[LoPass] < 1.f;
+        Biquad hp, lp;
+        if (hpOn) hp.set(true, filterCutoffHz(p_[HiPass]), kHpQ, rate_);
+        if (lpOn) lp.set(false, filterCutoffHz(p_[LoPass]), kLpQ, rate_);
         const float wet = p_[Mix] * .01f, dry = 1.f - wet; // linear law: UNVERIFIED
         const float g = std::pow(10.f, p_[Output] / 20.f);
         const bool bypass = p_[Bypass] >= .5f;
@@ -95,7 +121,10 @@ public:
                 if (fr != 0.f) for (unsigned k = 0; k < kTaps; ++k) v1 += kTap[k] * l[(c1 + kHalf - k) & mask];
                 const float v = (v0 + fr * (v1 - v0)) * kNorm;
                 s = fb * v;
-                out[c][n] = bypass ? x : g * (dry * x + wet * v);
+                float wv = v;
+                if (hpOn) wv = hpS_[c].run(hp, wv);
+                if (lpOn) wv = lpS_[c].run(lp, wv);
+                out[c][n] = bypass ? x : g * (dry * x + wet * wv);
             }
             state_[c] = s; glide_ = d;
         }
@@ -131,5 +160,6 @@ private:
     double hostTempo_ = 120.;
     double rate_ = 48000.; unsigned channels_ = 0, size_ = 0, pos_ = 0;
     std::vector<std::vector<float>> lines_; std::vector<float> state_;
+    std::vector<BqState> hpS_, lpS_;
 };
 } // namespace tsunami::hdelay

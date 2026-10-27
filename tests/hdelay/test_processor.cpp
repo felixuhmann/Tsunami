@@ -93,5 +93,21 @@ int main() {
         check(std::fabs(Processor::saturate(.125f) - 1.f / 9.f) < 1e-7f && std::fabs(Processor::saturate(1.f / 36.f) - 1.f / 37.f) < 1e-7f,
               "write saturator reproduces genuine 1/9, 1/37 echoes");
         std::cout << "PASS feedback bounded/saturator\n";
+        // HiPass/LoPass (genuine fit renders: 154 Hz / 588 Hz; held-out 2.49 kHz checked in
+        // compare_filters_r3.py). Cutoff taper 19 x (20000/19)^(raw x 818/817); RBJ 2nd order.
+        check(std::fabs(Processor::filterCutoffHz(0.3f) - 153.7) < 1.0 && std::fabs(Processor::filterCutoffHz(0.49266504f) - 588.2) < 1.0,
+              "cutoff taper (genuine readback 154 Hz, 588 Hz)");
+        auto magDb = [&](float hp, float lp, double f) {
+            Processor h; h.prepare(48000, 1, 512);
+            h.setParameter(Processor::Mix, 100); h.setParameter(Processor::Feedback, 0); h.setParameter(Processor::Sync, 2);
+            h.setParameter(Processor::DelayMs, 10); h.setParameter(Processor::HiPass, hp); h.setParameter(Processor::LoPass, lp);
+            h.reset(); auto z = impulseResponse(h, 16384);
+            double re = 0, im = 0; for (unsigned i = 0; i < z.size(); ++i) { re += z[i] * std::cos(2 * M_PI * f * i / 48000); im -= z[i] * std::sin(2 * M_PI * f * i / 48000); }
+            return 20 * std::log10(std::hypot(re, im));
+        };
+        const double flat = magDb(0, 1, 62.5), flat2 = magDb(0, 1, 1000);
+        check(std::fabs(magDb(0.3f, 1, 62.5) - flat - (-15.466)) < 0.3, "HiPass 154 Hz: -15.47 dB at 62.5 Hz (genuine)");
+        check(std::fabs(magDb(0, 0.3f, 1000) - flat2 - (-32.434)) < 0.3, "LoPass 154 Hz: -32.43 dB at 1 kHz (genuine)");
+        std::cout << "PASS hipass/lopass\n";
     } catch (const std::exception& e) { std::cerr << "FAIL " << e.what() << '\n'; return 1; }
 }
