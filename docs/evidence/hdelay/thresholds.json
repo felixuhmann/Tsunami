@@ -79,5 +79,27 @@
    "fit": "BPM90 1/8D render (task2)",
    "verification": "existing render 20261027T160946-1f2a... (375->500 ms, impulse position from its input): first echo peak index within +-3 samples of the glide model prediction (this render was inspected qualitatively in task2, so this is a consistency check, not a strict hold-out)"
   }
+ },
+ "round2_task4": {
+  "declared_at": "2026-10-27T16:28:53.604146Z",
+  "declared_before_renders": true,
+  "hypothesis": "Read is a 32-phase polyphase sinc (export 0x101100: phase=round(32-frac*32), 0x80-byte phase rows). Settled fractional phase depends on glide direction: delay reached from ABOVE (or fresh 375 ms default) settles at +1/32 sample (kernel = sinc(n-1/32), seen at 250/375 ms); reached from BELOW settles at integer (clean tap, seen at 500 ms).",
+  "metric": "max_n in [-20,20] |g[peak+n]/sum_n g - pred[n]|, pred = sinc(n-1/32) (down) or delta (up); fb 0, impulse at 6.0 s (input /tmp/hdr2/impulse7s_at6s.wav)",
+  "cases": {
+   "t4_down_bpm7of19": {
+    "delay_bpm_raw": 0.3684210526315789,
+    "prediction": "sinc(n-1/32)",
+    "max_kernel_err": 0.005,
+    "role": "test"
+   },
+   "t4_up_bpm15of19": {
+    "delay_bpm_raw": 0.7894736842105263,
+    "prediction": "delta",
+    "max_kernel_err": 0.005,
+    "role": "held-out"
+   }
+  },
+  "fit_reference": "250 ms (161055) residual vs sinc(n-1/32) = 2.1e-3; 500 ms (161352) residual vs delta 1.6e-13",
+  "not_loosened": true
  }
 }
