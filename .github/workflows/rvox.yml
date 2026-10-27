@@ -37,14 +37,15 @@ jobs:
         run: python tests/rvox/test_native_workflow.py
       - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_ID=rvox
-      - name: Build actual RVox native format modules, hosted adapter/editor and core meter/unchanged-audio tests
-        run: cmake --build build --config Release --target rvox_adapter_test rvox_editor_test rvox_test_meters rvox_test_output_regression TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
-      - name: CTest
+      - name: Build actual RVox native format modules, hosted adapter/editor, CLAP ABI and core meter/unchanged-audio tests
+        run: cmake --build build --config Release --target rvox_adapter_test rvox_editor_test rvox_clap_abi_test rvox_test_meters rvox_test_output_regression TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
+      - name: CTest (includes actual RVox CLAP module mono/stereo ABI regression)
         run: |
+          ctest --test-dir build -C Release -N -R '^rvox\.clap_abi$' | grep -q 'Total Tests: 1' || { echo 'rvox.clap_abi not registered'; exit 1; }
           if [[ "$RUNNER_OS" == Linux ]]; then
-            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|meters|output_regression)$' --no-tests=error --output-on-failure
+            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|clap_abi|meters|output_regression)$' --no-tests=error --output-on-failure
           else
-            ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|meters|output_regression)$' --no-tests=error --output-on-failure
+            ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|clap_abi|meters|output_regression)$' --no-tests=error --output-on-failure
           fi
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
         run: |

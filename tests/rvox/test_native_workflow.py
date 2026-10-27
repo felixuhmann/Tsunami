@@ -56,6 +56,23 @@ class NativeMonoGate(unittest.TestCase):
         self.assertIn('release_smoke', source, 'mono smoke must reuse the reviewed release-smoke RVox profile')
         self.assertIn("PROFILES['rvox']", source)
 
+    def test_clap_abi_harness_built_and_required_on_both_platforms(self):
+        builds = [b for n, b in self.steps if 'TsunamiRVox_CLAP' in b and 'cmake --build' in b]
+        self.assertEqual(len(builds), 1)
+        self.assertIn('rvox_clap_abi_test', builds[0], 'the RVox CLAP ABI harness must be built')
+        ctest = [b for n, b in self.steps if 'ctest --test-dir build' in b]
+        self.assertTrue(ctest, 'no CTest step')
+        for body in ctest:
+            self.assertNotRegex(body, r'(?m)^(?:        )?if:')
+            self.assertNotRegex(body, r'continue-on-error')
+        runs = [line for b in ctest for line in b.splitlines() if 'ctest --test-dir build' in line and ' -N' not in line]
+        self.assertEqual(len(runs), 2, 'CTest must run on both OS branches')
+        for line in runs:
+            self.assertIn('clap_abi', line)
+            self.assertIn('--no-tests=error', line)
+        listed = [b for b in ctest if re.search(r"ctest .*-N .*rvox\\\.clap_abi", b)]
+        self.assertTrue(listed, 'CI must fail when rvox.clap_abi is not registered')
+
     def test_workflow_runs_this_gate_separately(self):
         # The guard runs in its own step, so deleting the mono step alone fails CI.
         guard = [n for n, b in self.steps if 'tests/rvox/test_native_workflow.py' in b and 'mono_host_smoke.py' not in b]
