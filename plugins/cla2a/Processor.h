@@ -21,6 +21,7 @@
 #include "CharacterizedCurve.h"
 #include "ControlMapping.h"
 #include "Kernel.h"
+#include "SidechainFilters.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -46,6 +47,9 @@ public:
             throw std::invalid_argument("CLA2A supports 1/2 channels and positive finite rate");
         rate_ = sampleRate;
         channels_ = channels;
+        const auto cascade = designSidechainCascade(rate_);
+        for (auto& f : sidechain_) f.set(cascade);
+        sidechainRefDb_ = cascadeGainDb(cascade, 1000.0, rate_);
         buildCurves();
         updateDerived();
         reset();
@@ -57,6 +61,7 @@ public:
         mix_.reset(mixTarget_);
         out_.reset(outTarget_);
         hp_.fill(0.0);
+        for (auto& f : sidechain_) f.reset();
         meterGain_ = 1.0;
         fresh_ = true;
     }
@@ -97,8 +102,10 @@ public:
             for (unsigned c = 0; c < channels_; ++c) {
                 d[c] = x[c] + dither.first * 1e-8;
                 // Hi Freq: sidechain high-band emphasis (structure provisional).
-                hp_[c] = hpPole_ * hp_[c] + (1.0 - hpPole_) * d[c];
-                const double sc = (d[c] - hp_[c]) * hfWeight_ + hp_[c];
+                // Recovered 48 kHz cascade weights the detector input (SidechainFilters.h).
+                const double w = sidechain_[c].process(d[c]);
+                hp_[c] = hpPole_ * hp_[c] + (1.0 - hpPole_) * w;
+                const double sc = (w - hp_[c]) * hfWeight_ + hp_[c];
                 level = std::max(level, detect(sc * drive_));
             }
             const double target = interpolateCurve(level, curveX_.data(), curveY_.data(), Provisional::CurvePoints);
@@ -121,12 +128,15 @@ public:
 
 private:
     static double dbToGain(double db) noexcept { return std::pow(10.0, db / 20.0); }
+    static double cascadeGainDb(const std::array<Biquad, 3>& c, double hz, double fs) noexcept;
     double pole(double seconds) const noexcept { return std::exp(-1.0 / (seconds * rate_)); }
     void buildCurves() noexcept {
         // CHARACTERIZED (not recovered) static curve, see CharacterizedCurve.h.
         const auto& gr = parameters_[Mode] != 0 ? Characterized::LimitGrDb : Characterized::CompGrDb;
         for (unsigned i = 0; i < Provisional::CurvePoints; ++i) {
-            curveX_[i] = dbToGain(Characterized::DetectorDb0 + Characterized::DetectorStepDb * i);
+            // The curve was characterized with 1 kHz tones; the detector now
+            // sees the sidechain cascade, so its grid moves by the 1 kHz gain.
+            curveX_[i] = dbToGain(Characterized::DetectorDb0 + Characterized::DetectorStepDb * i + sidechainRefDb_);
             curveY_[i] = dbToGain(gr[i]);
         }
         for (unsigned i = 0; i < Provisional::AttackPoints; ++i) {
@@ -173,8 +183,20 @@ private:
     bool humOn_ = false;
     Smoother mix_, out_;
     std::array<double, 2> hp_{};
+    std::array<SidechainCascade, 2> sidechain_{};
+    double sidechainRefDb_ = 0;
     double drive_ = 1, makeup_ = 1, mixTarget_ = 1, outTarget_ = 1, hfWeight_ = 1, hpPole_ = 0, smoothPole_ = 0;
     double meterGain_ = 1;
     bool fresh_ = true;
 };
+inline double Processor::cascadeGainDb(const std::array<Biquad, 3>& c, double hz, double fs) noexcept {
+    const double w = 2.0 * 3.14159265358979323846 * hz / fs;
+    double mag = 1.0;
+    for (const auto& q : c) {
+        const double nr = q.b0 + q.b1 * std::cos(w) + q.b2 * std::cos(2 * w), ni = -q.b1 * std::sin(w) - q.b2 * std::sin(2 * w);
+        const double dr = 1.0 + q.a1 * std::cos(w) + q.a2 * std::cos(2 * w), di = -q.a1 * std::sin(w) - q.a2 * std::sin(2 * w);
+        mag *= std::sqrt((nr * nr + ni * ni) / (dr * dr + di * di));
+    }
+    return 20.0 * std::log10(mag);
+}
 }
