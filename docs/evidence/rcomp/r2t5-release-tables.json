@@ -12,11 +12,22 @@
     "slot_hypothesis": "coef index * 4 = kernel slot would put coef 11 at 0x2c and coef 12 at 0x30 (the s11 follower slots) and coef 13 at 0x34 (k). Unverified: no export confirms 4-byte slot = coef index, no coef 13 writer exists among the windows-coefficients exports, and the s11 recurrence form is not recovered. Not used in production."
   },
   "missing_for_wiring": [
-    "writer of coef 13 / kernel int slot 0x34 (k): not present among windows-coefficients exports",
+    "writer of coef 13 / kernel int slot 0x34 (k): no GetPointerToCoef(...,0xd) among windows-coefficients exports (indices written: 1,4,5,6,0xb,0xc,0x11,0x1d,0x1e); may come via the generic setter 0x18002d6c0 (index is a parameter) or a non-coefficient path",
     "confirmation that kernel slot offset = coef index * 4",
-    "s11 follower recurrence form (how coef 11/12 combine with s10)",
     "user controls behind blocks +0x54a0/+0x54b0, +0x3ca0/+0x3cb0, +0x66b0, +0x84b0, and the else-branch values of coef 11/12",
     "unit of R (+0xb0)"
   ],
-  "comparison": "not rerun: MonoProcessor unchanged, so the held-out Mix 100 result from r2t3 stands."
+  "comparison": "not rerun: MonoProcessor unchanged, so the held-out Mix 100 result from r2t3 stands.",
+  "follower_recurrence": "Read from decompiled kernel 0x101100 (lines ~303-324, repeated at ~524/762/987): s11' = (s11 - s10)*c + s10 with c = slot 0x2c (float) when s10 < s11', else slot 0x30; memory = T[(int)((s11'+1)*k+1)] * T[(int)(min(s10,s11')*k)], k = (double)int slot 0x34, T is float in the kernel. Ported as releaseStep() in ReleaseTables.h and tested.",
+  "coef_indices_written_in_windows_coefficients": [
+    1,
+    4,
+    5,
+    6,
+    11,
+    12,
+    17,
+    29,
+    30
+  ]
 }

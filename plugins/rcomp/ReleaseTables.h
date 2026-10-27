@@ -6,7 +6,8 @@
 //
 // Status: formulas ported; NOT wired into MonoProcessor. Still unresolved:
 //  - k (integer control 0x34, table scale) at any setting,
-//  - the slow follower s11 recurrence and its coefficients (control slots 0x2c/0x30),
+//  - the slow follower coefficient values (control slots 0x2c/0x30; recurrence below is
+//    read from the kernel, which computes in float while this port uses double),
 //  - the unit of R (milliseconds assumed by the 0.001 factor),
 //  - which user controls drive the curve switch (+0x66b0) and index switch (+0x84b0).
 // Those are therefore inputs here, never defaults.
@@ -70,6 +71,22 @@ inline ReleaseTables buildReleaseTables(const ReleaseTableSettings& s) {
         t.table_[static_cast<std::size_t>(ReleaseTables::kSize + j)] = bj;
     }
     return t;
+}
+
+// Slow follower s11 of the gain follower s10 (kernel 0x101100):
+//   s11' = (s11 - s10) * c + s10, c = slot 0x2c if s10 < s11 else slot 0x30,
+// then the next release memory is lookup(s10, s11', k).
+// Coefficient values are inputs: their writers are only candidates (coef 11/12).
+struct ReleaseFollowerState {
+    double s11 = 0.0;
+};
+
+inline double releaseStep(const ReleaseTables& t, ReleaseFollowerState& st, double s10,
+                          double coefBelow /* slot 0x2c */, double coefAbove /* slot 0x30 */,
+                          int k) {
+    const double c = s10 < st.s11 ? coefBelow : coefAbove;
+    st.s11 = (st.s11 - s10) * c + s10;
+    return t.lookup(s10, st.s11, k);
 }
 
 }  // namespace tsunami::rcomp

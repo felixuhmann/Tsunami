@@ -55,6 +55,24 @@ int main() {
             check(t.lookup(s10, s11, k) == t.b(i1 - 256) * t.a(i2), "lookup = B*A");
             check(t.at(i1) == t.b(i1 - 256) && t.at(i2) == t.a(i2), "flat T layout A then B");
         }
+    // Slow follower (kernel 0x101100 lines ~313-324): s11' = (s11 - s10) * c + s10,
+    // c = slot 0x2c when s10 < s11, else slot 0x30; memory uses the updated s11'.
+    {
+        const double cBelow = 0.9, cAbove = 0.3;
+        ReleaseFollowerState st{0.8};
+        const double m1 = releaseStep(t, st, 0.2, cBelow, cAbove, k);
+        const double e1 = (0.8 - 0.2) * cBelow + 0.2;
+        check(near(st.s11, e1), "follower uses 0x2c coef when s10 < s11");
+        check(m1 == t.lookup(0.2, e1, k), "step memory = lookup(s10, s11')");
+        st.s11 = 0.1;
+        const double m2 = releaseStep(t, st, 0.6, cBelow, cAbove, k);
+        const double e2 = (0.1 - 0.6) * cAbove + 0.6;
+        check(near(st.s11, e2), "follower uses 0x30 coef when s10 >= s11");
+        check(m2 == t.lookup(0.6, e2, k), "step memory rising");
+        st.s11 = 0.5;
+        releaseStep(t, st, 0.5, cBelow, cAbove, k);
+        check(st.s11 == 0.5, "equal input is a fixed point");
+    }
     std::cout << "release tables ok\n";
     return 0;
 }
