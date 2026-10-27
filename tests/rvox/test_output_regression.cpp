@@ -3,6 +3,8 @@
 // deterministic inputs/controls/rates/channel counts/block sizes must stay
 // bit-for-bit identical to the hashes captured from the core at ae4773d, before
 // the meter tap was added. This is not a comparison against the original plugin.
+// Hashes depend on the platform maths library (sin/pow/log) and were captured on
+// x86-64 Linux/glibc, so they are only enforced there.
 #include "Processor.h"
 #include <cmath>
 #include <cstdint>
@@ -10,6 +12,7 @@
 #include <cstring>
 #include <vector>
 using tsunami::rvox::Processor;
+constexpr double pi=3.14159265358979323846; // MSVC has no M_PI by default
 
 struct Case { double rate; unsigned channels; float threshold, gate, gain; };
 static const Case cases[] = {
@@ -21,7 +24,7 @@ static float source(unsigned c, uint64_t n, double rate, uint32_t& lcg) {
  lcg=lcg*1664525u+1013904223u;
  const double noise=(double(lcg>>8)/double(1u<<24))*2-1, t=double(n)/rate;
  const uint64_t part=uint64_t(t*4)%6; // tone, silence, hot, noise, swell, gated tail
- const double tone=std::sin(2*M_PI*(220.+110*c)*t);
+ const double tone=std::sin(2*pi*(220.+110*c)*t);
  switch(part) {
   case 0: return float(.5*tone);
   case 1: return 0.f;
@@ -68,6 +71,9 @@ static const uint64_t golden[] = {
 
 int main(int argc,char**argv) {
  const bool print=argc>1 && std::strcmp(argv[1],"--print")==0;
+#if !(defined(__linux__) && defined(__x86_64__) && defined(__GLIBC__))
+ if(!print) {std::puts("SKIP golden hashes are x86-64 Linux/glibc specific");return 0;}
+#endif
  int failures=0; unsigned i=0;
  for(const auto& k:cases) {
   Processor p; const uint64_t h=render(k,p);

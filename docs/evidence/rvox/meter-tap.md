@@ -13,7 +13,7 @@ parity.
 | Index | Name | Source state | Unit / range |
 |---|---|---|---|
 | 0 `kEnergy` | Input energy | `gateEnvelope_`: peak of input and allpass-rotated detector taps, instant attack, hidden 130 ms gate release | linear full scale, finite, >= 0 (can exceed 1 for >0 dBFS input) |
-| 1 `kTotalGain` | Total gain before makeup | `accumulator1_` scaled by `4.656613e-10 * normalization_`: the lookahead-smoothed `gate*target` gain the next makeup multiply uses, aligned with the delayed output | linear, finite, 1 = no reduction, 0 = fully gated |
+| 1 `kTotalGain` | Total gain before makeup | `accumulator1_` scaled by `4.656613e-10 * normalization_`: the lookahead-smoothed `gate*target` gain applied to the last output sample, with `normalization_` taken out of makeup (makeup keeps 0.99/threshold and Gain), aligned with the delayed output | linear, finite, 1 = no reduction, 0 = fully gated |
 
 Idle values: after `prepare()`/`reset()` energy 0 and total gain 1; unprepared
 core total gain 1; out-of-range index 0. Values are the state after the last
@@ -33,6 +33,10 @@ thread:
 - The bridge reads 0/0 before the first published block. The editor treats that
   pair as "no data". A fully gated silence that publishes exactly 0/0 also shows
   as no new data.
+- With the gate in use, total gain reaches exactly 0 once the gate fully closes.
+  The reading then clamps at 200 dB, so after pauses the held number shows
+  `200.0`. The bar clamps at the 40 dB scale. Whether the original display
+  includes the gate is not established (editor checks run with the gate off).
 - After a host `reset()`, the bridge keeps the last published values until the
   next block (adapter behaviour, PR #23).
 - Without the bridge (shared adapter before PR #23) the editor detects the
@@ -61,5 +65,11 @@ open reference-parity boundary.
   for 8 stored cases (44.1/48/96/192 kHz, mono and stereo, varied controls,
   irregular block sizes including hot >0 dBFS and gated-tail segments) were
   captured from the unmodified `ae4773d` core at -O0 and -O2 (identical) before
-  any change. They still match bit for bit. This is project-regression evidence
-  only, not a new comparison against the original plugin.
+  any change. They still match bit for bit. The hashes depend on the platform
+  maths library, so they are enforced only on x86-64 Linux/glibc (other
+  platforms print SKIP). This is project-regression evidence only, not a new
+  comparison against the original plugin.
+- CI gap: the shared `rvox.yml` workflow runs only `rvox.adapter` and
+  `rvox.editor`, so `rvox.meters`/`rvox.output_regression` are local-only. Until
+  PR #23 merges, CI editor checks 70-77 print SKIP. Windows live-meter evidence
+  is still open.

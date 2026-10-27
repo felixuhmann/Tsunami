@@ -205,6 +205,7 @@ public:
     float reductionDb() const { return reduction; }
     // Pulls and resets the adapter's output peaks; public so tests can drive it.
     void refreshMeters() {
+        refreshCoreMeters();
         if (!meters) return;
         const auto taken = meters->takeOutputPeaks();
         for (size_t k = 0; k < 2; ++k) {
@@ -214,7 +215,6 @@ public:
             out[k].setLevel(level[k] > 0.f ? (db + 60.f) / 60.f : 0.f);
             peak[k].setText(formatDb(juce::Decibels::gainToDecibels(hold[k], -200.f), -200.0), juce::dontSendNotification);
         }
-        refreshCoreMeters();
     }
 
     void paint(juce::Graphics& g) override {

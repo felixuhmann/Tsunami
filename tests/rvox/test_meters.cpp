@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <vector>
 using tsunami::rvox::Processor;
+constexpr double pi=3.14159265358979323846; // MSVC has no M_PI by default
 static void check(bool ok,const char* text){if(!ok){std::fprintf(stderr,"FAIL: %s\n",text);std::exit(1);}}
 
 static_assert(Processor::meterCount==2,"energy + total gain");
@@ -19,7 +20,7 @@ static_assert(noexcept(std::declval<const Processor&>().meter(0u)),"bridge gette
 static float run(Processor& p,unsigned ch,float amplitude,unsigned frames) {
  std::vector<float> x[2]{std::vector<float>(frames),std::vector<float>(frames)};
  std::vector<float> y[2]{std::vector<float>(frames),std::vector<float>(frames)};
- for(unsigned n=0;n<frames;++n) x[0][n]=x[1][n]=amplitude*float(std::sin(2*M_PI*440*n/48000.));
+ for(unsigned n=0;n<frames;++n) x[0][n]=x[1][n]=amplitude*float(std::sin(2*pi*440*n/48000.));
  const float* in[]={x[0].data(),x[1].data()}; float* out[]={y[0].data(),y[1].data()};
  float peak=0;
  for(unsigned n=0;n<frames;n+=256) {
