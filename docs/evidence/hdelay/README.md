@@ -110,3 +110,6 @@ the unrounded copy, triplet factor 2/3, 1B/2B = 4/8 beats, Host tempo 120.
   (T = 0.5 s) is still 0.037 sample short at 6 s (more than 1/64), while the genuine one has converged. At 666 ms the
   genuine glide was 33 samples short at 6 s, which an exponential with tau = 0.5 s cannot give. So the glide law
   (export rate law) is the open item, not the kernel.
+- Lead for the >100% limiter (not implemented): in export 0x101100 the write gain is
+  `g = min(K/(|u|+K), (1-r) + r*g_prev)` and the line gets `g*u`. With K = 1 this is the implemented u/(1+|u|), plus an
+  instant-attack / one-pole-release gain smoother with unknown r. Next: fit r on fb150 and test on fb110/fb200.
