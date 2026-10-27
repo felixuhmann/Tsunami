@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: DeEsser native product build (not product acceptance)
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deesser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  renderer-streams:
+    # Quick test-only renderer job (no JUCE): binary stdin/stdout of deesser_render used by the mono host smoke.
+    name: deesser-renderer-streams-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Build only deesser_render (portable core, no framework)
+        run: |
+          cmake -S plugins/deesser -B build-core -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --config Release --target deesser_render --parallel 2
+      - name: Binary stdin/stdout exchange (CR/LF/0x1a float32 payload)
+        run: |
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('deesser_render*') if p.is_file() and p.name in ('deesser_render','deesser_render.exe')).resolve())")"
+          python tests/deesser/test_renderer_streams.py "$renderer"
+  # Evidence steps after a successful build run even if a post-build gate failed; any failed gate still fails the job.
+  native:
+    name: deesser-native-${{ matrix.os }} (hosted DeEsser core + product editor; fidelity not claimed)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
+      - name: Select CPython 3.11 for pinned host wheels
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Portable DeEsser core tests (no framework)
+        run: |
+          cmake -S plugins/deesser -B build-core -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --config Release --parallel 2
+          ctest --test-dir build-core -C Release --output-on-failure
+      - name: Configure pinned JUCE and CLAP wrapper with plugin-local registration
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=deesser
+      - name: Build actual DeEsser native format modules and real-Adapter test
+        id: build
+        run: cmake --build build --config Release --target TsunamiDeEsser_VST3 TsunamiDeEsser_CLAP deesser_adapter_test deesser_clap_abi_test --parallel 2
+      - name: CTest (real Adapter, product editor, meters)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p evidence
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a ctest --test-dir build -C Release -R '^deesser\.adapter$' --output-on-failure -V | tee evidence/deesser-adapter-test.log
+          else
+            ctest --test-dir build -C Release -R '^deesser\.adapter$' --output-on-failure -V | tee evidence/deesser-adapter-test.log
+          fi
+          grep -q 'PASS DeEsser real Adapter' evidence/deesser-adapter-test.log
+      - name: Product CLAP mono/stereo ABI regression (real DeEsser .clap vs portable core)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p evidence
+          ctest --test-dir build -C Release -N -R '^deesser\.clap_abi$' | tee evidence/deesser-clap-abi-list.log
+          tr -d '\r' < evidence/deesser-clap-abi-list.log | grep -qx 'Total Tests: 1'
+          ctest --test-dir build -C Release -R '^deesser\.clap_abi$' --no-tests=error --output-on-failure -V | tee evidence/deesser-clap-abi-test.log
+          grep -q 'PASS-GATE org.tsunami.deesser: PASS' evidence/deesser-clap-abi-test.log
+      - name: Native CLAP protocol, audio and state validation (upstream mature validator)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p evidence validator
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            asset=clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+            digest=49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90
+            executable=validator/clap-validator
+          else
+            asset=clap-validator-0.4.1-127-g152b982-windows.zip
+            digest=d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10
+            executable=validator/clap-validator.exe
+          fi
+          curl -fL --retry 2 "https://github.com/free-audio/clap-validator/releases/download/0.4.1/$asset" -o validator.zip
+          printf '%s  validator.zip\n' "$digest" | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('validator.zip').extractall('validator')"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            tar -xzf validator/*.tar.gz -C validator
+          fi
+          chmod +x "$executable"
+          "$executable" --version | tee evidence/clap-validator-version.txt
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('*.clap')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
+          else
+            "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
+          fi
+      - name: Download hash-locked mature VST3 validator/editor host (pluginval 1.0.4)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p editor-host evidence
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            asset=pluginval_Linux.zip; digest=c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
+          else
+            asset=pluginval_Windows.zip; digest=c08e61ce3b96db41636f8ec7e76f4c7e2c13ebdac7fa1b5a1f52b4f32ec715ab
+          fi
+          curl -fL --retry 2 "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/$asset" -o editor-host/pluginval.zip
+          printf '%s  editor-host/pluginval.zip\n' "$digest" | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('editor-host/pluginval.zip').extractall('editor-host')"
+          if [[ "$RUNNER_OS" == Linux ]]; then host=editor-host/pluginval; chmod +x "$host"; else host=editor-host/pluginval.exe; fi
+          "$host" --version | tee evidence/pluginval-version.txt
+          grep -qx 'pluginval - 1.0.4' evidence/pluginval-version.txt
+      - name: Install hash-locked mature host wheels
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+      - name: Native VST3 render, state and rate/block matrix (Pedalboard)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p evidence
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 120 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence
+          else
+            timeout 300 python tests/foundation/host_smoke.py "$plugin" evidence
+          fi
+      - name: Native mono 1-in/1-out VST3 smoke (Pedalboard host (1,N) output; vs 1-channel core)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('deesser_render*') if p.is_file() and p.name in ('deesser_render','deesser_render.exe')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 120 xvfb-run -a python tests/deesser/mono_host_smoke.py "$plugin" "$renderer" evidence/mono
+          else
+            timeout 300 python tests/deesser/mono_host_smoke.py "$plugin" "$renderer" evidence/mono
+          fi
+      - name: Windows pluginval strictness 6 (VST3 validator incl. editor tests)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Windows' }}
+        run: |
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
+          timeout 300 editor-host/pluginval.exe --validate-in-process --strictness-level 6 --random-seed 17 --validate "$plugin" > evidence/deesser-pluginval-windows.log 2>&1 || { cat evidence/deesser-pluginval-windows.log; exit 1; }
+          grep -E '^SUCCESS' evidence/deesser-pluginval-windows.log
+      - name: Actual DeEsser hosted editor capture (exact module/PID, 380x380 product size)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 120 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/deesser/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
+          else
+            timeout 180 python tests/deesser/windows_editor_capture.py "$plugin" evidence/ui
+          fi
+          python -c "import hashlib,json,pathlib; fs=['plugins/deesser/Editor.hpp','plugins/deesser/EditorModel.hpp','plugins/deesser/Processor.hpp','shared/Adapter.hpp']+[str(p) for p in pathlib.Path('evidence/ui').glob('*.png')]; pathlib.Path('evidence/ui/deesser-ui-hashes.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in fs},indent=2))"
+      - name: Matching corresponding source and notices beside experimental binaries
+        if: always()
+        run: |
+          mkdir -p evidence
+          git archive --format=tar HEAD -o evidence/project-source.tar
+          if [[ -d build/_deps/juce-src && -d build/_deps/clap_juce-src ]]; then
+            tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          fi
+          cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
+          cp -r LICENSES evidence/
+          git rev-parse HEAD > evidence/checkout-sha.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha }}" > evidence/pr-head-sha.txt
+      - name: Retain exact build bytes and diagnostic evidence (not a release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deesser-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            build/TsunamiDeEsser_artefacts/Release/VST3/
+            build/TsunamiDeEsser_artefacts/Release/CLAP/
+            build/Testing/Temporary/
+            evidence/
+          if-no-files-found: error
+          retention-days: 14

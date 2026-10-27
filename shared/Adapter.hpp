@@ -87,6 +87,12 @@ template<class Spec> class Adapter final : public juce::AudioProcessor, public M
                     .withValueFromStringFunction([labels, first](const juce::String& text) {
                         const int i = labels.indexOf(text.trim());
                         return i>=0 ? first+float(i) : text.getFloatValue(); });
+            } else if (p.displayDecimals >= 0) {
+                // Explicit text-only precision; JUCE's default 7-decimal text exposes float skew round-off.
+                const int decimals = p.displayDecimals;
+                attributes = attributes.withStringFromValueFunction([decimals](float v, int length) {
+                    const auto text = decimals == 0 ? juce::String(juce::roundToInt(v)) : juce::String(v, decimals);
+                    return length > 0 ? text.substring(0, length) : text; });
             }
             result.add(std::make_unique<juce::AudioParameterFloat>(
                 juce::ParameterID(p.id, 1), p.name,

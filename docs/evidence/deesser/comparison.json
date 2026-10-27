@@ -1,0 +1,343 @@
+{
+  "thresholds": {
+    "schema": 1,
+    "declared_before_comparison": "2026-10-27T15:37Z",
+    "target": "deesser",
+    "metric_definitions": {
+      "max_abs_error": "max |candidate - reference| over all samples and channels",
+      "residual_db": "10*log10(sum(err^2)/sum(ref^2))"
+    },
+    "pass_criteria": {
+      "max_abs_error": 0.001,
+      "residual_db": -60.0
+    },
+    "notes": "Full-plugin fidelity claim per case only if BOTH criteria pass. Kernel unit tests (tests/deesser/test_processor.cpp) are separate and make no fidelity claim. Held-out inputs are not used for tuning.",
+    "block_boundary_automation": {
+      "declared_before_measurement": "2026-10-27T16:05Z",
+      "reason": "Original oracle (runtime/oracle.py, RUNNER_CONTRACT.md) fixes controls before processing; no intra-render automation timeline exists, so no genuine automation comparison is possible. These thresholds apply to the Tsunami core only and make no fidelity claim.",
+      "signal": "48 kHz mono, 0.5-amplitude sine at 7 kHz, 512-sample blocks, parameter changed between blocks",
+      "metrics": {
+        "max_gain_step": "Wideband mode: max |g[n]-g[n-1]| with g=y/x over samples |x|>=0.1, in the 2048 samples after the change",
+        "click_excess": "max |y[n]-y[n-1]| after the change minus max |x[n]-x[n-1]| (input slew), Wideband and Split"
+      },
+      "pass_criteria": {
+        "max_gain_step": 0.05,
+        "max_gain_step_basis": "recovered fast attack smoother 0.5 ms one-pole at 48 kHz bounds each gain step to 1-exp(-1/24)=0.0408 of the remaining gap; 0.05 allows quantization slack",
+        "click_excess": 0.03,
+        "threshold_step": "0 dB -> -40 dB and back",
+        "freq_step": "4000 Hz -> 12000 Hz and back"
+      },
+      "meter": {
+        "gain_reduction_db_rest": "== 0 at prepare/reset and in bypass",
+        "gain_reduction_db_active": ">= 3 dB after 4096 samples of the test tone at -40 dB threshold"
+      }
+    },
+    "midstream_genuine_automation": {
+      "declared_before_measurement": "2026-10-27T16:06Z",
+      "oracle_support": "none: runtime/RUNNER_CONTRACT.md lines 13 and 44 ('Controls fixed before processing; sampled automation timeline not yet supported'; 'No intra-render automation timelines, persistent-instance chaining'); host.py sets every control once, then calls plugin(x, sr, buffer_size=block, reset=True) on a fresh instance",
+      "splice_model": "output = static render A for n<N, static render B for n>=N. Only a valid stand-in for a genuine mid-stream change if the processor state at N is independent of the changed parameter (otherwise B's state at N is the state of a run that always had B).",
+      "splice_validity_test": "measured on the Tsunami core only (genuine internals are not observable through the oracle): continuous run with change A->B at block boundary N vs splice of two static core runs on the same input",
+      "splice_valid_if": {
+        "max_abs_difference_after_N": 1e-06
+      },
+      "signal": "48 kHz mono 0.5-amplitude 7 kHz sine, 1 s, 512-sample blocks, change at N=24064 (start of block 47)",
+      "cases": [
+        "threshold 0 -> -40 dB (Wideband)",
+        "freq 4000 -> 12000 Hz (threshold -40, Wideband)",
+        "monitor Output -> SideChain (threshold -40)",
+        "audio Split -> Wideband (threshold -40)"
+      ],
+      "consequence": "if invalid for a case, no genuine mid-stream comparison is made for it; if valid only on the Tsunami core, the genuine comparison still requires the unverifiable assumption that the original has no parameter smoothing, so it is NOT run as a parity claim"
+    }
+  },
+  "cases": [
+    {
+      "evidence": "20261027T100001-58e5330e8be64ef68ab60887630c471a",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "mono.wav",
+      "input_sha256": "f1773546e85a91bafc09f33d630ce3fbe41f7120c95f994dd874cab4fb8863e6",
+      "oracle_params": {
+        "monitor": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "max_abs_error": 5.960464477539063e-08,
+      "residual_db": -136.18098769560072,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100026-3ecbd56a10214647a05b735eee64c9f5",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "tone_plus_noise-48000.wav",
+      "input_sha256": "4adbac3dc094e509913c5d790f00e4430c13cab904ba163a419eca886d8ba04c",
+      "oracle_params": {},
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.9802322387695312e-08,
+      "residual_db": -156.35601882100536,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100210-ac3ace6ba8544d3f90c6692dd2e7ae4b",
+      "set": "calibrated",
+      "component": "DeEsser Stereo",
+      "input": "stereo_independent-48000.wav",
+      "input_sha256": "738b645f76c9c9ea1ee851e4bcb634f685b2298a96a550535910f05ad5e2004a",
+      "oracle_params": {},
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 1.4901161193847656e-08,
+      "residual_db": -155.29289913207197,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100242-0f32fc9b5fd943b1aca48754b2f1383e",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "mono.wav",
+      "input_sha256": "f1773546e85a91bafc09f33d630ce3fbe41f7120c95f994dd874cab4fb8863e6",
+      "oracle_params": {
+        "threshold": {
+          "value": -30
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        5506.0,
+        -30.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 9.685754776000977e-08,
+      "residual_db": -133.62390600438036,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100404-2f49368975464e519312005c3dea3fac",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "mono.wav",
+      "input_sha256": "f1773546e85a91bafc09f33d630ce3fbe41f7120c95f994dd874cab4fb8863e6",
+      "oracle_params": {
+        "threshold": {
+          "value": -30
+        },
+        "audio": {
+          "raw": 0
+        },
+        "sidechain": {
+          "raw": 0
+        }
+      },
+      "physical": [
+        5506.0,
+        -30.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.9802322387695312e-08,
+      "residual_db": -147.42385791880184,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153818-87b97f7b73844bd19f47a3ecf73d8eae",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "chirp-44100.wav",
+      "input_sha256": "b1544665090f7ad0d497ebba2462599a2f4d62b5425330d621b86ccb4f7cd5e7",
+      "oracle_params": {
+        "threshold": {
+          "value": -45
+        },
+        "freq": {
+          "raw": 0.75
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        9513.65692002177,
+        -45.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 4.798173904418945e-06,
+      "residual_db": -116.47567972835908,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153832-819d16a45d5843aa98de897ef307273d",
+      "set": "calibrated",
+      "component": "DeEsser Stereo",
+      "input": "stereo_independent-48000.wav",
+      "input_sha256": "738b645f76c9c9ea1ee851e4bcb634f685b2298a96a550535910f05ad5e2004a",
+      "oracle_params": {
+        "threshold": {
+          "value": -40
+        }
+      },
+      "physical": [
+        5506.0,
+        -40.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 4.9602240324020386e-06,
+      "residual_db": -126.41224060113919,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153901-50ced32124314156959c3e358aa003ba",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "white_noise-96000.wav",
+      "input_sha256": "a7240c27c36f364653315e48042756cdf45f4c6a2e80539b472327affe65642f",
+      "oracle_params": {
+        "threshold": {
+          "value": -60
+        },
+        "freq": {
+          "raw": 0.2
+        }
+      },
+      "physical": [
+        3031.4331330207965,
+        -60.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 3.3527612686157227e-08,
+      "residual_db": -130.4780936360678,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153915-67afda2d7ddc48e7a444c725288f08bf",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "level_ladder-48000.wav",
+      "input_sha256": "a8be1a76239317a67dde84b3baa8cca18ec7cf80717c1c8a88145116985e6d85",
+      "oracle_params": {
+        "threshold": {
+          "value": -20
+        },
+        "freq": {
+          "raw": 0.9
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "monitor": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        12996.03834169977,
+        -20.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "max_abs_error": 7.000835466897115e-09,
+      "residual_db": -85.42730982220283,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153932-87edae3aff1e46b688b9addaf054c18e",
+      "set": "heldout",
+      "component": "DeEsser Mono",
+      "input": "6930-75918-0006-snr10-48000.wav",
+      "input_sha256": "b0e6c3d67fc494149a9b46810c7e2ec82e9b385d76d8b0c2a7d5e6ed9463b07a",
+      "oracle_params": {
+        "threshold": {
+          "value": -35
+        },
+        "freq": {
+          "raw": 0.6
+        }
+      },
+      "physical": [
+        6964.404506368993,
+        -35.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.130866050720215e-05,
+      "residual_db": -106.25380398623437,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153947-78c37d21a13648ef8df0cb5a8d746533",
+      "set": "heldout",
+      "component": "DeEsser Mono",
+      "input": "6930-75918-0000-snr10-48000.wav",
+      "input_sha256": "d6605a640ac82bb2d74a50f8be6cb5437116d6a33d87b88d7109d84ee25cda26",
+      "oracle_params": {
+        "threshold": {
+          "value": -50
+        },
+        "freq": {
+          "raw": 0.4
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        4594.79341998814,
+        -50.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 7.860362529754639e-06,
+      "residual_db": -103.72471713321603,
+      "pass": true
+    }
+  ],
+  "all_pass": true
+}

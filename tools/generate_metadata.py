@@ -25,6 +25,9 @@ def taper_skew(p, lo, hi):
 
 
 def generate(data, plugin_id, product, core, editor=False):
+    mono = data.get('supports_mono', False)
+    if not isinstance(mono, bool):
+        raise ValueError('supports_mono must be true or false')
     descriptors = []
     seen = set()
     for index, p in enumerate(data['parameters']):
@@ -42,13 +45,21 @@ def generate(data, plugin_id, product, core, editor=False):
                     or values[1] != len(choices) - 1 or not all(isinstance(c, str) and c and '|' not in c for c in choices)):
                 raise ValueError('choice parameters need labels for indices min=0..max=len(choices)-1')
         step = 1.0 if kind in ('bool', 'boolean', 'int', 'integer', 'enum', 'choice') or choices is not None else 0.0
+        # Optional explicit text-only precision (host display); omitted keeps JUCE's default text. Choose it so
+        # the text survives float32 round trips over the range (e.g. 0 for whole Hz up to 16 kHz); 3+ decimals
+        # on values ~1e4 exceed float resolution and are not stable.
+        decimals = p.get('display_decimals') if 'display_decimals' in p else None
+        if 'display_decimals' in p and (type(decimals) is not int or not 0 <= decimals <= 6
+                                        or kind == 'choice' or choices is not None):
+            raise ValueError('display_decimals must be an integer 0..6 on a non-choice parameter')
         descriptors.append('    {' + ', '.join([
             json.dumps(p['id']), json.dumps(p['name']),
             *(f'{float(p[k])}f' for k in ('min', 'max', 'default')),
             json.dumps(p.get('unit', '')), f'{step}f',
             # Optional trailing fields stay omitted for linear, label-free controls (stable S1 output).
-            *([f'{skew!r}f'] if skew != 1.0 or choices else []),
-            *([json.dumps('|'.join(choices))] if choices else []),
+            *([f'{skew!r}f'] if skew != 1.0 or choices or decimals is not None else []),
+            *([json.dumps('|'.join(choices))] if choices else ['nullptr'] if decimals is not None else []),
+            *([str(decimals)] if decimals is not None else []),
         ]) + '}')
     return '''// SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
@@ -56,7 +67,7 @@ def generate(data, plugin_id, product, core, editor=False):
 #include "Parameter.hpp"
 %snamespace tsunami {
 struct PluginSpec {
-%s    using Core = %s;
+%s%s    using Core = %s;
     static constexpr const char* id = %s;
     static constexpr const char* name = %s;
     inline static constexpr Parameter parameters[] = {
@@ -69,7 +80,9 @@ struct PluginSpec {
                                                      juce::AudioProcessorValueTreeState& state) {
         return tsunami::createPluginEditor(processor, state);
     }
-''' if editor else '', core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
+''' if editor else '',
+       # Opt-in 1-in/1-out layout (shared Adapter SupportsMono); omitted by default (stable S1 output).
+       '    static constexpr bool supportsMono = true;\n' if mono else '', core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
 
 
 if __name__ == '__main__':
