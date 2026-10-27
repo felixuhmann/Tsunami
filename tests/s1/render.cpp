@@ -4,8 +4,17 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
+#ifdef _WIN32
+#include <cstdio>
+#include <fcntl.h>
+#include <io.h>
+#endif
 // Offline test harness: interleaved float32 stdin/stdout; physical controls argv.
 int main(int argc,char**argv) {
+#ifdef _WIN32
+ if (_setmode(_fileno(stdin), _O_BINARY) == -1 ||
+     _setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
  tsunami::s1::Processor p;
  p.prepare(48000,2,512);
  for(int i=1;i<argc;++i) p.setParameter(unsigned(i-1),std::strtof(argv[i],nullptr));
