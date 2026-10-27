@@ -93,4 +93,30 @@ int main() {
     near(phaseDisabled.tick(1.0f), 0.5f, 0.0f, "phase branch disable flag");
     near(phaseDisabled.tick(0.0f), 1.0f, 0.0f, "disabled branch has no impulse tail");
     std::cout << "PASS polarity, bounded gain and detector disable regressions\n";
+
+    // Kernel order: soft = followed*scale + 2*offset (float), then the lower of
+    // soft and the ceiling follower state; the ceiling state may start below unity.
+    GainStage soft;
+    GainStage::Coefficients s;
+    s.softScale = 0.0625f;
+    s.softOffset = 0.01f;
+    s.ceilingRelease = 0.99f;
+    if (!soft.configure(s)) return 1;
+    soft.reset();
+    near(soft.tick(0.0f), 1.0f * 0.0625f + 2.0f * 0.01f, 0.0f, "soft scale and doubled offset");
+    soft.reset(0.0625f);
+    const float released = 1.0f + (0.0625f - 1.0f) * 0.99f;
+    near(soft.tick(0.0f), released, 0.0f, "ceiling state from startup value limits soft gain");
+    soft.reset(0.0625f);
+    s.ceilingRelease = 0.0f;
+    if (!soft.configure(s)) return 1;
+    near(soft.tick(0.0f), 0.0625f + 2.0f * 0.01f, 0.0f, "released ceiling leaves soft gain");
+    GainStage::Coefficients bad = s;
+    bad.softScale = 0.0f;
+    if (soft.configure(bad)) { std::cerr << "accepted zero soft scale\n"; return 1; }
+    bad = s;
+    bad.softOffset = NAN;
+    if (soft.configure(bad)) { std::cerr << "accepted nonfinite soft offset\n"; return 1; }
+    near(soft.tick(0.0f), 0.0625f + 2.0f * 0.01f, 0.0f, "rejected soft update is atomic");
+    std::cout << "PASS soft scale/offset before ceiling minimum, startup ceiling state\n";
 }

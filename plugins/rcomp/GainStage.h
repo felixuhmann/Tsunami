@@ -19,6 +19,11 @@ public:
         float gainIncrease = 0.0f;
         float ceiling = 1.0f;
         float ceilingRelease = 0.0f;
+        // Kernel soft gain: followed*softScale + 2*softOffset, formed before the
+        // ceiling minimum. Only scale+2*offset = 1/16 at unity is evidenced for the
+        // wrapper; the writer of the individual values is unresolved.
+        float softScale = 1.0f;
+        float softOffset = 0.0f;
     };
 
     bool configure(const Coefficients& coefficients) noexcept {
@@ -33,16 +38,20 @@ public:
             || !memoryValid(coefficients.gainDecrease)
             || !memoryValid(coefficients.gainIncrease)
             || !std::isfinite(coefficients.ceiling) || coefficients.ceiling <= 0.0f
-            || !memoryValid(coefficients.ceilingRelease)) return false;
+            || !memoryValid(coefficients.ceilingRelease)
+            || !std::isfinite(coefficients.softScale) || coefficients.softScale <= 0.0f
+            || !std::isfinite(coefficients.softOffset)) return false;
         coefficients_ = coefficients;
         return true;
     }
 
-    void reset() noexcept {
+    // ceilingState is the ceiling follower's starting value; the reference
+    // wrapper starts it at 0.0625, the history-domain unity (0x180028450).
+    void reset(float ceilingState = 1.0f) noexcept {
         previousInput_ = 0.0f;
         previousPhase_.fill(0.0f);
         gain_ = 1.0f;
-        ceilingGain_ = 1.0f;
+        ceilingGain_ = ceilingState;
     }
 
     float tick(float input) noexcept {
@@ -66,7 +75,8 @@ public:
             ? coefficients_.ceiling / magnitude : 1.0f;
         ceilingGain_ = std::min(peakTarget, peakTarget
             + (ceilingGain_ - peakTarget) * coefficients_.ceilingRelease);
-        return std::min(gain_, ceilingGain_);
+        const float soft = gain_ * coefficients_.softScale + 2.0f * coefficients_.softOffset;
+        return std::min(soft, ceilingGain_);
     }
 
     static float targetGain(float magnitude, float thresholdScale, float slope,

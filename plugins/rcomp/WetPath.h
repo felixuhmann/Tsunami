@@ -49,7 +49,13 @@ public:
     // computedGain is the unit-domain gain (1 = no reduction). The history stores
     // gain at 1/16 scale, the level of the reference prefill and meter reference.
     float tick(float computedGain, float audio) noexcept {
-        const GainHistory::Frame f = history_.tick(computedGain * kHistoryUnity, audio);
+        return tickHistory(computedGain * kHistoryUnity, audio);
+    }
+
+    // historyGain is already in the kernel history domain (unity = 0.0625), as
+    // produced by the soft-gain/ceiling stage.
+    float tickHistory(float historyGain, float audio) noexcept {
+        const GainHistory::Frame f = history_.tick(historyGain, audio);
         return (f.gain * makeup_) * f.delayed;
     }
 
@@ -57,9 +63,9 @@ public:
     const HistoryGeometry& geometry() const noexcept { return geometry_; }
     unsigned latency() const noexcept { return geometry_.delay; }
 
-private:
     static constexpr float kHistoryUnity = 0.0625f;
 
+private:
     // Both startup values are exact multiples of 2^-31 for every rate band.
     static std::uint32_t toQ31(double value) noexcept {
         return static_cast<std::uint32_t>(std::llround(std::ldexp(value, 31)));
