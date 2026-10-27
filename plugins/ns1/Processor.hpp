@@ -9,6 +9,8 @@
 // not a recovered mapping. Stereo/linked processing is not implemented and
 // prepare() refuses channels != 1 (the reference stereo kernel shares its
 // detector between channels, so two independent monos would be wrong).
+// prepare() also throws std::invalid_argument for sample rates outside
+// 40-100 kHz, the only validated design range.
 #include "design.hpp"
 #include "mono.hpp"
 #include <array>

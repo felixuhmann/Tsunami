@@ -24,15 +24,18 @@ def main():
     if a.require_offgrid:
         est |= set(json.load(open(os.path.join(HERE, "..", "..", "docs", "evidence", "ns1", "thresholds.json")))["comparison_controls"])
     idx = json.load(open(os.path.join(a.capture, "index.json")))
-    rows, ok = [], True
+    rows, ok, not_compared = [], True, []
     for r in idx["runs"]:
+        rid = r.get("id")
         if r.get("plugin") != "NS1 Mono" or r.get("bypass_readback", 0) != 0:
+            not_compared.append({"id": rid, "reason": "not NS1 Mono or bypass engaged"})
             continue
         if not r.get("fresh_instance") or r.get("warmup_frames", 0) != 0 or r["input_shape"][0] != 1:
+            not_compared.append({"id": rid, "reason": "not a fresh-instance, zero-warmup mono capture (e.g. reset sequence/state carry); this harness cannot reproduce it"})
             continue
-        rid = r["id"]
         inp = os.path.join(a.capture, rid + "-input.npy")
         if not os.path.exists(inp):
+            not_compared.append({"id": rid, "reason": "input array missing"})
             continue
         x = np.load(inp)[0].astype(np.float32)
         ref = np.load(os.path.join(a.capture, r["output_file"]))[0].astype(np.float32)
@@ -69,10 +72,12 @@ def main():
     rep = {"scope": th["scope"], "thresholds": th["pass_if"], "equivalence_claim": False,
            "established_rows": sum(r["established_control"] for r in rows),
            "established_pass": sum(r["established_control"] and r["pass"] for r in rows),
-           "all_established_pass": ok, "rows": rows}
+           "all_established_pass": ok, "rows": rows, "not_compared": not_compared}
     json.dump(rep, open(a.report, "w"), indent=1)
     for r in rows:
         print(f'{r["id"]:32s} c={r["control"]:<5} est={int(r["established_control"])} nrmse={r["nrmse"]} max={r["max_abs_error"]:.3g} {"PASS" if r["pass"] else "FAIL"} raw={"PASS" if r["whole_buffer_pass"] else "FAIL"}')
+    for n in not_compared:
+        print(f'{str(n["id"]):32s} NOT COMPARED: {n["reason"]}')
     print("ALL ESTABLISHED PASS" if ok else "FIDELITY GATE FAILS")
     return 0 if ok else 1
 

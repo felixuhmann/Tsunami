@@ -30,6 +30,8 @@ float Mono::process(float input) noexcept {
  }
  const float levelToNoise=(sumLevel*(1.0f/6.0f))/(sumNoise*(1.0f/6.0f));
  const float selectedNoise=detector_[selected].noise;
+ // 0.000275786f and 44.12576f were recovered from the vendor binary analysis
+ // (kernel 0x1014b0); they are recovered constants, not derived values.
  const float rawCorrection=levelToNoise*levelToNoise*0.000275786f;
  const float correction=rawCorrection<=44.12576f?rawCorrection:44.12576f;
  for(unsigned k=0;k<=config_.activityBandLast&&k<6;++k)

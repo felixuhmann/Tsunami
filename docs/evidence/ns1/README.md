@@ -6,7 +6,7 @@ Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads 
 
 - `detector.{hpp,cpp}`: the typed adaptive band gain estimator (interband floor ratio, asymmetric smoothing, fourth-power threshold followed by squared shaping, mixed float/double boundaries).
 - `mono.{hpp,cpp}`: the mono chain. It has a two-stage parallel allpass front, six detector bands, a global activity latch, six three-stage audio sections, and `configure()` to swap coefficients while keeping state.
-- `design.{hpp,cpp}`: independent trigonometric coefficient design plus semantic initial detector state, for NS1 = 0, 0.5 and 1 at 40-100 kHz.
+- `design.{hpp,cpp}`: independent trigonometric coefficient design plus the initial detector state, for NS1 = 0, 0.5 and 1. The 24 initial-state constants (routine 0x180026950) and the two activity-correction constants in `mono.cpp` (0.000275786, 44.12576; kernel 0x1014b0) were recovered from the vendor binary analysis; they are recovered constants, not semantic values.
 - `Processor.hpp`: the plugin contract (`prepare/reset/setParameter/getParameter/process/latencySamples/tailSeconds`). Index 0 is `NS1` (0..100 %, default 0). Index 1 is `Bypass` (sample-exact identity).
 - `parameters.json`: taken from the reference parameter readback of a fresh instance (`NS1` 0..100 % step 0.1 default 0.0, `Bypass` bool default Off).
 
@@ -14,6 +14,7 @@ Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads 
 
 - **Control mapping off-grid is NOT established.** Values other than 0/50/100 % run the nearest established design, and `controlEstablished()` returns false. This is a placeholder, not a recovered mapping. Measured off-grid error (0.25 and 0.75) is large: nrmse 0.04-0.73. See `fidelity-comparison.json`.
 - **Stereo/linked is not implemented.** `prepare()` throws for channels != 1. The reference stereo kernel shares a detector, so it must not be emulated with two monos.
+- `prepare()` throws for sample rates outside 40-100 kHz (the design is only validated in that range).
 - Parameter changes swap coefficients instantly. The reference's control smoothing/transition behaviour is unmeasured.
 - Bypass does not advance DSP state. The reference's behaviour on bypass toggles mid-stream is unmeasured.
 - Latency is reported as 0. The impulse response starts at sample 0 in the reference captures, and the host-reported latency is unknown.
@@ -32,7 +33,7 @@ Thresholds were declared in `tests/ns1/fidelity_thresholds.json` before comparin
 
 There is one amendment, recorded in that file. For buffers longer than 19 s, the gate applies to the first 19 s. This adopts the clean-room's earlier pre-19 s demo-window policy. The original's unlicensed-demo interruptions begin at about 19.88 s and are not reproduced. Whole-buffer results are still reported.
 
-- Calibrated captures: `ns1-research/analysis/characterization/capture` (NS1 Mono, fresh instance, no warmup). 42/42 established-control rows pass, covering silence, impulse, tone, white noise, tone+noise, noise step, level ladder, chirp, blocks 64/512/2048, 44.1/48/96 kHz, repeat/reset, and 180 s offline/paced. Worst established-row error: nrmse 9.3e-7, max 2.1e-6 (96 kHz tone+noise). Many rows are bit-exact. The long rows are 0.0 error over the first 19 s and fail whole-buffer only because of the demo interruptions. Report: `fidelity-comparison.json`.
+- Calibrated captures: `ns1-research/analysis/characterization/capture` (NS1 Mono, fresh instance, no warmup). 42/42 established-control rows pass, covering silence, impulse, tone, white noise, tone+noise, noise step, level ladder, chirp, blocks 64/512/2048, 44.1/48/96 kHz, repeat/reset, a 180 s offline and a 95 s paced capture. Worst established-row errors (rows passing whole-buffer): highest nrmse 9.3e-7 (96 kHz white noise @ 100 %, max 2.8e-7); highest max |err| 2.1e-6 (96 kHz tone+noise @ 50 %, nrmse 2.6e-7). Many rows are bit-exact. The long rows are 0.0 error over the first 19 s and fail whole-buffer only because of the demo interruptions. Report: `fidelity-comparison.json`.
 - Held-out speech (evaluation only, never tuned on): two fresh original renders, `6930-75918-0000-snr0` @ 50 % and `6930-75918-0006-snr10` @ 100 %. Results: nrmse 4.4e-8 / 1.2e-8, max 1.2e-7 / 1.4e-8. PASS. Report: `heldout-comparison.json`.
 
 The restricted kernel/detector tests (`test_detector`, `test_mono`) are separate unit checks. They are not fidelity claims.

@@ -23,9 +23,10 @@ AllpassCoefficients warped(double f,double width,double rate){
 }
 MonoInitialState initialMonoState() noexcept {
  MonoInitialState s{};
- // Semantic calibration values for the six native detector bands. These are
- // scalar algorithm initial conditions, not a serialized vendor memory image
- // or a measured coefficient bank. All audio/allpass histories begin at zero.
+ // Initial detector state for the six bands: these 24 constants were
+ // recovered from the vendor binary analysis (initialization routine
+ // 0x180026950). They are recovered constants, not semantic or derived values.
+ // Not a serialized memory image; all audio/allpass histories begin at zero.
  auto band=[&](unsigned i,double noise,double level,double floor,double gain){
   s.bands[i].noise=float(noise);s.bands[i].level=float(level);
   s.bands[i].floor=float(floor);s.bands[i].gain=float(gain);
