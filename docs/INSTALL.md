@@ -37,9 +37,12 @@ independent replacements and do not load or need the originals.
    - `VST3/Tsunami Stereo.vst3` — a **folder** (VST3 bundle), keep it whole
    - `CLAP/Tsunami Stereo.clap` — a single file
    - `MANIFEST.json` (exact commit, version, platform, hashes),
-     `SHA256SUMS`, `licenses/` and this guide.
+     `SHA256SUMS`, `licenses/` (project and upstream third-party license
+     files) and this guide.
 
-Draft prereleases may also be created by maintainers. Treat them the same way.
+Maintainers may also create draft prereleases from `main`. Treat them the same
+way. The checksums detect corrupted downloads. They do not prove who built the
+files, because they come from the same place as the files.
 
 ## Install on Windows (x64)
 
@@ -51,6 +54,8 @@ Draft prereleases may also be created by maintainers. Treat them the same way.
   the folder if it does not exist.
 - The build is unsigned. Windows SmartScreen or antivirus software may warn
   about it.
+- If the DAW reports a missing `VCRUNTIME`/`MSVCP` DLL, install the Microsoft
+  Visual C++ 2015-2022 x64 redistributable.
 
 ## Install on Linux (x64)
 
@@ -61,7 +66,8 @@ cp "CLAP/Tsunami Stereo.clap" ~/.clap/
 ```
 
 System-wide locations `/usr/lib/vst3` and `/usr/lib/clap` also work. The
-module needs the usual desktop libraries: X11, freetype, fontconfig and ALSA.
+modules are built on Ubuntu 22.04, so they need glibc 2.35 or newer and the
+usual desktop libraries: X11, freetype, fontconfig and ALSA.
 
 ## Use it in your DAW
 
@@ -85,7 +91,8 @@ its AGPLv3 option, see `licenses/`. Each package's `MANIFEST.json` names the
 companion **Corresponding Source** archive (`Tsunami-source-<version>.tar.gz`)
 by exact SHA-256. It contains this project at the exact built commit and every
 fetched dependency source tree (JUCE, clap-juce-extensions with its CLAP
-submodules), along with `BUILDING.md` with offline rebuild steps. It is
+submodules), along with `BUILDING.md` with rebuild steps from the bundled sources (that
+offline rebuild path is documented but not yet exercised in CI). It is
 published next to the binaries as the `Tsunami-source-<version>` artifact.
 
 ## What the CI checks

@@ -33,6 +33,7 @@ PRIVATE_SEGMENTS = {'references', 'vendor-reference', 'ns1-research', 'tsunami-r
 PRIVATE_SUFFIXES = ('.wtar', '.aa', '.bundle')
 LINKER_BYPRODUCTS = ('.pdb', '.ilk', '.exp', '.lib')
 FIXTURE_IDS = {'fixture'}
+NOTICE_NAME = re.compile(r'(LICEN[CS]E|COPYING|NOTICE)(\.[A-Za-z]+)?|.+\.spdx\.json', re.IGNORECASE)
 SOURCE_PREFIX = '${TSUNAMI_PLUGIN_SOURCE_ROOT}/plugins/'
 EPOCH = (1980, 1, 1, 0, 0, 0)
 STATUS = 'experimental unsigned preview build; not verified as equivalent to any original product'
@@ -232,6 +233,8 @@ def _tree_digest(base):
         dirnames.sort()
         for name in sorted(filenames):
             path = Path(dirpath) / name
+            if path.is_symlink():
+                fail(f'symlink refused: {path}')
             digest.update(path.relative_to(base).as_posix().encode() + b'\0' + sha256(path).encode() + b'\n')
     return digest.hexdigest()
 
@@ -300,7 +303,8 @@ fetched dependency source tree (with all upstream license/copyright notices) pin
 
 Requirements: CMake >= 3.22, a C++17 compiler (MSVC 2022 x64 on Windows, GCC/Clang on Linux), Python 3,
 and on Linux the X11/ALSA/freetype/fontconfig development packages listed in
-`project/.github/workflows/release.yml`. No network access is needed.
+`project/.github/workflows/release.yml`. The local-source options below are intended to avoid any download;
+this offline rebuild path is documented but not yet exercised by CI.
 
 ```
 cmake -S project -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF \\
@@ -394,12 +398,31 @@ def package_stem(product, version, platform):
     return f'{product.replace(" ", "-")}-{version}-{platform}'
 
 
-def stage_package(root, plugin_id, product, platform, artefacts, version, commit, deps_identity, source_manifest, out):
+def third_party_notices(root, deps_dir):
+    """Upstream license/notice files of every locked dependency compiled into the binaries."""
+    lock = json.loads((Path(root) / 'dependencies.lock.json').read_text(encoding='utf-8'))
+    notices = []
+    for dep in lock['dependencies']:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]*', dep['name']):
+            fail(f'invalid dependency name {dep["name"]!r}')
+        base = Path(deps_dir) / dep['source_subdir']
+        found = sorted(p for p in base.iterdir() if p.is_file() and not p.is_symlink() and NOTICE_NAME.fullmatch(p.name)) \
+            if base.is_dir() else []
+        if not any(p.name.lower().startswith(('licen', 'copying')) for p in found):
+            fail(f'{dep["name"]}: no upstream license file in {base}')
+        notices += [(f'licenses/third-party/{dep["name"]}/{p.name}', p.read_bytes()) for p in found]
+    return notices
+
+
+def stage_package(root, plugin_id, product, platform, artefacts, version, commit, deps_identity, source_manifest, out,
+                  deps_dir):
     root, artefacts, out = Path(root), Path(artefacts), Path(out)
     _check_version(version)
     if platform not in PLATFORMS:
         fail(f'unsupported platform {platform}')
     source = _load_source_manifest(source_manifest)
+    if source.get('version') != version:
+        fail(f'source version {source.get("version")} != package version {version}')
     if source['commit'] != commit:
         fail(f'source commit {source["commit"]} != build commit {commit}')
     if source['lock_sha256'] != lock_digest(root / 'dependencies.lock.json'):
@@ -431,6 +454,8 @@ def stage_package(root, plugin_id, product, platform, artefacts, version, commit
         entries.append(('licenses/' + Path(rel).name, (root / rel).read_bytes(), False))
     for path in sorted((root / 'LICENSES').iterdir()):
         entries.append(('licenses/' + path.name, path.read_bytes(), False))
+    notices = third_party_notices(root, deps_dir)
+    entries += [(rel, data, False) for rel, data in notices]
     entries.append(('INSTALL.md', (root / 'docs' / 'INSTALL.md').read_bytes(), False))
     manifest = {
         'schema': 1, 'kind': 'tsunami-plugin-package', 'id': plugin_id, 'product': product, 'platform': platform,
@@ -439,7 +464,7 @@ def stage_package(root, plugin_id, product, platform, artefacts, version, commit
         'vst3_module': f'VST3/{product}.vst3/Contents/{arch["vst3_dir"]}/{product}{arch["vst3_ext"]}',
         'vst3_module_sha256': sha256(module), 'clap_sha256': sha256(clap),
         'lock_sha256': source['lock_sha256'], 'dependencies': deps_identity,
-        'omitted_build_byproducts': omitted,
+        'omitted_build_byproducts': omitted, 'third_party_notices': [rel for rel, _ in notices],
         'corresponding_source': {'archive': source['archive'], 'archive_sha256': source['archive_sha256'],
                                  'manifest': Path(source_manifest).name,
                                  'note': 'Complete Corresponding Source for this binary (project + every fetched '
@@ -470,7 +495,7 @@ def _safe_name(name):
     return parts
 
 
-def verify_package(zip_path, source_manifest, dest):
+def verify_package(zip_path, source_manifest, dest, expect=None):
     """Verify a downloaded package against its manifest, SHA256SUMS and companion source; extract safely."""
     source = _load_source_manifest(source_manifest)
     dest = Path(dest)
@@ -507,7 +532,7 @@ def verify_package(zip_path, source_manifest, dest):
                 fail(f'unexpected VST3 content {rel}')
             if parts[0] == 'CLAP' and rel != f'CLAP/{product}.clap':
                 fail(f'unexpected CLAP content {rel}')
-            if parts[0] == 'licenses' and len(parts) != 2:
+            if parts[0] == 'licenses' and not (len(parts) == 2 or (len(parts) == 4 and parts[1] == 'third-party')):
                 fail(f'unexpected licenses content {rel}')
             check_private(rel)
         listed = {}
@@ -521,9 +546,25 @@ def verify_package(zip_path, source_manifest, dest):
         for rel, digest in listed.items():
             if hashlib.sha256(z.read(files[rel])).hexdigest() != digest:
                 fail(f'hash mismatch for {rel}')
-        for key in ('vst3_module', 'formats'):
-            if key not in manifest:
-                fail(f'manifest lacks {key}')
+        for key, value in (expect or {}).items():
+            if manifest.get(key) != value:
+                fail(f'package {key} {manifest.get(key)!r} != expected {value!r}')
+        if manifest.get('version') != source.get('version'):
+            fail('package version does not match corresponding source version')
+        if Path(zip_path).name != f'{stem}.zip':
+            fail(f'zip file name {Path(zip_path).name!r} does not match package {stem!r}')
+        arch = PLATFORMS[platform]
+        expected_formats = {'vst3': f'VST3/{product}.vst3', 'clap': f'CLAP/{product}.clap'}
+        if manifest.get('formats') != expected_formats:
+            fail(f'manifest formats {manifest.get("formats")} != {expected_formats}')
+        if manifest.get('vst3_module') != f'VST3/{product}.vst3/Contents/{arch["vst3_dir"]}/{product}{arch["vst3_ext"]}':
+            fail(f'manifest vst3_module {manifest.get("vst3_module")!r} is not the {platform} bundle module')
+        notices = manifest.get('third_party_notices') or []
+        if not notices or any(n not in files or not n.startswith('licenses/third-party/') for n in notices):
+            fail('third-party notices missing from package')
+        for name in (k for k in manifest['dependencies'] if not k.endswith('-tree-sha256')):
+            if not any(n.startswith(f'licenses/third-party/{name}/') for n in notices):
+                fail(f'no third-party notice for dependency {name}')
         module = manifest['vst3_module']
         if module not in files or files[module].file_size == 0 or listed[module] != manifest['vst3_module_sha256']:
             fail('VST3 module missing, empty or not the manifest module')
@@ -539,6 +580,8 @@ def verify_package(zip_path, source_manifest, dest):
             fail('package dependency identity does not match corresponding source')
         if manifest['corresponding_source']['archive_sha256'] != source['archive_sha256']:
             fail('package references a different corresponding source archive')
+        if len({rel.lower() for rel in files}) != len(files):
+            fail('case-colliding package members')
         for rel, info in files.items():
             target = dest / stem / rel
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -587,6 +630,9 @@ def main(argv=None):
     p.add_argument('--zip', type=Path, required=True)
     p.add_argument('--source-manifest', type=Path, required=True)
     p.add_argument('--dest', type=Path, required=True)
+    p.add_argument('--expect-version')
+    p.add_argument('--expect-platform', choices=sorted(PLATFORMS))
+    p.add_argument('--expect-id')
     a = parser.parse_args(argv)
     try:
         if a.command == 'discover':
@@ -614,9 +660,11 @@ def main(argv=None):
             identity = verify_dependencies(a.root, a.deps)
             print(stage_package(a.root, a.id, plugin['product'], a.platform,
                                 a.build / f'{plugin["target"]}_artefacts' / 'Release', a.version, a.commit,
-                                identity, a.source_manifest, a.out))
+                                identity, a.source_manifest, a.out, a.deps))
         elif a.command == 'verify':
-            print(verify_package(a.zip, a.source_manifest, a.dest))
+            expect = {k: v for k, v in (('version', a.expect_version), ('platform', a.expect_platform),
+                                        ('id', a.expect_id)) if v}
+            print(verify_package(a.zip, a.source_manifest, a.dest, expect))
     except ReleaseError as error:
         print(f'release error: {error}', file=sys.stderr)
         return 1

@@ -30,8 +30,10 @@ def main():
     manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
     module = (root / manifest['vst3_module']).resolve(strict=True)
     bundle = (root / manifest['formats']['vst3']).resolve(strict=True)
-    if root not in module.parents or not module.is_file():
-        raise SystemExit('manifest module escapes package')
+    product = manifest['product']
+    if manifest['formats']['vst3'] != f'VST3/{product}.vst3' or root / 'VST3' not in bundle.parents \
+            or bundle not in module.parents or not bundle.is_dir() or not module.is_file():
+        raise SystemExit('manifest VST3 bundle/module escapes the verified package; refusing to load')
     module_sha = hashlib.sha256(module.read_bytes()).hexdigest()
     if module_sha != manifest['vst3_module_sha256']:
         raise SystemExit('module hash differs from manifest; refusing to load')

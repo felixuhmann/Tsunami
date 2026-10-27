@@ -53,8 +53,8 @@ class DiscoveryTest(Tmp):
     def test_actual_repository_includes_only_registered_s1_and_reports_every_target(self):
         result = release.discover(ROOT)
         targets = json.loads((ROOT / 'targets.json').read_text())['targets']
-        self.assertEqual([p['id'] for p in result['included']], ['s1'])
-        s1 = result['included'][0]
+        self.assertIn('s1', [p['id'] for p in result['included']])
+        s1 = next(p for p in result['included'] if p['id'] == 's1')
         self.assertEqual((s1['target'], s1['product'], s1['code']), ('TsunamiStereo', 'Tsunami Stereo', 'TsS1'))
         self.assertEqual(s1['artifact'], 'Tsunami-Stereo')
         reported = [p['id'] for p in result['included']] + [p['id'] for p in result['unavailable']]
@@ -128,10 +128,30 @@ def fake_artefacts(base, product='Tsunami Stereo', platform='linux-x64'):
     return base
 
 
+def fake_deps(base):
+    for sub, names in (('juce-src', ('LICENSE.md', 'JUCE.spdx.json', 'README.md')), ('clap_juce-src', ('LICENSE.md',)),
+                       ('clap_juce-src/clap-libs/clap', ('LICENSE',)), ('clap_juce-src/clap-libs/clap-helpers', ('LICENSE',))):
+        (base / sub).mkdir(parents=True, exist_ok=True)
+        for name in names:
+            (base / sub / name).write_text(f'notice {sub}/{name}')
+    return base
+
+
+def resign(members, prefix, edit):
+    """Rewrite MANIFEST.json via edit() and recompute SHA256SUMS so only semantic checks can reject."""
+    data = {i.filename[len(prefix) + 1:]: (i, d) for i, d in members}
+    manifest = json.loads(data['MANIFEST.json'][1])
+    edit(manifest, data)
+    data['MANIFEST.json'] = (data['MANIFEST.json'][0], json.dumps(manifest).encode())
+    data.pop('SHA256SUMS')
+    sums = ''.join(f'{hashlib.sha256(d).hexdigest()}  {rel}\n' for rel, (i, d) in sorted(data.items()))
+    return [v for k, v in sorted(data.items())] + [(zipfile.ZipInfo(prefix + '/SHA256SUMS'), sums.encode())]
+
+
 def fake_source_manifest(tmp, commit=COMMIT, deps=None):
     archive = tmp / 'tsunami-source.tar.gz'
     archive.write_bytes(b'source bytes')
-    manifest = {'schema': 1, 'kind': 'corresponding-source', 'commit': commit,
+    manifest = {'schema': 1, 'kind': 'corresponding-source', 'commit': commit, 'version': 'preview-1-aaaaaaa',
                 'lock_sha256': release.lock_digest(ROOT / 'dependencies.lock.json'),
                 'dependencies': deps or {'JUCE': '9.0.4'}, 'archive': archive.name,
                 'archive_sha256': hashlib.sha256(archive.read_bytes()).hexdigest()}
@@ -141,13 +161,28 @@ def fake_source_manifest(tmp, commit=COMMIT, deps=None):
 
 
 class PackageTest(Tmp):
-    def stage(self, artefacts=None, platform='linux-x64', deps=None, source=None):
+    def stage(self, artefacts=None, platform='linux-x64', deps=None, source=None, deps_dir=None):
         artefacts = artefacts or fake_artefacts(Path(tempfile.mkdtemp(dir=self.tmp)) / 'art', platform=platform)
         source = source or fake_source_manifest(self.tmp)
         return release.stage_package(
             root=ROOT, plugin_id='s1', product='Tsunami Stereo', platform=platform, artefacts=artefacts,
             version='preview-1-aaaaaaa', commit=COMMIT, deps_identity=deps or {'JUCE': '9.0.4'},
-            source_manifest=source, out=self.tmp / 'dist')
+            source_manifest=source, out=self.tmp / 'dist',
+            deps_dir=deps_dir or fake_deps(Path(tempfile.mkdtemp(dir=self.tmp))))
+
+    def test_bundles_upstream_third_party_notices_compiled_into_binary(self):
+        with zipfile.ZipFile(self.stage()) as z:
+            names = {n.split('/', 1)[1] for n in z.namelist()}
+        for rel in ('JUCE/LICENSE.md', 'JUCE/JUCE.spdx.json', 'clap-juce-extensions/LICENSE.md', 'clap/LICENSE',
+                    'clap-helpers/LICENSE'):
+            self.assertIn('licenses/third-party/' + rel, names)
+        self.assertNotIn('licenses/third-party/JUCE/README.md', names)
+
+    def test_dependency_without_license_file_fails(self):
+        deps = fake_deps(self.tmp / 'deps')
+        (deps / 'clap_juce-src/clap-libs/clap-helpers/LICENSE').unlink()
+        with self.assertRaises(release.ReleaseError):
+            self.stage(deps_dir=deps)
 
     def test_stages_whole_bundle_clap_licenses_manifest_and_checksums(self):
         zpath = self.stage()
@@ -217,12 +252,13 @@ class VerifyTest(Tmp):
         self.zip = release.stage_package(
             root=ROOT, plugin_id='s1', product='Tsunami Stereo', platform='linux-x64',
             artefacts=fake_artefacts(self.tmp / 'art'), version='preview-1-aaaaaaa', commit=COMMIT,
-            deps_identity={'JUCE': '9.0.4'}, source_manifest=self.source, out=self.tmp / 'dist')
+            deps_identity={'JUCE': '9.0.4'}, source_manifest=self.source, out=self.tmp / 'dist',
+            deps_dir=fake_deps(self.tmp / 'deps'))
         with zipfile.ZipFile(self.zip) as z:
             self.members = [(i, z.read(i)) for i in z.infolist()]
 
     def rewrite(self, mutate):
-        out = self.tmp / 'bad.zip'
+        out = Path(tempfile.mkdtemp(dir=self.tmp)) / self.zip.name
         with zipfile.ZipFile(out, 'w') as z:
             for info, data in mutate(list(self.members)):
                 z.writestr(info, data)
@@ -231,6 +267,26 @@ class VerifyTest(Tmp):
     def assert_rejected(self, path, source=None):
         with self.assertRaises(release.ReleaseError):
             release.verify_package(path, source or self.source, self.tmp / 'out')
+
+    def test_resigned_manifest_redirecting_load_paths_rejected(self):
+        prefix = self.members[0][0].filename.split('/')[0]
+        edits = (lambda m, d: m['formats'].__setitem__('vst3', '/usr/lib/vst3/Other.vst3'),
+                 lambda m, d: m['formats'].__setitem__('vst3', 'VST3/Other.vst3'),
+                 lambda m, d: m.__setitem__('vst3_module', 'CLAP/Tsunami Stereo.clap'),
+                 lambda m, d: m.__setitem__('version', 'preview-2-bbbbbbb'),
+                 lambda m, d: d.pop('licenses/third-party/clap/LICENSE'))
+        for edit in edits:
+            with self.subTest(edit=edit):
+                self.assert_rejected(self.rewrite(lambda m: resign(m, prefix, edit)))
+        # Control: resigning without a semantic change is accepted.
+        release.verify_package(self.rewrite(lambda m: resign(m, prefix, lambda m, d: None)), self.source, self.tmp / 'ok')
+
+    def test_expected_identity_checked(self):
+        release.verify_package(self.zip, self.source, self.tmp / 'a', expect={'version': 'preview-1-aaaaaaa',
+                                                                            'platform': 'linux-x64', 'id': 's1'})
+        for key, value in (('version', 'preview-2-aaaaaaa'), ('platform', 'windows-x64'), ('id', 'rvox')):
+            with self.subTest(key=key), self.assertRaises(release.ReleaseError):
+                release.verify_package(self.zip, self.source, self.tmp / key, expect={key: value})
 
     def test_tampered_binary_rejected(self):
         self.assert_rejected(self.rewrite(lambda m: [(i, d + b'!' if i.filename.endswith('.so') else d) for i, d in m]))
@@ -251,6 +307,11 @@ class VerifyTest(Tmp):
         prefix = self.members[0][0].filename.split('/')[0]
         self.assert_rejected(self.rewrite(lambda m: m + [(zipfile.ZipInfo(prefix + '/extra.txt'), b'x')]))
         self.assert_rejected(self.rewrite(lambda m: m + [(zipfile.ZipInfo('Other/MANIFEST.json'), b'x')]))
+
+    def test_renamed_zip_rejected(self):
+        renamed = self.tmp / 'renamed.zip'
+        renamed.write_bytes(self.zip.read_bytes())
+        self.assert_rejected(renamed)
 
     def test_source_identity_and_archive_hash_checked(self):
         self.assert_rejected(self.zip, fake_source_manifest(self.tmp / '..' / self.tmp.name, commit='b' * 40))

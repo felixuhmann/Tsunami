@@ -11,11 +11,18 @@ on:
       - tools/release*.py
       - tests/release/**
       - docs/INSTALL.md
+      - docs/LICENSING.md
       - CMakeLists.txt
+      - cmake/**
+      - shared/**
+      - plugins/**
       - dependencies.lock.json
+      - targets.json
+      - LICENSE
+      - LICENSES/**
+      - THIRD_PARTY_NOTICES.md
+      - tools/generate_metadata.py
       - tools/host-requirements.txt
-  push:
-    tags: ['preview-*']
   workflow_dispatch:
     inputs:
       publish_preview:
@@ -92,7 +99,13 @@ jobs:
           python tools/release.py stage-source --deps build/_deps --commit "$COMMIT" --version "$VERSION" --out "$RUNNER_TEMP/source"
           cd "$RUNNER_TEMP/source"
           sha256sum "Tsunami-source-$VERSION.tar.gz" > "Tsunami-source-$VERSION.tar.gz.sha256"
-          tar -tzf "Tsunami-source-$VERSION.tar.gz" | grep -E '/(dependencies/(juce-src/JUCE.spdx.json|clap_juce-src/clap-libs/clap/LICENSE)|project/tools/release.py|SOURCE-MANIFEST.json)$'
+          tar -tzf "Tsunami-source-$VERSION.tar.gz" > members.txt
+          for required in dependencies/juce-src/JUCE.spdx.json dependencies/juce-src/LICENSE.md dependencies/clap_juce-src/LICENSE.md \
+              dependencies/clap_juce-src/clap-libs/clap/LICENSE dependencies/clap_juce-src/clap-libs/clap-helpers/LICENSE \
+              project/tools/release.py project/.github/workflows/release.yml project/CMakeLists.txt BUILDING.md SOURCE-MANIFEST.json; do
+            grep -qxF "Tsunami-source-$VERSION/$required" members.txt || { echo "missing $required"; exit 1; }
+          done
+          rm members.txt
           ls -l
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -161,9 +174,11 @@ jobs:
           (cd "$RUNNER_TEMP/dist" && sha256sum "$name.zip" > "$name.zip.sha256")
           echo "name=$name" >> "$GITHUB_OUTPUT"
       - name: Pre-upload package verification and host smoke
+        env:
+          NAME: ${{ steps.stage.outputs.name }}
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
-          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/dist/${{ steps.stage.outputs.name }}.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/preflight")"
+          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/dist/$NAME.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/preflight" --expect-version "$VERSION" --expect-platform "$PLATFORM" --expect-id "$PLUGIN_ID")"
           python tools/release_smoke.py "$pkg" "$RUNNER_TEMP/preflight-receipt.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -199,6 +214,8 @@ jobs:
         shell: bash
     env:
       VERSION: ${{ needs.discover.outputs.version }}
+      PLUGIN_ID: ${{ matrix.plugin.id }}
+      PLATFORM: ${{ matrix.host.platform }}
       NAME: ${{ matrix.plugin.artifact }}-${{ needs.discover.outputs.version }}-${{ matrix.host.platform }}
     steps:
       - name: Checkout helper scripts only (no build tree)
@@ -222,13 +239,15 @@ jobs:
         run: |
           (cd "$RUNNER_TEMP/downloaded" && sha256sum -c "$NAME.zip.sha256")
           (cd "$RUNNER_TEMP/source" && sha256sum -c "Tsunami-source-$VERSION.tar.gz.sha256")
-          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/downloaded/$NAME.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/extracted")"
+          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/downloaded/$NAME.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/extracted" --expect-version "$VERSION" --expect-platform "$PLATFORM" --expect-id "$PLUGIN_ID")"
           echo "pkg=$pkg" >> "$GITHUB_OUTPUT"
       - name: Load and process the downloaded VST3 (no rebuild)
+        env:
+          PKG: ${{ steps.verify.outputs.pkg }}
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
           mkdir -p receipt
-          python tools/release_smoke.py "${{ steps.verify.outputs.pkg }}" "receipt/$NAME-smoke.json"
+          python tools/release_smoke.py "$PKG" "receipt/$NAME-smoke.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-smoke-${{ matrix.plugin.id }}-${{ matrix.host.platform }}-${{ needs.discover.outputs.version }}
@@ -238,7 +257,7 @@ jobs:
 
   publish-preview:
     name: draft prerelease (manual opt-in only)
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview == true
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && github.ref == 'refs/heads/main'
     needs: [discover, source, build, downloaded-smoke]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
