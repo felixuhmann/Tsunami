@@ -176,6 +176,10 @@ public:
     }
     ~Editor() override {
         stopTimer();
+        endFollowerGestures();
+        // A live drag ends during slider destruction; don't call back into faders
+        // already destroyed. ~Fader still closes the leader's own gesture.
+        for (auto* f : {&gate, &comp, &gain}) f->slider.onDragStart = f->slider.onDragEnd = f->slider.onValueChange = nullptr;
         for (auto* f : {&gate, &comp, &gain}) f->slider.setLookAndFeel(nullptr);
     }
 
@@ -264,6 +268,7 @@ private:
         double last = 0.0;
         juce::RangedAudioParameter* parameter = nullptr;
         bool dragOpen = false;
+        bool followOpen = false; // host gesture the editor opened for a linked follower write
         ~Fader() {
             // SliderAttachment is destroyed before slider; JUCE removes its listener
             // without ending a live gesture. Close it while APVTS still exists.
@@ -285,7 +290,7 @@ private:
         auto* param = state.getParameter(id);
         f.parameter = param;
         f.slider.onDragStart = [&f] { f.dragOpen = true; };
-        f.slider.onDragEnd = [&f] { f.dragOpen = false; };
+        f.slider.onDragEnd = [this, &f] { f.dragOpen = false; endFollowerGestures(); };
         const double minimum = f.slider.getMinimum();
         f.slider.setDoubleClickReturnValue(true, param->convertFrom0to1(param->getDefaultValue()));
         f.value.setComponentID(juce::String(id) + "_value");
@@ -306,12 +311,23 @@ private:
             if (&f == &comp) placeCompValue();
             if (propagating || !f.slider.userChange || delta == 0.0 || !isLinked(id)) return;
             propagating = true;
-            for (auto* other : linked)
-                if (other != &f) other->slider.setValue(other->slider.getValue() + delta, juce::sendNotificationSync);
+            // The follower's attachment writes without a gesture of its own; hold one
+            // open for the leader's drag (closed on its drag end), or bracket a single
+            // write when the leader changed outside a drag (value entry).
+            for (auto* other : linked) {
+                if (other == &f) continue;
+                if (!other->dragOpen && !std::exchange(other->followOpen, true)) other->parameter->beginChangeGesture();
+                other->slider.setValue(other->slider.getValue() + delta, juce::sendNotificationSync);
+                if (!f.dragOpen) endFollowerGestures();
+            }
             propagating = false;
         };
         addAndMakeVisible(f.slider);
         addAndMakeVisible(f.value);
+    }
+    void endFollowerGestures() {
+        for (auto* f : {&gate, &comp, &gain})
+            if (std::exchange(f->followOpen, false)) f->parameter->endChangeGesture();
     }
     void placeCompValue() {
         const int y = int(std::lround(comp.slider.getPositionOfValue(comp.slider.getValue())));

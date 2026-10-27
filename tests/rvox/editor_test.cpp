@@ -266,6 +266,97 @@ int main() {
         }
     }
     p.removeListener(&gestures);
+
+    // A linked follower is written by the editor, not by its own slider gesture;
+    // the host must still see every follower change inside a balanced gesture.
+    // Gain (index 2) leads, Compression (index 0) follows; Gate (1) stays put.
+    struct Bracketed final : juce::AudioProcessorListener {
+        struct Counts { std::array<int, 3> open{}, begins{}, ends{}, changes{}, loose{}; } c;
+        std::array<int, 3>& open = c.open; std::array<int, 3>& begins = c.begins; std::array<int, 3>& ends = c.ends;
+        std::array<int, 3>& changes = c.changes; std::array<int, 3>& loose = c.loose;
+        bool invalid = false;
+        void audioProcessorParameterChanged(juce::AudioProcessor*, int i, float) override {
+            if (i < 0 || i >= 3) { invalid = true; return; }
+            ++changes[size_t(i)]; if (open[size_t(i)] == 0) ++loose[size_t(i)];
+        }
+        void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+        void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override {
+            if (i < 0 || i >= 3) { invalid = true; return; }
+            ++begins[size_t(i)]; if (++open[size_t(i)] != 1) invalid = true;
+        }
+        void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override {
+            if (i < 0 || i >= 3) { invalid = true; return; }
+            ++ends[size_t(i)]; if (--open[size_t(i)] != 0) invalid = true;
+        }
+    } host;
+    auto linkCompGain = [&](juce::AudioProcessorEditor& ed) {
+        ed.mouseDown(event(ed, {120.f, 92.f}, {120.f, 92.f}, false));
+        ed.mouseDrag(event(ed, {340.f, 312.f}, {120.f, 92.f}, true));
+        ed.mouseUp(event(ed, {340.f, 312.f}, {120.f, 92.f}, true));
+        return dynamic_cast<tsunami::rvox::Editor&>(ed).isLinked("compression");
+    };
+    p.addListener(&host);
+    const char* paths[] = {"drag", "close-mid-drag", "key", "wheel", "double-click reset", "alt-click reset", "value entry",
+                           "comp-led close-mid-drag"};
+    for (int k = 0; k < 8; ++k) {
+        const size_t fi = k == 7 ? 2 : 0; // follower parameter index
+        p.removeListener(&host); setPhysical(0, -20.f); setPhysical(1, -80.f); setPhysical(2, -10.f); p.addListener(&host);
+        std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+        CHECK(linkCompGain(*ed), 80, "follower test links comp+gain");
+        auto* lead = child<juce::Slider>(*ed, k == 7 ? "compression" : "gain");
+        const auto before = host.c;
+        if (k == 0 || k == 1 || k == 7) {
+            const float x = k == 7 ? 51.f : 16.f;
+            lead->mouseDown(event(*lead, {x, 90.f}, {x, 90.f}, false));
+            lead->mouseDrag(event(*lead, {x, 110.f}, {x, 90.f}, true));
+            lead->mouseDrag(event(*lead, {x, 130.f}, {x, 90.f}, true));
+            if (k == 0) lead->mouseUp(event(*lead, {x, 130.f}, {x, 90.f}, true));
+        } else if (k == 2) {
+            CHECK(lead->keyPressed(juce::KeyPress(juce::KeyPress::upKey)), 81, "follower key handled");
+        } else if (k == 3) {
+            juce::MouseWheelDetails wheel{}; wheel.deltaY = 0.1f;
+            lead->mouseWheelMove(event(*lead, {16.f, 90.f}, {16.f, 90.f}, false, juce::ModifierKeys()), wheel);
+        } else if (k == 4) {
+            lead->mouseDoubleClick(event(*lead, {16.f, 90.f}, {16.f, 90.f}, false));
+        } else if (k == 5) {
+            lead->mouseDown(event(*lead, {16.f, 90.f}, {16.f, 90.f}, false, alt));
+            lead->mouseUp(event(*lead, {16.f, 90.f}, {16.f, 90.f}, false, alt));
+        } else {
+            child<juce::Label>(*ed, "gain_value")->setText("-6.5", juce::sendNotificationSync);
+        }
+        // The follower gesture closes with the user's action, not only on editor close.
+        const bool live = k == 1 || k == 7;
+        CHECK(host.open[fi] == (live ? 1 : 0) && (live || host.begins[fi] == host.ends[fi]), 92, "follower gesture ends with the user action");
+        ed.reset(); // k == 1 and 7 close while the linked drag is live
+        const int followerChanges = host.changes[fi] - before.changes[fi];
+        std::cout << "FOLLOWER " << paths[k] << " changes=" << followerChanges
+                  << " unbracketed=" << host.loose[fi] - before.loose[fi] << " begins=" << host.begins[fi] - before.begins[fi]
+                  << " ends=" << host.ends[fi] - before.ends[fi] << " open=" << host.open[fi]
+                  << " offset=" << physical(2) - physical(0) << "\n";
+        CHECK(followerChanges > 0 && approx(physical(2) - physical(0), 10.f), 82, "linked follower moves by leader offset");
+        CHECK(host.loose[fi] == before.loose[fi], 83, "follower changes bracketed by host gestures");
+        CHECK(host.begins[fi] == before.begins[fi] + 1, 84, "one follower host gesture per user action");
+        CHECK(!host.invalid && (host.open == std::array<int, 3>{}) && host.begins == host.ends, 85, "follower gestures balanced");
+        CHECK(host.changes[1] == before.changes[1] && host.begins[1] == before.begins[1], 86, "unlinked gate untouched");
+    }
+    {
+        // Host automation and state recall reach linked faders without user origin:
+        // no follower write and no editor-originated gesture.
+        std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+        CHECK(linkCompGain(*ed), 87, "isolation test links comp+gain");
+        setPhysical(0, -12.f); setPhysical(2, -3.f);
+        juce::MemoryBlock saved; p.getStateInformation(saved);
+        const auto before = host.c;
+        setPhysical(2, -9.f);
+        CHECK(approx(float(child<juce::Slider>(*ed, "gain")->getValue()), -9.f), 88, "automation reaches the linked fader");
+        CHECK(approx(physical(0), -12.f) && host.changes[0] == before.changes[0], 88, "automation writes no follower");
+        setPhysical(0, -30.f);
+        CHECK(approx(physical(2), -9.f), 89, "automation of comp writes no follower");
+        p.setStateInformation(saved.getData(), int(saved.getSize()));
+        CHECK(approx(physical(0), -12.f) && approx(physical(2), -3.f), 90, "state recall exact while linked");
+        CHECK(host.begins == before.begins && host.ends == before.ends && !host.invalid, 91, "no gestures from automation/recall");
+    }
+    p.removeListener(&host);
     std::cout << "PASS rvox editor\n";
     return 0;
 }

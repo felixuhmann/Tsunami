@@ -177,6 +177,11 @@ campaign owns full raw/oracle provenance and logs.
   offers stereo and an opt-in 1-in/1-out mono layout (`supports_mono` in
   `parameters.json`, `rvox.adapter` mono checks); Dark/Legacy skins and the WaveSystem
   toolbar are not implemented.
+  Linked follower faders (Comp+Gain box link) now send their writes inside an
+  editor-opened host gesture that spans the leader's drag; `rvox.editor` checks 80-92
+  use a real `AudioProcessorListener` (Linux xvfb component events, not native-peer input).
+  By source reading (not tested), the leader's own value-entry write still has no
+  gesture of its own (the follower write is bracketed); not changed in this slice.
 - Output ceiling (round-2 task3): Gain is a ceiling only for <=0 dBFS input. A
   +20 dBFS sine at Comp -6 / Gain -28.7 peaks at -23.58 dBFS in the genuine
   original and identically in the core and hosted adapter (max_abs 1.49e-8,
