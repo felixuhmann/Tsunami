@@ -1,0 +1,59 @@
+{
+ "scope": "evaluation only (not used for tuning)",
+ "thresholds": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "thresholds_source": [
+  "docs/evidence/ns1/thresholds.json",
+  "heldout_round2_task6"
+ ],
+ "pcm16_scale": 32767.0,
+ "all_pass": false,
+ "rows": [
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.07000000029802322,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.2461975660412262e-06,
+   "max_abs_error": 5.3942203521728516e-06,
+   "pass": true,
+   "evidence": "20261027T163601-138db9b9cbae43d684ba49d0f8a082b4"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.07000000029802322,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 8.137421656775154e-05,
+   "max_abs_error": 0.00017956551164388657,
+   "pass": false,
+   "evidence": "20261027T163616-2379590a75074f00bb2a01dcf7665f5b"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.9300000071525574,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.633081526761524e-05,
+   "max_abs_error": 7.230788469314575e-06,
+   "pass": true,
+   "evidence": "20261027T163632-196ff8be65284d609ac2c2551f6978eb"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.9300000071525574,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 4.845691793641131e-05,
+   "max_abs_error": 4.630535840988159e-05,
+   "pass": true,
+   "evidence": "20261027T163647-988f84a147324540aeeb7950dae71d11"
+  }
+ ]
+}
