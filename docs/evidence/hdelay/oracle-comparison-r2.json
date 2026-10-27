@@ -1,0 +1,64 @@
+{
+ "thresholds_path": "docs/evidence/hdelay/thresholds.json",
+ "cases": [
+  {
+   "label": "r1_ms_from_1_8_at120_fb0",
+   "evidence": "20261027T161055-650277653f4c467aa24abd0470c72940",
+   "core_args": [
+    "1=0.5263157894736842",
+    "2=0",
+    "3=2",
+    "4=100",
+    "5=0"
+   ],
+   "metrics": {
+    "max_abs_err_norm_after_impulse": 0.00012741360114887357,
+    "repeats": [
+     {
+      "predicted": 12000,
+      "genuine_peak": 12000,
+      "core_peak": 12000,
+      "genuine_dc": 0.8889587221492548,
+      "core_dc": 0.8889206953463145,
+      "dc_rel_err": 4.277679265956908e-05
+     }
+    ]
+   },
+   "verdict": "PASS"
+  },
+  {
+   "label": "r2_ms_from_1_4_at120_fb25",
+   "evidence": "20261027T161352-b7e28129e2594759ace2a14f85b92deb",
+   "core_args": [
+    "1=0.6842105263157895",
+    "2=25",
+    "3=2",
+    "4=100",
+    "5=0"
+   ],
+   "metrics": {
+    "max_abs_err_norm_after_impulse": 0.028401952236749097,
+    "repeats": [
+     {
+      "predicted": 24000,
+      "genuine_peak": 24000,
+      "core_peak": 24000,
+      "genuine_dc": 0.8888888955117243,
+      "core_dc": 0.8889206953463145,
+      "dc_rel_err": 3.5774813647335996e-05
+     },
+     {
+      "predicted": 48001,
+      "genuine_peak": 48001,
+      "core_peak": 48001,
+      "genuine_dc": 0.2162162214518066,
+      "core_dc": 0.21031931217255506,
+      "dc_rel_err": 0.027273204756128495
+     }
+    ]
+   },
+   "verdict": "FAIL"
+  }
+ ],
+ "pass": false
+}

@@ -9,7 +9,7 @@ T0 = 288000  # impulse position in the synthesized input
 # (label, evidence dir, core args in genuine parameter-index delivery order: DelayBpm, Feedback, Sync, Mix, Output)
 CASES = [
  ("r1_ms_from_1_8_at120_fb0", "20261027T161055-650277653f4c467aa24abd0470c72940", ["1=%r" % (10/19), "2=0", "3=2", "4=100", "5=0"]),
- ("r2_ms_from_1_4_at120_fb25", "20261027T161125-4693eb8b6ad6405c9d4f4c936307ef2c", ["1=%r" % (13/19), "2=25", "3=2", "4=100", "5=0"]),
+ ("r2_ms_from_1_4_at120_fb25", "20261027T161352-b7e28129e2594759ace2a14f85b92deb", ["1=%r" % (13/19), "2=25", "3=2", "4=100", "5=0"]),
 ]
 def rd(p):
     b = open(p, "rb").read(); i = b.find(b"data"); n = struct.unpack("<I", b[i+4:i+8])[0]
