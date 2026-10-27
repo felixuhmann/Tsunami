@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Tsunami patch to the MIT-licensed upstream clap-juce-extensions wrapper (7adee3a1):
+# host-selectable mono/stereo clap.audio-ports-config. Applied by cmake/apply_source_patch.py.
 --- a/src/wrapper/clap-juce-wrapper.cpp
 +++ b/src/wrapper/clap-juce-wrapper.cpp
 @@ -553,6 +553,7 @@
@@ -8,18 +11,21 @@
  
          return true;
      }
-@@ -1005,7 +1006,9 @@
+@@ -1005,7 +1006,12 @@
      {
          // For now hardcode to stereo out. Fix this obviously.
          const auto bus = processor->getBus(isInput, (int)index);
 -        const auto busDefaultLayout = bus->getDefaultLayout();
 +        // Tsunami patch: report the current layout so a host-selected audio-ports config reads back.
-+        // Until a config is selected this equals the default layout applied by defineAudioPorts().
-+        const auto busDefaultLayout = bus->getCurrentLayout();
++        // Until a config is selected this equals the default layout applied by defineAudioPorts();
++        // a disabled bus keeps the upstream default-layout report.
++        const auto busCurrentLayout = bus->getCurrentLayout();
++        const auto busDefaultLayout =
++            busCurrentLayout.isDisabled() ? bus->getDefaultLayout() : busCurrentLayout;
  
          // For now we only support mono or stereo buses
          jassert(busDefaultLayout == juce::AudioChannelSet::mono() ||
-@@ -1060,17 +1063,80 @@
+@@ -1060,17 +1066,80 @@
  
          return true;
      }

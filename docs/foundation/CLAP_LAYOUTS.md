@@ -27,9 +27,16 @@ The patch makes three changes:
 - `select` is rejected while the plugin is active, and for unknown IDs. Otherwise it applies the
   layout with `setBusesLayout`. The selected layout is kept across deactivate/activate.
 
-The patch is not applied on macOS (the `.mm` wrapper includes the pristine file), and the build
-warns about this. Configs are not stored in plugin state: hosts re-select them, as the CLAP spec
-expects.
+Known limitations:
+
+- The patch is not applied on macOS (the `.mm` wrapper includes the pristine file), and the build
+  warns about this.
+- The selected config is not stored in plugin state; after a reload the host has to select it
+  again.
+- `clap.audio-ports-config-info` (current-config readback) and `configurable-audio-ports` are not
+  implemented. The current layout can be read back through `clap.audio-ports`.
+- At the default checking level, clap-helpers rejects `select` while active before the patch's
+  own guard runs.
 
 ## Evidence
 

@@ -17,7 +17,7 @@ HUNK = re.compile(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@')
 
 def lf_lines(path):
     text = path.read_bytes().replace(b'\r\n', b'\n').decode('utf-8')
-    return text, text.splitlines(keepends=True)
+    return text, [line + '\n' for line in text.split('\n')[:-1]] + ([text.rsplit('\n', 1)[-1]] if not text.endswith('\n') else [])
 
 
 def digest(text):
@@ -25,9 +25,14 @@ def digest(text):
 
 
 def apply(source, patch):
-    out, pos, lines = [], 0, patch.splitlines(keepends=True)
+    out, pos = [], 0
+    lines = [line + '\n' for line in patch.split('\n')[:-1]]
+    if not patch.endswith('\n'):
+        raise ValueError('patch must end with a newline')
     i = 0
     while i < len(lines) and not lines[i].startswith('@@'):
+        if lines[i].startswith(('--- ', '+++ ')) and not lines[i][4:].startswith(('a/src/wrapper/', 'b/src/wrapper/')):
+            raise ValueError(f'unexpected file header {lines[i]!r}')
         i += 1
     if i == len(lines):
         raise ValueError('patch has no hunks')
@@ -40,9 +45,14 @@ def apply(source, patch):
             raise ValueError('overlapping or unordered hunks')
         out.extend(source[pos:start])
         pos = start
+        old_count = int(m.group(2) or 1)
+        new_count = int(m.group(4) or 1)
+        seen_old = seen_new = 0
         i += 1
         while i < len(lines) and not lines[i].startswith('@@'):
             tag, body = lines[i][:1], lines[i][1:]
+            seen_old += tag in (' ', '-')
+            seen_new += tag in (' ', '+')
             if tag in (' ', '-'):
                 if pos >= len(source) or source[pos] != body:
                     raise ValueError(f'hunk context mismatch at source line {pos + 1}')
@@ -51,9 +61,11 @@ def apply(source, patch):
                 pos += 1
             elif tag == '+':
                 out.append(body)
-            elif not lines[i].startswith('\\'):
+            else:  # '\\ No newline at end of file' would change bytes: not supported
                 raise ValueError(f'unexpected patch line {i + 1}: {lines[i]!r}')
             i += 1
+        if (seen_old, seen_new) != (old_count, new_count):
+            raise ValueError(f'hunk line counts {seen_old},{seen_new} != header {old_count},{new_count}')
     out.extend(source[pos:])
     return ''.join(out)
 
@@ -81,7 +93,9 @@ def main():
     if digest(result) != args.output_sha256:
         sys.exit(f'patched output sha256 {digest(result)} != pinned {args.output_sha256}')
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_bytes(result.encode('utf-8'))
+    data = result.encode('utf-8')
+    if not args.output.is_file() or args.output.read_bytes() != data:  # avoid needless wrapper rebuilds
+        args.output.write_bytes(data)
     print(f'patched {args.source.name}: source {args.source_sha256} + patch {args.patch_sha256} -> {args.output_sha256}')
 
 

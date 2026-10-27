@@ -58,9 +58,9 @@ jobs:
       - name: CTest layout harness against the compiled CLAP modules
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
-            xvfb-run -a ctest --test-dir build -C Release -R 'clap\.layouts' --output-on-failure 2>&1 | tee evidence/ctest.log
+            xvfb-run -a ctest --test-dir build -C Release -R 'clap\.layouts' --no-tests=error --output-on-failure 2>&1 | tee evidence/ctest.log
           else
-            ctest --test-dir build -C Release -R 'clap\.layouts' --output-on-failure 2>&1 | tee evidence/ctest.log
+            ctest --test-dir build -C Release -R 'clap\.layouts' --no-tests=error --output-on-failure 2>&1 | tee evidence/ctest.log
           fi
           test "${PIPESTATUS[0]}" -eq 0
       - name: Native CLAP protocol validation of both fixtures (upstream mature validator)

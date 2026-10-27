@@ -8,8 +8,8 @@
 # THIRD_PARTY_NOTICES.md. Windows/Linux only: the macOS .mm wrapper includes the pristine file.
 set(TSUNAMI_CLAP_WRAPPER_SHA256 82fb7862a2a40c718dcf53560ce69f3af4244b068c25ea7a25bfe5d16c963cc6)
 set(TSUNAMI_CLAP_WRAPPER_PATCH "${CMAKE_CURRENT_LIST_DIR}/patches/clap-juce-wrapper-audio-ports-config.patch")
-set(TSUNAMI_CLAP_WRAPPER_PATCH_SHA256 dfc3dcfd471177b6ea1bf2feb4973e345b3e0283e4bef1e09f5c28a6b528d837)
-set(TSUNAMI_CLAP_WRAPPER_PATCHED_SHA256 302fdf4c8573b605b772c9441bd67ea7eb903cb7773eb6d2d09ac3012039f1f9)
+set(TSUNAMI_CLAP_WRAPPER_PATCH_SHA256 edcea276d7c0dd80307defdfacadc9bd98175bf390598b04edc44409753c617d)
+set(TSUNAMI_CLAP_WRAPPER_PATCHED_SHA256 32062489a693714a51792909d7c92c2df7423e47ce2b2fb098075528a008bf98)
 function(tsunami_patch_clap_wrapper)
   if(APPLE)
     message(WARNING "CLAP audio-ports-config patch not applied on Apple: upstream stereo-default CLAP layout only")

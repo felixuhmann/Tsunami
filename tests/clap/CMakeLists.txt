@@ -7,6 +7,7 @@ execute_process(COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/tools/gen
   "${fixture_dir}/parameters.json" "${generated}/Generated.hpp" --id fixture_mono
   --product "Tsunami Mono Layout Fixture" --core "tsunami::fixture::Processor"
   COMMAND_ERROR_IS_FATAL ANY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${fixture_dir}/parameters.json")
 juce_add_plugin(TsunamiMonoFixture COMPANY_NAME "Tsunami" BUNDLE_ID "org.tsunami.fixture_mono"
   PLUGIN_MANUFACTURER_CODE Tsun PLUGIN_CODE TsFm PRODUCT_NAME "Tsunami Mono Layout Fixture"
   FORMATS VST3 IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE NEEDS_MIDI_OUTPUT FALSE
