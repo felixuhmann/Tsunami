@@ -80,3 +80,10 @@ No complete-plugin match is claimed.
   - verification only (not fitted): 161747 (multitone PR 0), 161915 (frequency steps).
   - evaluation only (never fitted): 095837, 095855, 095937 (dry / wet defaults).
   - held out: speech material, never rendered for fitting or comparison here.
+* **Characterized time constants** (`Processor.h times_`, `tests/cla2a/fit_ballistics.py`):
+  bounded fit on 161805/161819 step bursts; in-sample envelope RMS 0.12 / 0.30 dB. The search
+  is ill-conditioned at the quiet end of the attack table. Genuine release has a slow
+  multi-second tail (two-stage opto behaviour); 0.75/0.25 weighting kept from the kernel.
+* Auto Makeup: genuine host default "Off ", so it is not wired for the defaults.
+* Wet defaults (unchanged thresholds, `comparison-r3.json`): rel RMS -19.04 / -19.11 dB,
+  level +0.91 / +0.94 dB -> still **FAIL**.

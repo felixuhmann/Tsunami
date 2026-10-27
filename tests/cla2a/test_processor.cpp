@@ -120,6 +120,34 @@ int main() {
         }
         check(20.0 * std::log10(g1k / g10k) > 0.3, "sidechain emphasises 10 kHz over 1 kHz");
     }
+    { // CHARACTERIZED opto time constants: genuine PR 70 step-burst render
+      // (runtime/evidence/cla2a 20261027T161819; -30/-6 dBFS 1 kHz bursts:
+      // loud 1.0..2.5 s). 10 ms window gain (dB) at selected times; 1 dB.
+        const unsigned n = unsigned(5.5 * 48000);
+        std::vector<float> x(n), y(n), z(n);
+        for (unsigned i = 0; i < n; ++i) {
+            const double t = i / 48000.0, a = (t >= 1.0 && t < 2.5) ? 0.501187 : 0.0316228;
+            x[i] = float(a * std::sin(2.0 * 3.14159265358979323846 * 1000.0 * i / 48000.0));
+        }
+        Processor p; p.prepare(48000, 2, 256);
+        p.setParameter(Processor::Analog, 2);
+        p.setParameter(Processor::PeakReduction, 70);
+        for (unsigned off = 0; off < n; off += 256) {
+            const unsigned count = std::min(256u, n - off);
+            const float* i2[]{x.data() + off, x.data() + off}; float* o2[]{y.data() + off, z.data() + off};
+            p.process(i2, o2, count);
+        }
+        struct Point { double t, genuineDb; };
+        for (const Point& q : {Point{1.05, -10.40}, Point{1.20, -12.08}, Point{2.60, -1.27},
+                               Point{3.00, 4.93}, Point{5.00, 5.53}}) {
+            const unsigned a = unsigned(q.t * 100 + 0.5) * 480;
+            double ey = 0, ex = 0;
+            for (unsigned i = a; i < a + 480; ++i) { ey += double(y[i]) * y[i]; ex += double(x[i]) * x[i]; }
+            const double db = 10.0 * std::log10(ey / ex);
+            if (std::abs(db - q.genuineDb) >= 1.0) std::fprintf(stderr, "  t=%.2f model %.2f genuine %.2f\n", q.t, db, q.genuineDb);
+            check(std::abs(db - q.genuineDb) < 1.0, "opto ballistics follow genuine step bursts");
+        }
+    }
     { // reset determinism
         Processor p; p.prepare(48000, 2, 256);
         auto a = render(p, 0.3, 9600); p.reset(); auto b = render(p, 0.3, 9600);

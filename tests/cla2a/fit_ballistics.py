@@ -50,12 +50,13 @@ def main():
     best = cost(t)
     print("start", errors(driver, data, t))
     step = 2.0
-    while step > 1.02:
+    while step > 1.09:
         improved = False
         for i, f in itertools.product(range(6), (step, 1 / step)):
             c = list(t); c[i] *= f
             v = cost(c)
             if v < best:
+                print("improve", [round(q, 5) for q in c], round(v, 4), flush=True)
                 best, t, improved = v, c, True
         if not improved:
             step = math.sqrt(step)

@@ -131,7 +131,7 @@ public:
         }
     }
     unsigned latencySamples() const noexcept { return 0; }
-    double tailSeconds() const noexcept { return 5.0 * Provisional::ReleaseSlowS; }
+    double tailSeconds() const noexcept { return 5.0 * times_.releaseSlowS; }
 
 private:
     static double dbToGain(double db) noexcept { return std::pow(10.0, db / 20.0); }
@@ -184,9 +184,11 @@ private:
     std::array<double, Provisional::CurvePoints> curveX_{}, curveY_{};
     std::array<double, Provisional::AttackPoints> attackLevel_{}, attackFast_{}, attackSlow_{};
     Poles release_{0, 0, 0.75};
-    TimeConstants times_{{Provisional::AttackFastMs[0], Provisional::AttackFastMs[1]},
-                         {Provisional::AttackSlowMs[0], Provisional::AttackSlowMs[1]},
-                         Provisional::ReleaseFastS, Provisional::ReleaseSlowS};
+    // CHARACTERIZED (not recovered): fitted by tests/cla2a/fit_ballistics.py to
+    // genuine PR 46/70 step bursts (161805, 161819); default renders not used.
+    // Bounded point of an ill-conditioned search (quiet-end attack drifts to
+    // unphysical extremes if left unbounded): cost 0.1014 (sum of squared dB RMS).
+    TimeConstants times_{{4.0, 0.3125}, {10.0, 960.0}, 0.24, 3.0};
     Ballistics ballistics_;
     NoiseSource noise_;
     HumOscillator hum_;
