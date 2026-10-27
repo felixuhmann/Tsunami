@@ -2,6 +2,24 @@
 
 Independent portable C++17 implementation for **S1 Imager Stereo**, not a completed product or full-equivalence claim. Separate Shuffler and MS-Matrix components are excluded. No vendor code, audio, binaries, recovered pseudocode or graphics are included.
 
+> **CURRENT STATUS (supersedes older "no plugin-local hook / no product UI / no native CI" statements in the history below)**
+> - A plugin-local editor (`plugins/s1/Editor.hpp`) is wired through the merged foundation editor hook. It is an
+>   independently drawn, docs-derived original-style UI, not the original-host appearance. It is covered by native
+>   editor and RT tests in `.github/workflows/s1.yml`.
+> - Native CI exists for the actual target on Windows and Linux: DSP 20-case comparison, downloaded-artifact smoke
+>   and hosted editor capture.
+>   - Only head `9862ef0` has all four jobs verified by the parent (run 40513113985).
+>   - Run 40516362962 for `65c9f23` was cancelled by a later push.
+>   - Run 40517143898 for `76ca0ce` was in progress when this was written.
+>   - Later local commits are pending native CI.
+> - Target remains a **draft/partial**. Open items:
+>   - exact linked-drag sensitivity, vector projection and meter ballistics;
+>   - rectangular multi-control selection and editor resize;
+>   - reference-host automation/GUI comparison (the original GUI still renders black);
+>   - release, SBOM and source-archive gates.
+>
+> Detailed UI receipts: `ui-milestone.md`.
+
 ## Preserved checkpoint and TDD provenance
 
 The interrupted worktree contained uncommitted matrix/control/smoothing implementation, processor assertions, renderer and comparison script. These were reviewed and preserved in `9c9b386`, then latest main (`68b2a1e`) was integrated without discarding them. Their original RED-before-GREEN history is unavailable: **no strict TDD provenance is claimed for inherited DSP**. Newly added adapter metadata has a witnessed RED (`S1 core must provide adapter metadata`) followed by GREEN. Additional inherited-DSP safety assertions are regression coverage, not retroactive TDD claims.

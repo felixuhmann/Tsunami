@@ -1,5 +1,23 @@
 # S1 editor milestone: Tsunami Stereo working editor (PARTIAL)
 
+> **CURRENT STATUS (supersedes older "no plugin-local hook / no product UI / no native CI" statements in the history below)**
+> - A plugin-local editor (`plugins/s1/Editor.hpp`) is wired through the merged foundation editor hook. It is an
+>   independently drawn, docs-derived original-style UI, not the original-host appearance. It is covered by native
+>   editor and RT tests in `.github/workflows/s1.yml`.
+> - Native CI exists for the actual target on Windows and Linux: DSP 20-case comparison, downloaded-artifact smoke
+>   and hosted editor capture.
+>   - Only head `9862ef0` has all four jobs verified by the parent (run 40513113985).
+>   - Run 40516362962 for `65c9f23` was cancelled by a later push.
+>   - Run 40517143898 for `76ca0ce` was in progress when this was written.
+>   - Later local commits are pending native CI.
+> - Target remains a **draft/partial**. Open items:
+>   - exact linked-drag sensitivity, vector projection and meter ballistics;
+>   - rectangular multi-control selection and editor resize;
+>   - reference-host automation/GUI comparison (the original GUI still renders black);
+>   - release, SBOM and source-archive gates.
+>
+> Detailed UI receipts: `ui-milestone.md`.
+
 Status: **partial / draft**. This milestone adds an original, independently drawn
 working editor. It is **not** a claim of target completion or pixel equivalence.
 
@@ -179,3 +197,25 @@ head's native CI is **pending** and is not accepted.
 - In-process snapshot (not hosted): `s1-ui-logs/candidates/candidate-linked.png`.
 - **Not implemented:** rectangular multi-control selection (manual p8–9). Interaction parity is partial.
 - **Windows framing blocker carried:** the 1024-wide runner desktop clips about 24 px of the 1048 body.
+
+## Gesture lifecycle and Windows window capture slice 6 (local commit, native pending)
+- **Gesture lifecycle.**
+  - `lifecycle-red.log`: runtime FAIL 56, gain begins 2 / ends 0. Closing the editor mid-drag, plus a repeated
+    press, left host gestures open.
+  - `lifecycle-green.log`: FAIL 57. Gestures were balanced, but a repeated press began a second gesture, which
+    contradicts the test's pre-written one-gesture-per-drag intent.
+  - `lifecycle-green-2.log`: PASS.
+  - `VectorDisplay` and `LinkStrip` now end any open gesture in their destructors. A repeated press while dragging
+    is ignored, and `mouseUp` goes through an idempotent `endDrag()`, so there is no double end. Parameter values
+    and the RT path are unchanged. `rt-green-lifecycle.log`: 0 allocations.
+- **Windows full-body capture.**
+  - New `tests/s1/windows_editor_capture.py`. It reuses Pedalboard `load_plugin`/`show_editor` and enumerates this
+    process's visible top-level and child windows through pointer-width-safe ctypes signatures. It selects the
+    unique 1048x665 client window, requires the exact module to be loaded (`GetModuleHandleW`/
+    `GetModuleFileNameW`), records HWND, class, PID and rect before and after, and grabs only that HWND with Pillow
+    13 `ImageGrab.grab(window=hwnd)`.
+  - It fails closed when no unique window is found, or when the image is smaller than the body or blank. The
+    desktop is saved separately as a diagnostic only.
+  - The portable selection tests (`test_windows_capture.py`, synthetic records) pass in
+    `windows-selection-green.log`. They were written together with the helper, so **no red was witnessed** for them.
+  - The helper has **not been executed on Windows yet**. The native Windows CI job is the authoritative proof.

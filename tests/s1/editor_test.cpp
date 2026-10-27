@@ -264,6 +264,37 @@ int main() {
         CHECK(!bool(editor->getProperties()["s1_linked"]), 54, "click elsewhere unlinks");
         for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
     }
+    // Gesture lifecycle: closing an editor mid-drag (no mouseUp) must still end every begun gesture;
+    // a repeated mouseDown without mouseUp must not nest gestures; mouseUp after cleanup must not double-end.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        p.addListener(&gestures);
+        for (const char* id : {"link_strip", "vector_display"}) {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            auto* c = transient->findChildWithID(id); CHECK(c, 55, std::string("component ") + id);
+            c->mouseDown(dragAt(*c, 0.f)); c->mouseDown(dragAt(*c, 0.f)); // repeated press
+            c->mouseDrag(dragAt(*c, 5.f));
+            transient.reset(); // editor closed mid-drag
+        }
+        {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            auto* c = transient->findChildWithID("link_strip");
+            c->mouseDown(dragAt(*c, 0.f)); c->mouseUp(dragAt(*c, 0.f)); c->mouseUp(dragAt(*c, 0.f));
+        }
+        p.removeListener(&gestures);
+        for (size_t i = 0; i < 9; ++i) {
+            if (gestures.begins[i] != gestures.ends[i]) std::cerr << "param " << i << " begins " << gestures.begins[i] << " ends " << gestures.ends[i] << "\n";
+            CHECK(gestures.begins[i] == gestures.ends[i], 56, "balanced gestures across editor close mid-drag");
+        }
+        CHECK(gestures.begins[3] == 3 && gestures.begins[0] == 1, 57, "one gesture per drag, no nesting on repeated press");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {
             setPhysical(1, width); setPhysical(2, rotation);

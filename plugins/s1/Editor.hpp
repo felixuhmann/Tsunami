@@ -53,7 +53,9 @@ public:
         g.drawText("R", juce::Rectangle<float>(r.x-8.f, r.y-18.f, 16.f, 14.f), juce::Justification::centred);
         g.restoreState();
     }
+    ~VectorDisplay() override { endDrag(); } // editor closed mid-drag: never leave host gestures open
     void mouseDown(const juce::MouseEvent&) override {
+        if(dragging) return; // repeated press without release: keep the one open gesture, never nest
         for(auto* id : ids) state.getParameter(id)->beginChangeGesture();
         start=image(); dragging=true;
     }
@@ -62,7 +64,8 @@ public:
         const auto next=applyVectorDrag(start, float(e.getDistanceFromDragStartX()), float(e.getDistanceFromDragStartY()), e.mods.isAltDown());
         for(int i=0;i<4;++i) { auto* p=state.getParameter(ids[i]); p->setValueNotifyingHost(p->convertTo0to1(next[size_t(i)])); }
     }
-    void mouseUp(const juce::MouseEvent&) override {
+    void mouseUp(const juce::MouseEvent&) override { endDrag(); }
+    void endDrag() {
         if(!dragging) return;
         dragging=false;
         for(auto* id : ids) state.getParameter(id)->endChangeGesture();
@@ -176,7 +179,9 @@ public:
     }
     std::function<void()> onLinked;
     static constexpr float trackWidth=317.f;
+    ~LinkStrip() override { endDrag(); } // editor closed mid-drag: never leave host gestures open
     void mouseDown(const juce::MouseEvent&) override {
+        if(dragging) return; // repeated press without release: keep the one open gesture, never nest
         for(size_t i=0;i<2;++i) { auto* p=state.getParameter(ids[i]); p->beginChangeGesture(); start[i]=p->getValue(); }
         dragging=true;
         if(onLinked) onLinked();
@@ -187,7 +192,8 @@ public:
         for(size_t i=0;i<2;++i) delta=juce::jlimit(-start[i], 1.f-start[i], delta);
         for(size_t i=0;i<2;++i) state.getParameter(ids[i])->setValueNotifyingHost(start[i]+delta);
     }
-    void mouseUp(const juce::MouseEvent&) override {
+    void mouseUp(const juce::MouseEvent&) override { endDrag(); }
+    void endDrag() {
         if(!dragging) return;
         dragging=false;
         for(auto* id : ids) state.getParameter(id)->endChangeGesture();

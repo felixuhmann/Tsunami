@@ -39,6 +39,7 @@ jobs:
           cmake --build build-core --config Release --parallel 2
           ctest --test-dir build-core -C Release --output-on-failure
           python -m unittest discover -s tests/s1 -p test_native_paths.py -v
+          python -m unittest discover -s tests/s1 -p test_windows_capture.py -v
           renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('s1_render*') if p.is_file() and p.name in ('s1_render','s1_render.exe')).resolve())")"
           python tests/s1/test_renderer_io.py "$renderer"
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=s1
@@ -105,7 +106,8 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/s1/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
           else
-            python tests/foundation/host_smoke.py "$plugin" evidence/ui --capture
+            python tests/foundation/host_smoke.py "$plugin" evidence/ui
+            python tests/s1/windows_editor_capture.py "$plugin" evidence/ui
           fi
           python -c "import hashlib,json,pathlib; fs=['plugins/s1/Editor.hpp','plugins/s1/EditorModel.hpp','shared/Adapter.hpp']+[str(p) for p in pathlib.Path('evidence/ui').glob('*.png')]; pathlib.Path('evidence/ui/s1-ui-hashes.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in fs},indent=2))"
       - name: Matching corresponding source and notices beside experimental binaries
