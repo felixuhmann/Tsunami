@@ -14,6 +14,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#if JUCE_LINUX || JUCE_MAC
+#include <sys/stat.h>
+#endif
 
 #define CHECK(cond, code, what) do { if (!(cond)) { std::cerr << "FAIL " << what << "\n"; return code; } } while (0)
 
@@ -31,7 +34,16 @@ static juce::Rectangle<int> rect(juce::Component& root, const char* id) {
     return c ? c->getBounds() : juce::Rectangle<int>();
 }
 
-int main() {
+int main(int argc, char** argv) {
+    // Child mode for the FIFO regression: only SkinPreference::load() on a bare message
+    // thread (no window system), so a hang here is the load call itself.
+    if (argc == 3 && std::string(argv[1]) == "--preference-probe") {
+        juce::MessageManager::getInstance();
+        tsunami::rvox::SkinPreference::location() = juce::File(juce::String(argv[2]));
+        std::cout << "PROBE " << tsunami::rvox::skinName(tsunami::rvox::SkinPreference::load()) << std::endl;
+        juce::MessageManager::deleteInstance();
+        return 0;
+    }
     juce::ScopedJuceInitialiser_GUI gui;
     // Never read or write the real user preference: point the skin store at a temp dir.
     const auto prefDir = juce::File::createTempFile("rvox-skin-test");
@@ -626,6 +638,30 @@ int main() {
         }
         prefFile.deleteRecursively();
     }
+#if JUCE_LINUX || JUCE_MAC
+    // A FIFO at the preference path reports size 0; opening it for reading blocks until a
+    // writer appears. Load it in a child process with a timeout so a hang fails, not stalls.
+    {
+        const auto exe = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getFullPathName();
+        auto probe = [&](const juce::File& f) -> juce::String {
+            juce::ChildProcess c;
+            if (!c.start(juce::StringArray{exe, "--preference-probe", f.getFullPathName()}, juce::ChildProcess::wantStdOut)) return "NOSTART";
+            if (!c.waitForProcessToFinish(5000)) { c.kill(); return "TIMEOUT"; }
+            const auto out = c.readAllProcessOutput().trim();
+            return c.getExitCode() == 0 ? out : "EXIT " + juce::String(c.getExitCode());
+        };
+        const auto plain = prefDir.getChildFile("probe-plain.txt"), fifo = prefDir.getChildFile("probe-fifo");
+        plain.replaceWithText("dark");
+        const auto control = probe(plain);
+        std::cout << "PROBE control=" << control << "\n";
+        CHECK(control == "PROBE Dark", 111, "preference probe control reads a plain file");
+        CHECK(::mkfifo(fifo.getFullPathName().toRawUTF8(), 0600) == 0, 111, "mkfifo");
+        const auto fromFifo = probe(fifo);
+        std::cout << "PROBE fifo=" << fromFifo << "\n";
+        fifo.deleteFile();
+        CHECK(fromFifo == "PROBE Light", 111, "FIFO preference falls back to Light without blocking");
+    }
+#endif
     prefDir.deleteRecursively();
     p.removeListener(&host);
     std::cout << "PASS rvox editor\n";

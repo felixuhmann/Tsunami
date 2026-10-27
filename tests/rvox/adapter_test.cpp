@@ -257,6 +257,19 @@ int presetRender(char** a) {
 
 int main(int argc, char** argv) {
     juce::ScopedJuceInitialiser_GUI gui;
+    // Never read or write the real user skin preference: point it at a temp file first.
+    struct TempPref {
+        juce::File dir = juce::File::createTempFile("rvox-adapter-skin");
+        TempPref() { dir.createDirectory(); }
+        ~TempPref() { dir.deleteRecursively(); }
+    } tempPref;
+    const auto realPref = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                              .getChildFile("Tsunami").getChildFile("RVox").getChildFile("skin.txt");
+    const bool realExisted = realPref.exists();
+    const auto realModified = realPref.getLastModificationTime();
+    const auto testPref = tempPref.dir.getChildFile("skin.txt");
+    testPref.replaceWithText("dark");
+    tsunami::rvox::SkinPreference::location() = testPref;
     // rvox_adapter_test in.raw out.raw rate block compression gate gain
     if (argc == 8) return presetRender(argv);
     if (std::strcmp(Spec::id, "rvox") != 0) return fail(2, "hosted product is not RVox");
@@ -297,6 +310,12 @@ int main(int argc, char** argv) {
     if (a[0] != b[0] || a[1] != b[1]) return fail(8, "fresh restored instance renders differently");
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (!editor) return fail(9, "no editor");
+    {
+        auto* skin = dynamic_cast<juce::ComboBox*>(editor->findChildWithID("skin"));
+        if (!skin || skin->getText() != "Dark" || testPref.loadFileAsString() != "dark" ||
+            realPref.exists() != realExisted || realPref.getLastModificationTime() != realModified)
+            return fail(9, "editor must read only the isolated test skin preference");
+    }
     if (int r = hiddenStateMatrix()) return r;
     if (int r = hotInputMeter()) return r;
     if (int r = monoLayout()) return r;

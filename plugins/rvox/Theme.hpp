@@ -41,8 +41,13 @@ struct SkinPreference {
     static Skin load() {
         JUCE_ASSERT_MESSAGE_THREAD
         const auto f = location();
-        if (!f.existsAsFile() || f.getSize() > 64) return Skin::light;
-        juce::FileInputStream in(f); // bounded read: a size that lies (e.g. a link to a device) can't stall the editor
+        // A FIFO or device reports size 0 and opening a FIFO blocks, so reject a non-positive
+        // size before opening (an empty file gives Light anyway). This covers such a path at
+        // check time only; it is not a general non-blocking guarantee (the path can change
+        // before the open, and ordinary file I/O can still block).
+        const auto size = f.getSize();
+        if (!f.existsAsFile() || size <= 0 || size > 64) return Skin::light;
+        juce::FileInputStream in(f); // bounded read even if the file grew after the size check
         char text[65] = {};
         const auto n = in.openedOk() ? in.read(text, 65) : -1;
         if (n < 0 || n > 64) return Skin::light;
