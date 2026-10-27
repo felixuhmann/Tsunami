@@ -81,6 +81,15 @@ int main() {
         check(std::abs(int(peakOf(y)) - 21555) <= 2, "glide 375->500 ms: first echo at 21555 +-2");
         gl.reset(); y = impulseResponse(gl, 30000);
         check(peakOf(y) == 24000, "reset() settles the glide at the target");
+        // Export 0x101100 read-pointer law: rate = min(distance/target, 2). Downward 375 -> 100 ms:
+        // distance > 2 x target, so the delay shrinks by exactly 1 sample/sample until 9600, then
+        // decays with time constant = target (4800 samples). Echo of an impulse at 0 lands at n = d(n) ~ 9018.3.
+        Processor dn; dn.prepare(48000, 1, 512);
+        dn.setParameter(Processor::Mix, 100); dn.setParameter(Processor::Feedback, 0);
+        dn.setParameter(Processor::Sync, 2); dn.setParameter(Processor::DelayMs, 100);
+        y = impulseResponse(dn, 20000);
+        std::cerr << "down-glide peak " << peakOf(y) << "\n";
+        check(std::abs(int(peakOf(y)) - 9018) <= 1, "glide 375->100 ms follows rate=min(dist/target,2): echo at 9018 +-1");
         std::cout << "PASS delay glide\n";
         // Review finding: fb > ~106 must not explode. Genuine write path saturates (x/(1+|x|)),
         // which bounds the line; 500 ms genuine echoes are exactly 1/9 and 1/37 (fb 25).

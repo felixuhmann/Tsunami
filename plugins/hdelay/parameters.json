@@ -16,7 +16,7 @@
    "logarithmic": true,
    "group": "time",
    "implemented": true,
-   "note": "rounded to whole samples at rest; glide = exponential smoother tau 0.5 s (form from H-Delay.dll FUN_1800348c0, tau value fitted, PROVISIONAL); raw->ms taper not recovered"
+   "note": "rounded to whole samples at rest; glide = export 0x101100 read-pointer rate law d += 1 - min(d/target, 2) (no fitted constant); raw->ms taper not recovered"
   },
   {
    "index": 1,

@@ -15,7 +15,7 @@ namespace tsunami::hdelay {
 //    calibration data, not vendor code or tables.
 //  * Loop gain/extra loop sample measured from a genuine feedback-50 render.
 // Sync law: BPM/Host note x 60/tempo, Host->ms copy (see effectiveDelayMs).
-// Delay glide: exponential smoother (tau 0.5 s, provisional value). Not implemented: Analog, LoFi, modulation,
+// Delay glide: export 0x101100 read-pointer rate law min(distance/target, 2). Not implemented: Analog, LoFi, modulation,
 // HiPass/LoPass, phase. Fractional delays are rounded to whole samples.
 class Processor {
 public:
@@ -39,10 +39,11 @@ public:
     // It bounds the loop for feedback up to 200 (genuine >100 limiter itself not recovered).
     // Curve recovered behaviourally from exact rational outputs; Analog Off only.
     static float saturate(float u) noexcept { return u / (1.f + std::fabs(u)); }
-    // Delay-time glide: one-pole exponential smoother on the delay time (form: H-Delay.dll
-    // FUN_1800348c0, coef = e^(-1/(fs*T))). T = 500 ms fitted to the genuine BPM90 glide render
-    // (PROVISIONAL value; the genuine T is a table entry that was not recovered).
-    static constexpr double kGlideSec = 0.5;
+    // Delay-time glide: read-pointer rate law of export 0x101100 (HBDelayProcMono): per sample the
+    // read pointer advances by rate = min(distance/target, 2) while the write pointer advances by 1,
+    // so the delay d obeys d += 1 - min(d/target, 2): 1 sample/sample when d > 2 x target, otherwise
+    // exponential with time constant = target delay. No fitted constant.
+    static constexpr double kMaxReadRate = 2.;
     // HiPass/LoPass cutoff taper: 19 x (20000/19)^(raw x 818/817) (log form as in H-Delay.dll
     // FUN_18002c740 p0 x (p1/p0)^x; constants fitted to genuine readbacks 154 Hz / 588 Hz / 2.49 kHz).
     // HiPass raw 0 = Off, LoPass raw 1 = Off.
@@ -94,7 +95,7 @@ public:
     void process(const float* const* in, float* const* out, unsigned frames) noexcept {
         if (lines_.empty()) return;
         const unsigned mask = size_ - 1;
-        const double target = targetSamples(), a = std::exp(-1. / (rate_ * kGlideSec));
+        const double target = targetSamples();
         const float fb = p_[Feedback] * .01f;
         const bool hpOn = p_[HiPass] > 0.f, lpOn = p_[LoPass] < 1.f;
         Biquad hp, lp;
@@ -109,7 +110,7 @@ public:
             for (unsigned n = 0; n < frames; ++n, w = (w + 1) & mask) {
                 const float x = in[c][n];
                 l[w] = saturate(x + s);
-                d = target + (d - target) * a;
+                d += 1. - std::min(d / target, kMaxReadRate);
                 if (std::fabs(d - target) < 1e-6) d = target;
                 const double ds = std::max(double(kHalf + 1), d);
                 const unsigned di = unsigned(ds); const float fr = float(ds - di);
