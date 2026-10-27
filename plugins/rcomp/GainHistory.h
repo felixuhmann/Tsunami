@@ -13,7 +13,7 @@ namespace tsunami::rcomp {
 // two, A=firstSpan, B=middleSpan, H=audioDelay. Detector/ARC stages are excluded.
 class GainHistory {
 public:
-    struct Frame { float gain; float audio; };
+    struct Frame { float gain; float audio; float delayed; };
 
     // Off-audio-thread allocation. Zero history is a stage-level initialization.
     bool prepare(unsigned firstSpan, unsigned middleSpan, unsigned shift,
@@ -68,7 +68,7 @@ public:
         const float delayed = audio_[audioPosition_];
         audio_[audioPosition_] = audio;
         audioPosition_ = (audioPosition_ + 1) % audio_.size();
-        return {smoothed, smoothed * delayed};
+        return {smoothed, smoothed * delayed, delayed};
     }
 
 private:
