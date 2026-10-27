@@ -109,5 +109,22 @@ int main() {
         check(std::fabs(magDb(0.3f, 1, 62.5) - flat - (-15.466)) < 0.3, "HiPass 154 Hz: -15.47 dB at 62.5 Hz (genuine)");
         check(std::fabs(magDb(0, 0.3f, 1000) - flat2 - (-32.434)) < 0.3, "LoPass 154 Hz: -32.43 dB at 1 kHz (genuine)");
         std::cout << "PASS hipass/lopass\n";
+        // Read phase (round2_task4): genuine 500 ms echo reached by an UPWARD glide from 375 ms is one
+        // clean sample (161352); 125/250 ms reached DOWNWARD keep the +1/32 sinc row (162857, 161055).
+        auto settledEcho = [&](float ms, unsigned at) {
+            Processor h; h.prepare(48000, 1, 512);
+            h.setParameter(Processor::Mix, 100); h.setParameter(Processor::Feedback, 0);
+            h.setParameter(Processor::Sync, 2); h.setParameter(Processor::DelayMs, ms);
+            std::vector<float> x(at + 40000, 0.f), z(x.size(), 0.f); x[at] = .125f;
+            for (unsigned o = 0; o < x.size(); o += 512) { unsigned b = std::min<unsigned>(512u, unsigned(x.size()) - o);
+                const float* i2[] = {x.data() + o}; float* o2[] = {z.data() + o}; h.process(i2, o2, b); }
+            return z;
+        };
+        auto up = settledEcho(500, 288000);
+        check(std::fabs(up[288000 + 24000] - 1.f / 9.f) < 1e-6f && up[288000 + 23999] == 0.f && up[288000 + 24001] == 0.f,
+              "upward-settled 500 ms echo is a clean single sample (genuine 161352)");
+        auto down = settledEcho(125, 288000);
+        check(down[288000 + 5999] < 0.f && down[288000 + 6001] > 0.f, "downward-settled 125 ms keeps +1/32 sinc side lobes");
+        std::cout << "PASS read phase\n";
     } catch (const std::exception& e) { std::cerr << "FAIL " << e.what() << '\n'; return 1; }
 }

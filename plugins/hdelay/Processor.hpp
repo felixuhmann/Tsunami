@@ -113,13 +113,23 @@ public:
                 if (std::fabs(d - target) < 1e-6) d = target;
                 const double ds = std::max(double(kHalf + 1), d);
                 const unsigned di = unsigned(ds); const float fr = float(ds - di);
-                // Kernel at integer delay; fractional part (only while gliding) by linear
-                // interpolation between neighbouring integer reads (approximation).
-                float v0 = 0.f, v1 = 0.f;
-                const unsigned c0 = (w - di) & mask, c1 = (c0 - 1) & mask;
-                for (unsigned k = 0; k < kTaps; ++k) v0 += kTap[k] * l[(c0 + kHalf - k) & mask];
-                if (fr != 0.f) for (unsigned k = 0; k < kTaps; ++k) v1 += kTap[k] * l[(c1 + kHalf - k) & mask];
-                const float v = (v0 + fr * (v1 - v0)) * kNorm;
+                float v;
+                if (d < target && target - d < kPhaseStep * .5) {
+                    // Genuine read is a 32-phase polyphase sinc (export 0x101100: phase =
+                    // round(32 - frac*32)). Reached from BELOW, the residual rounds to the integer
+                    // phase: one clean sample (genuine 161352). PROVISIONAL rule (the float
+                    // read-pointer law itself is not reproduced).
+                    v = l[(w - unsigned(target)) & mask];
+                } else {
+                    // Fresh/downward-settled: the +1/32 sinc row (31 taps measured at 375/250 ms;
+                    // 125 ms test 162857 PASS). While gliding, linear interpolation between
+                    // neighbouring integer reads (approximation).
+                    float v0 = 0.f, v1 = 0.f;
+                    const unsigned c0 = (w - di) & mask, c1 = (c0 - 1) & mask;
+                    for (unsigned k = 0; k < kTaps; ++k) v0 += kTap[k] * l[(c0 + kHalf - k) & mask];
+                    if (fr != 0.f) for (unsigned k = 0; k < kTaps; ++k) v1 += kTap[k] * l[(c1 + kHalf - k) & mask];
+                    v = (v0 + fr * (v1 - v0)) * kNorm;
+                }
                 s = fb * v;
                 float wv = v;
                 if (hpOn) wv = hpS_[c].run(hp, wv);
@@ -153,6 +163,7 @@ private:
     // Read kernel normalised to unity DC (the 8/9 is the saturator). PROVISIONAL: the side lobes
     // were observed at 375 and 250 ms (fractional-read artifact?) but NOT at 500 ms (clean tap).
     static constexpr float kNorm = float(1. / 0.88892);
+    static constexpr double kPhaseStep = 1. / 32.; // polyphase resolution (export 0x101100)
     static constexpr std::array<float, Count> kLo{{1, 0, 0, 0, 0, -18, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
     static constexpr std::array<float, Count> kHi{{3500, 1, 200, 2, 100, 18, 4, 1, 1, 100, 1, 1, 1, 1, 1}};
     // Genuine fresh-instance defaults (Mono component readback).

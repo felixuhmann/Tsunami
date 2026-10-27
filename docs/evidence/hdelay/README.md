@@ -93,3 +93,20 @@ mix/output, sync, glide, feedback bounded/saturator, hipass/lopass). Fidelity:
 `python3 tests/hdelay/compare_oracle_r3.py build/hdelay_render` (pass) and `compare_filters_r3.py` (pass);
 `compare_oracle_r2.py` still FAILs r2 max|err| (read-kernel issue above). Unverified extrapolations: BPM->ms copy,
 the unrounded copy, triplet factor 2/3, 1B/2B = 4/8 beats, Host tempo 120.
+
+## Round-2 task4: read-phase law (thresholds `thresholds.json#round2_task4`, declared and committed d59a5dc before renders)
+- Export grounding (existing decompile `rea/kernels/functions/0x101100.c`, HBDelayProcMono): the line read is a
+  32-phase polyphase interpolator. The phase index is `round(32 - frac*32)`, with 0x80-byte (32-float) phase rows.
+  The read pointer advances at rate `clamp(measured_distance / target, <=2)`, which is a self-correcting glide.
+- Genuine echo kernels fit `sinc(n - 1/32)`, i.e. one phase step: 250 ms (161055) and 125 ms (new, 162857) both give
+  residual 2.08e-3, the same value. The 500 ms echo reached by an UPWARD glide (161352) is one clean sample.
+- `compare_read_phase_r4.py` -> `oracle-comparison-r4-readphase.json`: down/125 ms vs sinc(n-1/32) 2.08e-3 <= 5e-3
+  PASS. Held-out up case (delay_bpm 15/19, 162912) FAIL: the genuine echo was still gliding at 6 s (peak 31967 of
+  32000, free fractional phase 0.36), so it did not test the settled phase.
+- Implemented (TDD; RED `FAIL upward-settled 500 ms echo is a clean single sample`): when approaching from below
+  within half a phase step (1/64 sample), read the integer sample. Otherwise use the +1/32 31-tap row. PROVISIONAL:
+  the float read-pointer law is not reproduced.
+- r2 per-sample check (unchanged thresholds) still FAILs: max|err| 2.84e-2 at 24001. The core's exponential glide
+  (T = 0.5 s) is still 0.037 sample short at 6 s (more than 1/64), while the genuine one has converged. At 666 ms the
+  genuine glide was 33 samples short at 6 s, which an exponential with tau = 0.5 s cannot give. So the glide law
+  (export rate law) is the open item, not the kernel.
