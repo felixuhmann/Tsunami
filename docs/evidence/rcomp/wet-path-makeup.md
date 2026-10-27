@@ -52,3 +52,21 @@ Also still missing:
 - stereo/modes, the Processor, UI, and native hosted Windows/Linux acceptance.
 
 When `WetPath` carries Gain, `OutputStage` must be used at 0 dB Gain so that makeup is not applied twice.
+
+## Reference startup/reset state (round 3)
+
+The PE initialisers resolve the startup storage that was open in the previous round:
+
+- `0x180029540` fills the shared ring with `H` zeros, then `H+1` values of 0.0625, then zeros.
+  It uses the framework writer at `+0xa40`. All other ring slots use the zero writer at `+0xa38`.
+- `0x180028450` uses the **same** `+0xa40` writer twice for the value `(+0x1820)·0.0625`.
+  These are the two recursion states.
+- The kernel turns the accumulator back to gain via `·2^-31`. So the `+0xa40` writer is read as Q31.
+  The prefill is then the word `0x08000000`, which is unity computed gain at 1/16 scale.
+  The states are then the steady sum `(0x08000000 >> shift)·A·(A+B)` = Q31(`0.0625·inverseNormalization`), taking `+0x1820` = `inverseNormalization`.
+  The value is exact for all three rate bands.
+- `H+1` = `2A+B` matches the deepest gain tap. Every past gain slot is therefore unity, and the audio delay starts at zero.
+
+`GainHistory::prefill(word, accumulator)` and `WetPath::prepare/reset` now apply this state, so the original's fade-in from silence is gone.
+Tests: a direct FIR with a constant prefilled infinite past, which is independent of the recursion, and an exact first-sample unity check at 44.1k/96k/192k across reset.
+**Inferred, not yet executed against the original kernel:** the `+0xa40` Q31 reading, the identity of `+0x1820`, and the mapping of ring partitions onto the separate typed buffers.

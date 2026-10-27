@@ -41,6 +41,14 @@ public:
         previous_ = older_ = 0;
     }
 
+    // Startup state with a constant past: every gain slot holds the raw Q31 word
+    // and both recursion states hold accumulator; the audio delay stays zero.
+    void prefill(std::uint32_t word, std::uint32_t accumulator) noexcept {
+        reset();
+        std::fill(history_.begin(), history_.end(), word);
+        previous_ = older_ = accumulator;
+    }
+
     // Single owner; call prepare first. Finite audio is required. Gain conversion
     // explicitly reproduces x86 CVTTSS2SI, including its integer-indefinite result.
     Frame tick(float gain, float audio) noexcept {

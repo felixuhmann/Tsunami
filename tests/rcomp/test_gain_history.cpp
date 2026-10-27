@@ -95,4 +95,27 @@ int main() {
     }
     std::cout << "PASS independent direct FIR: " << cases << " geometries, "
               << samples << " exact sample comparisons\n";
+    {
+        // Prefilled startup: direct FIR whose infinite past holds the prefill word.
+        const unsigned a = 27, b = 11, shift = 11, delay = 64;
+        const std::int64_t past = 0x08000000 >> shift;
+        tsunami::rcomp::GainHistory history;
+        if (!history.prepare(a, b, shift, delay)) return 1;
+        history.prefill(0x08000000u, static_cast<std::uint32_t>(past * a * (a + b)));
+        std::vector<std::int64_t> q;
+        for (unsigned n = 0; n < 400; ++n) {
+            const float g = n < 100 ? 0.0625f : static_cast<float>(n % 13) / 16.0f;
+            q.push_back(static_cast<std::int64_t>(g * 2147483648.0f) >> shift);
+            std::int64_t sum = 0;
+            for (unsigned i = 0; i < a; ++i)
+                for (unsigned j = 0; j < a + b; ++j)
+                    sum += n >= i + j ? q[n - i - j] : past;
+            const float expected = static_cast<float>(static_cast<double>(sum) * 4.656612873077e-10);
+            const auto frame = history.tick(g, 1.0f);
+            if (frame.gain != expected || frame.delayed != (n < delay ? 0.0f : 1.0f)) {
+                std::cerr << "prefill FIR mismatch at sample " << n << '\n'; return 1;
+            }
+        }
+        std::cout << "PASS prefilled startup direct FIR\n";
+    }
 }

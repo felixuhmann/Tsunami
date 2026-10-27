@@ -2,14 +2,16 @@
 #pragma once
 #include "GainHistory.h"
 #include "HistoryGeometry.h"
+#include <cmath>
+#include <cstdint>
 #include <utility>
 
 namespace tsunami::rcomp {
 
 // Mono wet path from computed gain to makeup-scaled delayed audio: rate-selected
 // history geometry, gain history and the reference kernel's makeup multiply.
-// Still partial: the detector/gain computer, soft-gain law, ARC and the
-// nonzero startup prefill are NOT included (zero reset, as in GainHistory).
+// Prepare/reset reproduce the reference startup state (unity computed gain).
+// Still partial: the detector/gain computer, soft-gain law and ARC are NOT included.
 class WetPath {
 public:
     // Off-audio-thread. Invalid rates leave the previous configuration intact.
@@ -23,6 +25,7 @@ public:
         geometry_ = g;
         history_ = std::move(history);
         makeup_ = scaleOf(m);
+        reset();
         return true;
     }
 
@@ -35,7 +38,13 @@ public:
         return true;
     }
 
-    void reset() noexcept { history_.reset(); }
+    // Reference startup (0x180029540 ring, 0x180028450 states, same Q31 writer):
+    // past gain slots hold 0.0625 and both recursion states 0.0625*inverseNorm,
+    // i.e. a history that has always held unity computed gain.
+    void reset() noexcept {
+        history_.prefill(toQ31(kHistoryUnity),
+                         toQ31(0.0625 * geometry_.inverseNormalization));
+    }
 
     // computedGain is the unit-domain gain (1 = no reduction). The history stores
     // gain at 1/16 scale, the level of the reference prefill and meter reference.
@@ -50,6 +59,11 @@ public:
 
 private:
     static constexpr float kHistoryUnity = 0.0625f;
+
+    // Both startup values are exact multiples of 2^-31 for every rate band.
+    static std::uint32_t toQ31(double value) noexcept {
+        return static_cast<std::uint32_t>(std::llround(std::ldexp(value, 31)));
+    }
 
     // The kernel forms the float mantissa coefficient times 2^(exponent+4).
     static float scaleOf(const MakeupSplit& m) noexcept {
