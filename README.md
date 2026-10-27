@@ -20,4 +20,6 @@ Native Windows x64 and Linux x64 are required. Target formats: VST3 and CLAP. UI
 - WavesTune-RealTime → Tsunami Pitch (`tunert`)
 - AphexVintage → Tsunami Exciter (`aphex`)
 
-Track exact requested identifiers in `targets.json`. One implementation PR per target; shared infrastructure may have a separate PR. See `docs/ACCEPTANCE.md` and `docs/PLUGIN_CONTRACT.md`. The earlier NS1 experiment is separate from this 11-plugin campaign.
+- NS1 → Tsunami Suppressor (`ns1`)
+
+Track exact requested identifiers in `targets.json`. One implementation PR per target; shared infrastructure may have a separate PR. See `docs/ACCEPTANCE.md` and `docs/PLUGIN_CONTRACT.md`. The NS1 research and implementation effort is included in this 12-plugin bundle; existing private reference evidence stays outside this public repository.

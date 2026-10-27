@@ -108,6 +108,15 @@
       "status": "pending",
       "pr": null,
       "verified": false
+    },
+    {
+      "requested_name": "NS1",
+      "id": "ns1",
+      "reference_bundle": "NS1.bundle",
+      "product_name": "Tsunami Suppressor",
+      "status": "in_progress",
+      "pr": null,
+      "verified": false
     }
   ]
 }
