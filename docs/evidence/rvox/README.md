@@ -169,9 +169,11 @@ campaign owns full raw/oracle provenance and logs.
 - RVox is registered in the root build (`TSUNAMI_BUILD_RVOX`) and hosted by the
   shared adapter as VST3/CLAP with an independently drawn product editor
   (`plugins/rvox/Editor.hpp`; Linux pluginval screenshot `hosted-editor-linux-pluginval.png`,
-  checklist `ui-checklist.md`). The Energy meter and Total Compression display have
-  no data yet (needs a shared adapter tap owned by integration); mono layout,
-  Dark/Legacy skins and the WaveSystem toolbar are not implemented.
+  checklist `ui-checklist.md`). The Energy meter and Total Compression display read
+  existing core state through the shared `CoreMeterSource` bridge (PR #23, not yet
+  merged; without it they stay empty) -- a project-defined tap, not proven original
+  meter scale/ballistics, see `meter-tap.md`; mono layout, Dark/Legacy skins and the
+  WaveSystem toolbar are not implemented.
 - Output ceiling (round-2 task3): Gain is a ceiling only for <=0 dBFS input. A
   +20 dBFS sine at Comp -6 / Gain -28.7 peaks at -23.58 dBFS in the genuine
   original and identically in the core and hosted adapter (max_abs 1.49e-8,

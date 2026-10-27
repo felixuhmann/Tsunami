@@ -165,6 +165,50 @@ int main() {
     peak->mouseDown(event(*peak, {2.f, 2.f}, {2.f, 2.f}, false));
     CHECK(child<juce::Label>(*editor, "out_peak_l")->getText() == "-inf", 30, "click resets peak hold");
 
+    // Energy and Total Compression show the core's existing detector envelope and
+    // smoothed gate*compressor gain through the shared CoreMeterSource bridge,
+    // polled by the editor's own timer (no direct refresh call).
+    if constexpr (tsunami::rvox::Editor::hasCoreMeterBridge) {
+        // Let the editor's 30 Hz timer expire, then deliver it on this message thread. JUCE's
+        // timer thread only re-counts after a 300 ms wait for its undispatched message.
+        auto pump = [] { for (int k = 0; k < 4; ++k) { juce::Thread::sleep(350); juce::Timer::callPendingTimersSynchronously(); } };
+        ranged(0)->setValueNotifyingHost(ranged(0)->convertTo0to1(-24.f)); // compression threshold
+        juce::AudioBuffer<float> v(2, 256);
+        for (int block = 0; block < 60; ++block) {
+            for (int n = 0; n < 256; ++n) {
+                const float s = .5f * std::sin(2.f * 3.14159265f * 440.f * float(block * 256 + n) / 48000.f);
+                v.setSample(0, n, s); v.setSample(1, n, s);
+            }
+            p.processBlock(v, midi);
+        }
+        pump();
+        const float energyDb = child<juce::Label>(*editor, "energy_value")->getText().getFloatValue();
+        CHECK(energyDb > -7.f && energyDb < -2.f, 70, "energy readout follows -6dBFS input detector");
+        CHECK(rv->energyLevel() > .9f && rv->energyLevel() < 1.f, 71, "energy bar drawn from live envelope");
+        CHECK(rv->reductionDb() > 14.f && rv->reductionDb() < 30.f, 72, "total compression from live core gain");
+        const float held = child<juce::Label>(*editor, "attn_peak")->getText().getFloatValue();
+        CHECK(held >= rv->reductionDb() - .051f, 73, "peak total compression held");
+        float outPeak = 0.f;
+        for (int n = 0; n < 256; ++n) outPeak = juce::jmax(outPeak, std::abs(v.getSample(0, n)));
+        CHECK(std::abs(juce::Decibels::gainToDecibels(outPeak) - energyDb) > 1.f, 74, "input energy is not output level");
+        if (const char* path = std::getenv("RVOX_EDITOR_LIVE_PNG")) { // optional live-meter inspection artifact
+            juce::Image live(juce::Image::ARGB, 371, 357, true);
+            { juce::Graphics g(live); editor->paintEntireComponent(g, true); }
+            juce::FileOutputStream stream{juce::File(path)};
+            stream.setPosition(0); stream.truncate();
+            CHECK(stream.openedOk() && juce::PNGImageFormat().writeImageToStream(live, stream), 79, "write live PNG");
+        }
+        for (int block = 0; block < 400; ++block) { v.clear(); p.processBlock(v, midi); } // >2s silence; in-place output cleared
+        pump();
+        CHECK(rv->energyLevel() <= 0.f && child<juce::Label>(*editor, "energy_value")->getText() == "-inf", 75, "silence empties energy");
+        CHECK(rv->reductionDb() < .1f, 76, "silence releases total compression");
+        auto* attnPeak = editor->findChildWithID("attn_peak");
+        attnPeak->mouseDown(event(*attnPeak, {2.f, 2.f}, {2.f, 2.f}, false));
+        CHECK(child<juce::Label>(*editor, "attn_peak")->getText().getFloatValue() < .1f, 77, "click resets compression hold");
+    } else {
+        std::cout << "SKIP core meter bridge (shared adapter without CoreMeterSource)\n";
+    }
+
     // Paint the real editor (no fixture) to an image without errors.
     // Windows' default native image is Direct2D-backed and only flushed when the
     // Graphics context ends; scope it so pixel reads see the painted result.

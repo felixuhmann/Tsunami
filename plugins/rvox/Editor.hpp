@@ -4,19 +4,36 @@
 // Output meter rects) and the user guide's interactions: option-click reset,
 // double-click value entry, box-select linking of faders, click-to-reset peaks.
 // No vendor images are used; everything is painted here. Output meters read the
-// adapter's lock-free MeterSource. The Energy meter and Total Compression display
-// need an input/gain-reduction tap that the shared adapter does not expose yet;
-// they are drawn without data rather than faked.
+// adapter's lock-free MeterSource. Energy and Total Compression read the core's
+// existing detector envelope and smoothed gate*compressor gain (Processor::meter)
+// through the shared CoreMeterSource bridge when the adapter provides it; the
+// scale is project-defined, not proven original meter ballistics. Without the
+// bridge they stay drawn without data rather than faked.
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Adapter.hpp"
 #include <array>
 #include <cmath>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+namespace tsunami { struct CoreMeterSource; } // defined by the shared adapter's core meter bridge
+
 namespace tsunami::rvox {
+namespace bridge {
+template<class T, class = void> struct Complete : std::false_type {};
+template<class T> struct Complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
+inline constexpr bool available = Complete<CoreMeterSource>::value;
+template<class T = CoreMeterSource> T* find(juce::AudioProcessor& p) {
+    if constexpr (Complete<T>::value) return dynamic_cast<T*>(&p); else return nullptr;
+}
+template<class T = CoreMeterSource> float read(const T* source, unsigned index) noexcept {
+    if constexpr (Complete<T>::value) return source && index < source->coreMeterCount() ? source->coreMeter(index) : 0.f;
+    else return 0.f;
+}
+}
 namespace colour {
 inline const juce::Colour body{0xffe9e6de}, bodyShade{0xffd6d2c8}, ink{0xff4a4a48}, value{0xff262626},
     accent{0xffee8a1c}, track{0xff23466b}, display{0xff16324f}, displayEdge{0xff0c1b2b},
@@ -74,6 +91,8 @@ private:
 class AttnDisplay final : public juce::Component {
 public:
     AttnDisplay() { setInterceptsMouseClicks(false, false); }
+    // Fraction of the 40 dB scale, drawn down from the top; negative means no data.
+    void setReduction(float fraction) { if (fraction != reduction) { reduction = fraction; repaint(); } }
     void paint(juce::Graphics& g) override {
         auto r = getLocalBounds().toFloat();
         g.setColour(colour::displayEdge);
@@ -88,7 +107,14 @@ public:
             const float y = r.getY() + 4.f + 16.f + (r.getHeight() - 24.f) * float(k) / 6.5f;
             g.drawHorizontalLine(int(y), r.getX() + 6.f, r.getRight() - 6.f);
         }
+        if (reduction > 0.f) {
+            auto bar = juce::Rectangle<float>(r.getCentreX() - 7.f, r.getY(), 14.f, r.getHeight() * juce::jmin(reduction, 1.f));
+            g.setColour(colour::accent.withAlpha(.85f));
+            g.fillRect(bar.withTrimmedTop(4.f));
+        }
     }
+private:
+    float reduction = -1.f;
 };
 
 class PeakReadout final : public juce::Label {
@@ -124,8 +150,9 @@ public:
 
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
+    static constexpr bool hasCoreMeterBridge = bridge::available;
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
-        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)) {
+        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), coreMeters(bridge::find(p)) {
         setOpaque(true);
         struct Spec { Fader* f; const char* id; juce::Rectangle<int> bounds; juce::Rectangle<int> readout; };
         const Spec specs[]{{&gate, "gate", {41, 105, 33, 195}, {22, 80, 70, 18}},
@@ -146,8 +173,11 @@ public:
         placeCompValue();
         attnPeak.setText(juce::String::fromUTF8("\xe2\x80\x93"), juce::dontSendNotification);
         energyValue.setText(juce::String::fromUTF8("\xe2\x80\x93"), juce::dontSendNotification);
-        for (auto* l : {&attnPeak, &energyValue}) { styleReadout(*l); addAndMakeVisible(*l); }
-        attnPeak.setBounds(151, 304, 70, 18); // peak total gain reduction
+        for (auto* l : {static_cast<juce::Label*>(&attnPeak), &energyValue}) { styleReadout(*l); addAndMakeVisible(*l); }
+        attnPeak.setComponentID("attn_peak");
+        attnPeak.setBounds(151, 304, 70, 18); // peak total gain reduction, click resets
+        attnPeak.onReset = [this] { reductionHold = 0.f; if (coreMeters) attnPeak.setText("0.0", juce::dontSendNotification); };
+        energyValue.setComponentID("energy_value");
         energyValue.setBounds(22, 322, 70, 18);
         for (size_t k = 0; k < 2; ++k) {
             auto& r = peak[k];
@@ -171,6 +201,8 @@ public:
         return false;
     }
     float outputLevel(int channel) const { return level[size_t(channel)]; }
+    float energyLevel() const { return energyFraction; }
+    float reductionDb() const { return reduction; }
     // Pulls and resets the adapter's output peaks; public so tests can drive it.
     void refreshMeters() {
         if (!meters) return;
@@ -182,6 +214,7 @@ public:
             out[k].setLevel(level[k] > 0.f ? (db + 60.f) / 60.f : 0.f);
             peak[k].setText(formatDb(juce::Decibels::gainToDecibels(hold[k], -200.f), -200.0), juce::dontSendNotification);
         }
+        refreshCoreMeters();
     }
 
     void paint(juce::Graphics& g) override {
@@ -306,14 +339,32 @@ private:
         for (auto& r : peak) r.setText("-inf", juce::dontSendNotification);
     }
     void timerCallback() override { refreshMeters(); }
+    // Latest post-block core state: index 0 detector envelope, 1 total gain (linear).
+    // The bridge publishes 0/0 before the first block; that pair is shown as no data.
+    void refreshCoreMeters() {
+        if (!coreMeters) return;
+        const float envelope = bridge::read(coreMeters, 0), total = bridge::read(coreMeters, 1);
+        if (!(std::isfinite(envelope) && std::isfinite(total)) || (envelope <= 0.f && total <= 0.f)) return;
+        const float db = juce::Decibels::gainToDecibels(envelope, -80.f);
+        energyFraction = envelope > 0.f ? (db + 80.f) / 80.f : 0.f;
+        energy.setLevel(energyFraction);
+        energyValue.setText(formatDb(db, -80.0), juce::dontSendNotification);
+        reduction = juce::jlimit(0.f, 200.f, -juce::Decibels::gainToDecibels(juce::jmin(total, 1.f), -200.f));
+        attn.setReduction(reduction / 40.f);
+        reductionHold = juce::jmax(reductionHold, reduction);
+        attnPeak.setText(juce::String(reductionHold, 1), juce::dontSendNotification);
+    }
 
     juce::AudioProcessorValueTreeState& state;
     MeterSource* meters;
+    CoreMeterSource* coreMeters;
     FaderLook look;
     Fader gate, comp, gain;
     Meter energy, out[2];
     AttnDisplay attn;
-    juce::Label attnPeak, energyValue;
+    PeakReadout attnPeak;
+    juce::Label energyValue;
+    float energyFraction = -1.f, reduction = 0.f, reductionHold = 0.f;
     std::array<PeakReadout, 2> peak;
     std::array<float, 2> level{}, hold{};
     std::vector<Fader*> linked;
