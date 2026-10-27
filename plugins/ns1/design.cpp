@@ -38,12 +38,22 @@ MonoInitialState initialMonoState() noexcept {
  band(5,.00013427735,.021433139,.46784535,.97664964);
  s.activityGain=float(gain(3));return s;
 }
-MonoConfiguration designSampledMono(double rate,float control){
- if(!std::isfinite(rate)||rate<40000||rate>100000)throw std::invalid_argument("unvalidated sample rate");
+DesignParameters sampledParameters(float control){
  if(control!=0&&control!=0.5f&&control!=1)throw std::invalid_argument("only sampled controls 0, 0.5 and 1 are established");
- const double lower=control==0?60:(control==0.5f?70:110);
- const double upper=control==0?16000:(control==0.5f?13000:8000);
- const double attenuation=control==0?1:gain(control==0.5f?-40:-70);
+ DesignParameters p{};
+ p.lowerHz=control==0?60:(control==0.5f?70:110);
+ p.upperHz=control==0?16000:(control==0.5f?13000:8000);
+ p.attenuationDb=control==0?0:(control==0.5f?-40:-70);
+ p.relativeThreshold=control==0?0:(control==.5f?.045f:.8f);
+ p.nominalFloor=control==0?1:float(gain(-18.6*17.9/32));
+ p.floorCap=control==0?1:float(gain(-6));
+ return p;
+}
+MonoConfiguration designSampledMono(double rate,float control){return designMono(rate,sampledParameters(control));}
+MonoConfiguration designMono(double rate,const DesignParameters& p){
+ if(!std::isfinite(rate)||rate<40000||rate>100000)throw std::invalid_argument("unvalidated sample rate");
+ const double lower=p.lowerHz,upper=p.upperHz;
+ const double attenuation=p.attenuationDb==0?1:gain(p.attenuationDb);
  const double shape=upper<14000?1:(upper>=17000?3:1+2*(upper-14000)/3000);
  MonoConfiguration c{};
  c.front[0]={simple(upper,shape,rate),float(first(upper,rate)),float((1-attenuation)/2),float(-(1+attenuation)/2)};
@@ -61,11 +71,11 @@ MonoConfiguration designSampledMono(double rate,float control){
   d.bias=float(gain(-100));d.activityThreshold=float(gain(-80));
   d.noiseRise=float(2-pole(1.002,rate));d.noiseFall=float(pole(.05,rate));
   d.levelRise=float(1-pole(.08,rate));d.levelFall=float(pole(10.01,rate)-1);
-  d.thresholdMix=1;d.relativeThreshold=control==0?0:(control==.5f?.045f:.8f);
+  d.thresholdMix=1;d.relativeThreshold=p.relativeThreshold;
   d.thresholdCap=float(gain(35));d.baseThreshold=float(gain(30)*std::sqrt(1002.0/50));
   d.thresholdBias=float(gain(-100));d.minimumThreshold=1;
-  d.nominalFloor=control==0?1:float(gain(-18.6*17.9/32));
-  d.floorCap=control==0?1:float(gain(-6));
+  d.nominalFloor=p.nominalFloor;
+  d.floorCap=p.floorCap;
   d.ratioRise=d.ratioFall=float(pole(2,rate));
   d.gainRise=float(pole(.0024,rate));d.gainFall=float(pole(.072,rate));
   band.activityRatio=k<4?float(gain(-32)):0;

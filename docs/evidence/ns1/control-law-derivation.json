@@ -1,0 +1,32 @@
+{
+ "schema": 1,
+ "status": "continuous NS1 control law NOT recovered (round 2)",
+ "static_search": "No control->internal table/interpolation found in existing exports: windows-dsp decompile only shows the -18.6/2.3 dB-per-unit scaling helper (0x18002aee0 and 0x18002c1e0); no 60/70/110 Hz or 16000/13000/8000 Hz anchor constants located; existing dsp-traces at 48000-*-params.json are dummy setup-1 rows (unusable).",
+ "derivation_renders": {
+  "white_noise@0.1": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160539-921ee152bcc24fbfae03e7ab944fb03f",
+  "chirp@0.1": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160553-f16a3fc3aebb4b7cbeb94a670ab72137",
+  "white_noise@0.375": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160608-1ed39f028c3e42cca60726b28fcabc94"
+ },
+ "derivation_renders_note": "fresh oracle renders, NS1 Mono 48 kHz block 512, raw readback e.g. 0.10000000149 = '10.0 %'. Further renders (chirp 0.375, 0.625, 0.9, NS1 Stereo stereo_independent@0.5) were queued; see runtime/evidence/ns1.",
+ "hypotheses_falsified_on_derivation_points": [
+  {
+   "name": "piecewise-linear interpolation of (lowerHz, upperHz, attenuationDb, relativeThreshold, nominalFloor, floorCap) between anchors 0/0.5/1",
+   "nrmse": {
+    "white_noise@0.1": 0.2029,
+    "chirp@0.1": 0.0854,
+    "white_noise@0.375": 0.0532
+   },
+   "verdict": "FAIL (threshold 1e-3)"
+  },
+  {
+   "name": "same, but nominalFloor/floorCap stepping to their 0.5 values for any control>0",
+   "nrmse": {
+    "white_noise@0.1": 0.2034,
+    "chirp@0.1": 0.2018,
+    "white_noise@0.375": 0.0535
+   },
+   "verdict": "FAIL"
+  }
+ ],
+ "comparison_points_untouched": "0.25/0.75 captures were not used for any derivation; Processor still uses the labelled nearest-anchor placeholder there (gate RED)."
+}

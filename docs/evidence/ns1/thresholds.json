@@ -1,0 +1,11 @@
+{
+ "schema": 1,
+ "declared_before_comparison": "2026-10-27T17:14+01:00 (round 2, before any continuous-law candidate was compared at 0.25/0.75)",
+ "scope": "NS1 Mono full Processor at predeclared comparison controls 0.25 and 0.75 vs stored genuine original captures (characterization/capture, fresh instance, no warmup)",
+ "source": "reuses tests/ns1/fidelity_thresholds.json pass_if unchanged",
+ "pass_if": {"nrmse_max": 0.001, "max_abs_error_max": 0.0001},
+ "comparison_controls": [0.25, 0.75],
+ "derivation_controls": [0.0, 0.1, 0.375, 0.5, 0.625, 0.9, 1.0],
+ "rule": "0.25/0.75 captures are never used for derivation or tuning; only fresh oracle renders at derivation_controls and the existing 0/0.5/1 captures may be used to derive the law.",
+ "stereo": {"pass_if": {"nrmse_max": 0.001, "max_abs_error_max": 0.0001}, "per_channel": true, "input": "stereo_independent-48000.wav @ NS1 Stereo 50 %"}
+}

@@ -16,9 +16,13 @@ def main():
     ap.add_argument("--capture", required=True)
     ap.add_argument("--render", required=True)
     ap.add_argument("--report", required=True)
+    ap.add_argument("--require-offgrid", action="store_true",
+                    help="also gate the predeclared comparison controls (docs/evidence/ns1/thresholds.json)")
     a = ap.parse_args()
     th = json.load(open(os.path.join(HERE, "fidelity_thresholds.json")))
     est = set(th["established_controls"])
+    if a.require_offgrid:
+        est |= set(json.load(open(os.path.join(HERE, "..", "..", "docs", "evidence", "ns1", "thresholds.json")))["comparison_controls"])
     idx = json.load(open(os.path.join(a.capture, "index.json")))
     rows, ok = [], True
     for r in idx["runs"]:
