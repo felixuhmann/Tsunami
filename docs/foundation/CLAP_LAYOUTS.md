@@ -29,6 +29,10 @@ The edits make four changes:
   one output bus and accepts *both* matched mono and matched stereo. It then offers two configs
   with stable IDs, `2` = Stereo (index 0, the default) and `1` = Mono (index 1). Every other
   processor keeps the upstream behaviour: the extension is absent.
+  The gate relies on the processor's `isBusesLayoutSupported`. Tsunami processors all go through
+  `Adapter`, which accepts mono only with `Spec::supportsMono`. A raw JUCE processor that keeps
+  JUCE's permissive default would be offered both configs, so new entry points must override it.
+  "Index 0 is the default" assumes a stereo default bus, which is what `Adapter` declares.
 - `select` is rejected while the plugin is active and for unknown IDs; otherwise it applies the
   layout with `setBusesLayout`. The selected layout is kept across deactivate/activate.
 
@@ -36,6 +40,8 @@ Known limitations:
 
 - The derivation is skipped on macOS (the `.mm` wrapper includes the pristine file), so macOS
   CLAP builds offer no configs.
+- `<build>/tsunami-clap-wrapper/` is regenerated at configure time only; a deleted or hand-edited
+  copy is repaired by the next configure (CI re-hashes it).
 - The selected config is not stored in plugin state; after a reload the host has to select it
   again.
 - `clap.audio-ports-config-info` (current-config readback) and `configurable-audio-ports` are not
