@@ -1,6 +1,6 @@
 # DeEsser (Tsunami De-Esser) evidence
 
-Status: portable DSP core functionally matched on every stored genuine render case below. **Partial target**: no editor/UI, no foundation (root CMake/plugin wrapper) integration, parameter automation within a block is not modelled/tested. Not marked verified.
+Status: portable DSP core functionally matched on every stored genuine render case below. **Partial target**: no editor/UI, no foundation (root CMake/plugin wrapper) integration, parameter automation within a block is not modelled; block-boundary changes are tested on the Tsunami core only (no genuine automation oracle). Not marked verified.
 
 ## Implementation
 `plugins/deesser/Processor.{h,cpp}` (C++17, namespace `tsunami::deesser`):
@@ -31,7 +31,13 @@ python3 tests/deesser/compare_oracle.py build/deesser/deesser_render <oracle-evi
 ```
 The comparison reads stored private oracle renders only; no vendor code or audio is committed.
 
+## Block-boundary parameter changes (core only, no fidelity claim)
+The genuine oracle (`runtime/oracle.py`, RUNNER_CONTRACT.md) fixes controls before processing: "sampled automation timeline not yet supported". No genuine automation comparison is therefore possible. Instead, `tests/deesser/test_automation.cpp` steps Threshold (0 <-> -40 dB) and Freq (4000 <-> 12000 Hz) between 512-sample blocks on a 7 kHz 0.5-amplitude tone at 48 kHz, in Wideband and Split, against thresholds predeclared in `thresholds.json` (`block_boundary_automation`: max per-sample gain step <= 0.05, grounded on the recovered 0.5 ms fast attack smoother, 1-exp(-1/24)=0.0408; click excess over input slew <= 0.03).
+TDD witness: RED = test failed to compile (`'class tsunami::deesser::Processor' has no member named 'gainReductionDb'`); GREEN = all 8 cases PASS, worst max_gain_step 0.0341 (threshold 0->-40 Wideband), click_excess 0 everywhere (`automation-block-boundary.txt`).
+Threshold changes are smoothed by the recovered attack/release gain smoothers; Freq changes recompute coefficients immediately with filter state retained (the core adds no parameter ramp, since no recovered evidence shows one).
+Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, positive dB) and `detectorLevelDb()` (peak detector envelope, dBFS) are lock-free relaxed atomics written once per `process()`; audio output is unchanged (stored genuine comparison re-run: all PASS).
+
 ## Remaining limitations
-- Parameter changes mid-stream (smoothing/zipper behaviour) not compared to the genuine plugin.
+- Parameter changes mid-stream not compared to the genuine plugin (oracle has no automation path); intra-block (sample-accurate) changes not modelled.
 - Sample rates outside 44.1/48/96 kHz, and Freq near 16 kHz at 44.1 kHz (Nyquist clamp path), not compared.
 - No editor/UI or host wrapper; root build integration belongs to the foundation worker.

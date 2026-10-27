@@ -6,6 +6,29 @@
     "max_abs_error": "max |candidate - reference| over all samples and channels",
     "residual_db": "10*log10(sum(err^2)/sum(ref^2))"
   },
-  "pass_criteria": {"max_abs_error": 1e-3, "residual_db": -60.0},
-  "notes": "Full-plugin fidelity claim per case only if BOTH criteria pass. Kernel unit tests (tests/deesser/test_processor.cpp) are separate and make no fidelity claim. Held-out inputs are not used for tuning."
+  "pass_criteria": {
+    "max_abs_error": 0.001,
+    "residual_db": -60.0
+  },
+  "notes": "Full-plugin fidelity claim per case only if BOTH criteria pass. Kernel unit tests (tests/deesser/test_processor.cpp) are separate and make no fidelity claim. Held-out inputs are not used for tuning.",
+  "block_boundary_automation": {
+    "declared_before_measurement": "2026-10-27T16:05Z",
+    "reason": "Original oracle (runtime/oracle.py, RUNNER_CONTRACT.md) fixes controls before processing; no intra-render automation timeline exists, so no genuine automation comparison is possible. These thresholds apply to the Tsunami core only and make no fidelity claim.",
+    "signal": "48 kHz mono, 0.5-amplitude sine at 7 kHz, 512-sample blocks, parameter changed between blocks",
+    "metrics": {
+      "max_gain_step": "Wideband mode: max |g[n]-g[n-1]| with g=y/x over samples |x|>=0.1, in the 2048 samples after the change",
+      "click_excess": "max |y[n]-y[n-1]| after the change minus max |x[n]-x[n-1]| (input slew), Wideband and Split"
+    },
+    "pass_criteria": {
+      "max_gain_step": 0.05,
+      "max_gain_step_basis": "recovered fast attack smoother 0.5 ms one-pole at 48 kHz bounds each gain step to 1-exp(-1/24)=0.0408 of the remaining gap; 0.05 allows quantization slack",
+      "click_excess": 0.03,
+      "threshold_step": "0 dB -> -40 dB and back",
+      "freq_step": "4000 Hz -> 12000 Hz and back"
+    },
+    "meter": {
+      "gain_reduction_db_rest": "== 0 at prepare/reset and in bypass",
+      "gain_reduction_db_active": ">= 3 dB after 4096 samples of the test tone at -40 dB threshold"
+    }
+  }
 }

@@ -1,0 +1,9 @@
+threshold 0->-40 wideband    max_gain_step=0.03412 click_excess=0.00000 PASS
+threshold -40->0 wideband    max_gain_step=0.00062 click_excess=0.00000 PASS
+threshold 0->-40 split       max_gain_step=0.00000 click_excess=0.00000 PASS
+threshold -40->0 split       max_gain_step=0.00000 click_excess=0.00000 PASS
+freq 4000->12000 wideband    max_gain_step=0.00028 click_excess=0.00000 PASS
+freq 12000->4000 wideband    max_gain_step=0.01493 click_excess=0.00000 PASS
+freq 4000->12000 split       max_gain_step=0.00000 click_excess=0.00000 PASS
+freq 12000->4000 split       max_gain_step=0.00000 click_excess=0.00000 PASS
+PASS block-boundary automation and attenuation meter

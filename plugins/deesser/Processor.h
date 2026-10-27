@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include <array>
+#include <atomic>
 namespace tsunami::deesser {
 class Processor {
 public:
@@ -11,6 +12,11 @@ public:
  void process(const float* const* inputs,float* const* outputs,unsigned frames) noexcept;
  unsigned latencySamples() const noexcept {return 0;}
  double tailSeconds() const noexcept {return 0;}
+ // Realtime-safe meters (lock-free, written once per process() call, readable from any thread).
+ // gainReductionDb: largest attenuation applied during the last block, positive dB (0 = none).
+ // detectorLevelDb: peak SideChain energy-detector envelope during the last block, dBFS (floor -120).
+ float gainReductionDb() const noexcept {return gainReductionDb_.load(std::memory_order_relaxed);}
+ float detectorLevelDb() const noexcept {return detectorLevelDb_.load(std::memory_order_relaxed);}
 private:
  std::array<float,6> params_{{5506,0,1,0,0,0}};
  unsigned channels_=1;
@@ -25,5 +31,6 @@ private:
  double splitCoefficient_=0;
  unsigned thresholdBin_=1023,detectorScale_=1447;
  void updateThreshold() noexcept;
+ std::atomic<float> gainReductionDb_{0.f},detectorLevelDb_{-120.f};
 };
 }

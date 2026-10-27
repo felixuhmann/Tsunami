@@ -40,7 +40,7 @@ void Processor::updateThreshold() noexcept {
  thresholdBin_=unsigned(std::ceil(1023*std::pow(10.0,t/20)));
  detectorScale_=unsigned(1023/std::sqrt(.5)*std::pow(10.0,(t-params_[1])/20)+.5);
 }
-void Processor::reset() noexcept {for(auto& s:detector_)s.x1=s.x2=s.y1=s.y2=0;envelope_=0;gainFast_=gainSlow_=1;splitState_={0,0};}
+void Processor::reset() noexcept {for(auto& s:detector_)s.x1=s.x2=s.y1=s.y2=0;envelope_=0;gainFast_=gainSlow_=1;splitState_={0,0};gainReductionDb_.store(0.f,std::memory_order_relaxed);detectorLevelDb_.store(-120.f,std::memory_order_relaxed);}
 void Processor::setParameter(unsigned i,float v) noexcept {
  if(i>=6||!std::isfinite(v))return;
  params_[i]=i==0?std::round(std::clamp(v,2000.0f,16000.0f)):i==1?std::clamp(v,-80.0f,0.0f):(v>=.5f?1.0f:0.0f);
@@ -49,6 +49,7 @@ void Processor::setParameter(unsigned i,float v) noexcept {
 }
 float Processor::getParameter(unsigned i) const noexcept {return i<6?params_[i]:0;}
 void Processor::process(const float* const* in,float* const* out,unsigned n) noexcept {
+ double minGain=1;float peakEnvelope=0;
  for(unsigned i=0;i<n;++i){
   float x[2]={in[0][i],channels_==2?in[1][i]:0};
   if(params_[5]>.5f){for(unsigned c=0;c<channels_;++c)out[c][i]=x[c];continue;}
@@ -62,6 +63,7 @@ void Processor::process(const float* const* in,float* const* out,unsigned n) noe
   const double fast=(double(gainFast_)-target)*(gainFast_<target?release_[0]:attack_[0])+target;
   const double slow=(double(gainSlow_)-target)*(gainSlow_<target?release_[1]:attack_[1])+target;
   gainFast_=float(fast);gainSlow_=float(slow);const double gain=std::min(fast,slow);
+  minGain=std::min(minGain,gain);peakEnvelope=std::max(peakEnvelope,envelope_);
   for(unsigned c=0;c<channels_;++c){
    float sample;
    if(params_[3]>.5f)sample=float(x[c]*gain);
@@ -71,5 +73,8 @@ void Processor::process(const float* const* in,float* const* out,unsigned n) noe
    out[c][i]=clip(params_[4]>.5f?monitored:sample);
   }
  }
+ if(n==0)return;
+ gainReductionDb_.store(minGain<1?float(-20*std::log10(std::max(minGain,1e-6))):0.f,std::memory_order_relaxed);
+ detectorLevelDb_.store(peakEnvelope>1e-6f?float(20*std::log10(double(peakEnvelope))):-120.f,std::memory_order_relaxed);
 }
 }
