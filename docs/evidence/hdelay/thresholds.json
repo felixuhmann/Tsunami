@@ -101,5 +101,24 @@
   },
   "fit_reference": "250 ms (161055) residual vs sinc(n-1/32) = 2.1e-3; 500 ms (161352) residual vs delta 1.6e-13",
   "not_loosened": true
+ },
+ "round2_task5": {
+  "declared_at": "2026-10-27T16:35Z (before any glide-law comparison)",
+  "law": "export 0x101100 read-pointer rate = min(distance/target, 2) per sample (distance = write - read); no fitted constant",
+  "cases": {
+   "154836_first_echo": {
+    "genuine": 21555,
+    "max_abs_err_samples": 1
+   },
+   "154836_second_echo": {
+    "genuine": 44620,
+    "max_abs_err_samples": 1
+   },
+   "160946_first_echo": {
+    "genuine": 21555,
+    "max_abs_err_samples": 1
+   }
+  },
+  "unchanged": "round2_task4 and r2 per-sample thresholds are reused unchanged"
  }
 }
