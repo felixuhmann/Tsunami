@@ -9,6 +9,12 @@ The existing detector/history stage remains unchanged. Static output control
 mapping is recovered; automation smoothing and the independent full wet chain
 remain incomplete.
 
+Newest slice: [`HistoryGeometry.h`](../../../plugins/rcomp/HistoryGeometry.h) adds the
+reference sample-rate bands (H 64/128/256 at 64/128 kHz edges), rectangle spans,
+shift/normalization, nonzero startup prefill layout and makeup mantissa/exponent
+split as a **partial state API, not yet integrated** with GainHistory or output.
+[Scope, limits and TDD](history-geometry.md).
+
 **Not a complete plugin, not reference-equivalent, and not adapter-ready.**
 Related issue: <https://github.com/felixuhmann/Tsunami/issues/6>.
 
@@ -146,11 +152,11 @@ standalone DSP tests, not a hosted VST3/CLAP or native Windows build.
 
 ## Exact remaining blockers / next bounded slice
 
-1. Integrate newly recovered PE physical coefficient writers, sample-rate geometry
-   (`0x18002ccd0`) and ARC generation (`0x18002d7d0`) into the independent wet
-   chain. Exports are private under `windows-coefficients/functions`; they are
-   analysis, not completed source. Resolve initialization/prefill and coefficient
-   packing before treating the real geometry as integrated.
+1. Connect `HistoryGeometry` (implemented, partial) to the wet chain: resolve the
+   prefill/mantissa writer storage format and buffer length, map the nonzero
+   prefill onto the GainHistory ring/delay, and integrate ARC generation
+   (`0x18002d7d0`) and state init (`0x180028450`). Coefficient packing at
+   `0x18002e4f0` remains unresolved. Exports stay private.
 2. Recover/integrate the kernel's maximum-history tree and ARC gain-increase table
    update and soft gain scale/offset. Static wet/dry Mix, output Gain and Trim now
    exist in OutputStage; automation smoothing, overload interaction and metering

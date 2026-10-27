@@ -747,5 +747,6 @@
   "limitations": [
     "Only 48kHz mono block512 static controls captured",
     "No automation smoothing, peak-limiter interaction at overload, complete compression, held-out, stereo or native Windows claims"
-  ]
+  ],
+  "threshold_chronology_qualification": "Initial threshold bytes were not immutably retained; file birth precedes the first capture but the file was rewritten with the same values before the dry/combined batch. Predeclaration is proven by retained launcher only for the later batch; the key name thresholds_declared_before_captures is historical and is qualified by this field. Original captures were not rerun."
 }

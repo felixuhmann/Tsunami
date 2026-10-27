@@ -43,8 +43,20 @@ separately rendered original control configurations:
 | Trim-3 dB | 48000 | 3.725290298461914e-09 | 1.0576143956832215e-09 |
 | Gain+6, Trim-3, Mix25 | 48000 | 1.4901161193847656e-08 | 3.7480321581279414e-09 |
 
-**192000 compared samples, all four segment gates pass.** Thresholds declared
-before capture: max absolute error <=3e-6 and RMS <=5e-7. A deliberately wrong
+**192000 compared samples, all four segment gates pass.** Thresholds: max
+absolute error <=3e-6 and RMS <=5e-7.
+
+*Threshold chronology qualification (independent review R3).* The private
+threshold file was created ~88 ms before the first (wet) capture request, but it
+was rewritten with the same values at the start of the second batch (after the
+wet/mix25/gain6/trim-3 results, before dry/combined), and no immutable copy or
+digest of the initial bytes, nor the initial launcher, was retained in any
+capture receipt. The later batch's predeclaration is shown by its retained
+launcher; for the first four captures only file birth time supports it, which
+does not prove the initial contents. No evidence suggests the limits were changed
+or tuned after measurement, and the captures were deliberately not rerun to hide
+this history. Future captures must hash an immutable threshold manifest and
+launcher into every receipt. A deliberately wrong
 Trim placement is rejected by those same gates. Original Ratio request4 reads
 back **4.01**, preserved rather than silently relabelled. All are 48kHz, mono,
 block512, fresh/reset instances with static controls, Manual/Smooth compression.
