@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "written_before_comparison": "2026-10-27 round-2 task1, before any hosted preset-recall render was compared",
+  "hosted_preset_recall_vs_genuine": {
+    "scope": "Preset authored in one hosted Adapter instance, saved via getStateInformation, recalled into a fresh hosted instance via setStateInformation, rendered at the original capture block size; compared to the stored genuine RVox Stereo renders (stereo_fresh 48k/257, rate44100 44.1k/127). No held-out capture is used.",
+    "max_abs": 1e-05,
+    "rms_error": 2e-07,
+    "provenance": "Identical to the existing post-capture reporting guard in comparison-summary.json; not loosened, not an equivalence threshold.",
+    "also_required": "Hosted preset-recall output bit-identical to the direct core renderer (rvox_render) on the same input/controls."
+  },
+  "tight_diagnostic": {
+    "max_abs": 1e-06,
+    "rms_error": 1e-08,
+    "role": "diagnostic only, reported not gated"
+  },
+  "hot_input_ceiling_vs_genuine": {
+    "written_before_comparison": "2026-10-27 round-2 task3 16:31Z, before the hot-input genuine render was requested or compared",
+    "input": "tests/rvox/hot_input.wav (generated): stereo 48 kHz float32 WAV, 0.5 s, 997 Hz sine at amplitude 10.0 (+20 dBFS), R channel 0.5x phase-shifted; block 512",
+    "controls": {
+      "compression": -6.0,
+      "gate": "off (-80)",
+      "gain": -28.7
+    },
+    "max_abs": 1e-05,
+    "rms_error": 2e-07,
+    "provenance": "Same reporting guard as hosted_preset_recall_vs_genuine; not loosened.",
+    "also_reported": "genuine and core output peak in dBFS versus the -28.7 dB Gain ceiling"
+  }
+}

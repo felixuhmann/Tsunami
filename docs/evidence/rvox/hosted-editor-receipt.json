@@ -1,0 +1,47 @@
+{
+  "scope": "actual RVox target module hosted editor (pluginval 1.0.4 in-process, Xvfb 1600x1000x24, Linux local build); independently drawn UI from original 17.1 layout (c642e01). NOT original-host visual equivalence.",
+  "host": "pluginval - 1.0.4",
+  "command": [
+    "/home/felix/work/tsunami-campaign/research/validation-release/tools/pluginval/pluginval",
+    "--validate-in-process",
+    "--strictness-level",
+    "6",
+    "--random-seed",
+    "17",
+    "--validate",
+    "/home/felix/work/tsunami-campaign/rvox-r2-build/build/TsunamiRVox_artefacts/Release/VST3/Tsunami RVox.vst3"
+  ],
+  "plugin": "/home/felix/work/tsunami-campaign/rvox-r2-build/build/TsunamiRVox_artefacts/Release/VST3/Tsunami RVox.vst3",
+  "module_sha256": "2d5f17f9f2647ec09e63798c6360764feca9fa83a4e9f8b06de6577e4f3e30f8",
+  "host_sha256": "d3d342ea92293b0699a5c983937211e3faf2b0f38145b31cb8d78424a25e10ba",
+  "source_commit": "acbcae66a118a1449a96d38e31abc6a00f61ffb9",
+  "screenshot_sha256": "c12628efaecfbadd463204527c44b10badf9595e26f85a58241aeda39f828a71",
+  "capture": {
+    "window": "0x400017",
+    "pid": 320455,
+    "properties": "_NET_WM_PID(CARDINAL) = 320455\nWM_CLASS(STRING) = \"pluginval\", \"pluginval\"\n",
+    "geometry": [
+      0,
+      0,
+      371,
+      357
+    ],
+    "loaded_module": "/home/felix/work/tsunami-campaign/rvox-r2-build/build/TsunamiRVox_artefacts/Release/VST3/Tsunami RVox.vst3/Contents/x86_64-linux/Tsunami RVox.so"
+  },
+  "review": "actual attached editor; human control/layout review required",
+  "source_binding": {
+    "note": "Module built locally at 2026-10-27T16:12:06Z after ec03b32 (16:11:55Z). acbcae6 changed only tests/rvox and docs; plugin/shared/root CMake trees are identical at ec03b32 and acbcae6.",
+    "tree_plugins_rvox": "c4540f251d318eefafbfd9b5cb2c8bf2dafb74f9",
+    "tree_shared": "773aedad8e07ba78fbd761b10a88b1a34ebb468c",
+    "tree_plugins_rvox_ec03b32": "c4540f251d318eefafbfd9b5cb2c8bf2dafb74f9",
+    "tree_shared_ec03b32": "773aedad8e07ba78fbd761b10a88b1a34ebb468c",
+    "build_dir": "/home/felix/work/tsunami-campaign/rvox-r2-build/build (JUCE 9.0.4 pinned, GCC 11.4)"
+  },
+  "editor_source_sha256": {
+    "plugins/rvox/Editor.hpp": "b187dbd3cf03d29aa0bc660c2ff04ac23548955b7f9b697ff033522d3d713912",
+    "shared/Adapter.hpp": "fc4309198261668e237a9838da3e73f127ba8c08910738580e4906a2a1e89627"
+  },
+  "capture_script": "tests/foundation/linux_editor_capture.py run unchanged except a local copy lowering the minimum window width filter from 400 to 300 px (RVox view is 371x357); TITLE set to \"Tsunami RVox\"",
+  "displayed_state": "Fader values (Gate -54.9, Comp -7.3, Gain -28.7) are whatever pluginval Editor Automation (seed 17) had set at capture time; output peak readouts are peak-hold over the pluginval run so far; Energy and Total Compression show no data (no adapter tap).",
+  "png_file": "docs/evidence/rvox/hosted-editor-linux-pluginval.png"
+}

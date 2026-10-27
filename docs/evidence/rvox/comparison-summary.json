@@ -1,0 +1,531 @@
+{
+  "status": "partial_not_full_equivalence",
+  "reference_version": "17.1.42.50",
+  "capture_count": 6,
+  "reporting_guard": {
+    "max_abs": 1e-05,
+    "rms_error": 2e-07,
+    "provenance": "Selected after captures; reporting regression guard, not predeclared equivalence threshold"
+  },
+  "source_sha256": "38aceaa810ef51693e5ecbc91282ed384b46fc71354780059728ff23b9d183e1",
+  "captures": [
+    {
+      "name": "mono_fresh",
+      "comparison": {
+        "frames": 96000,
+        "channels": 1,
+        "max_abs": 7.68899917602539e-06,
+        "rms_error": 1.229744418177986e-07,
+        "relative_rms": 9.36814144869858e-07,
+        "first_256_max": 7.275957614183426e-12,
+        "post_4096_max": 7.68899917602539e-06
+      },
+      "capture_id": "20261027T142309-966d561ac9434064ad1b22416d57f113",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "b645dd027dd1124be77c8b3929cb17710212ad8569258bf850a75248cfc751db",
+      "original_samples_sha256": "2eda221649b478d064418077a5858304fd8a0ada340c6f786b472685be0c44d2",
+      "original_block": 127,
+      "sample_rate": 48000,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -18
+          },
+          "raw_readback": 0.5,
+          "display": "-18.0 dB",
+          "host_value": "-18.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -20
+          },
+          "raw_readback": 0.75,
+          "display": "-20.0 dB",
+          "host_value": "-20.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -3
+          },
+          "raw_readback": 0.9166666865348816,
+          "display": "-3.0 dB",
+          "host_value": "-3.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    },
+    {
+      "name": "stereo_fresh",
+      "comparison": {
+        "frames": 96000,
+        "channels": 2,
+        "max_abs": 3.129243850708008e-06,
+        "rms_error": 1.8304685856603407e-08,
+        "relative_rms": 1.4265160774420977e-07,
+        "first_256_max": 7.275957614183426e-12,
+        "post_4096_max": 3.129243850708008e-06
+      },
+      "capture_id": "20261027T142332-8043e5fb4a6d4a94a234e812edd29432",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "e2cd0bc24872f9568585154e785d4c9769a6662d5537701b48c044e924bd7081",
+      "original_samples_sha256": "3539448dc5ec4fb8a7292ff8632d799f6b3b1ff6099cf28b7da059e81f5a3e8a",
+      "original_block": 257,
+      "sample_rate": 48000,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -18
+          },
+          "raw_readback": 0.5,
+          "display": "-18.0 dB",
+          "host_value": "-18.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -20
+          },
+          "raw_readback": 0.75,
+          "display": "-20.0 dB",
+          "host_value": "-20.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -3
+          },
+          "raw_readback": 0.9166666865348816,
+          "display": "-3.0 dB",
+          "host_value": "-3.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    },
+    {
+      "name": "mono_deep",
+      "comparison": {
+        "frames": 96000,
+        "channels": 1,
+        "max_abs": 4.4405460357666016e-06,
+        "rms_error": 5.728869109448321e-08,
+        "relative_rms": 6.789852176253766e-07,
+        "first_256_max": 1.1641532182693481e-10,
+        "post_4096_max": 4.4405460357666016e-06
+      },
+      "capture_id": "20261027T142359-83ebb10e64d242999b416c88f911feca",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "b645dd027dd1124be77c8b3929cb17710212ad8569258bf850a75248cfc751db",
+      "original_samples_sha256": "b50c677fb29f71010c01d141c6a2346c5645827f1c6fc7ef91a5c9744028b6b7",
+      "original_block": 512,
+      "sample_rate": 48000,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -30
+          },
+          "raw_readback": 0.1666666716337204,
+          "display": "-30.0 dB",
+          "host_value": "-30.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -40
+          },
+          "raw_readback": 0.5,
+          "display": "-40.0 dB",
+          "host_value": "-40.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -9
+          },
+          "raw_readback": 0.75,
+          "display": "-9.0 dB",
+          "host_value": "-9.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    },
+    {
+      "name": "rate96000",
+      "comparison": {
+        "frames": 192000,
+        "channels": 1,
+        "max_abs": 3.2782554626464844e-07,
+        "rms_error": 2.6107450456736088e-08,
+        "relative_rms": 1.165591858613263e-07,
+        "first_256_max": 1.0913936421275139e-11,
+        "post_4096_max": 3.2782554626464844e-07
+      },
+      "capture_id": "20261027T143004-39088bf90ca34376847bb26cd9552772",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "cefea1de571f3b2b96e251ccd9ff1e53ffb77e2f3df2a6607a9d78ddefa75651",
+      "original_samples_sha256": "f61d132337c860b173d1ad198791e70ee7b4ef8af859c860be38e0dca02714a2",
+      "original_block": 127,
+      "sample_rate": 96000,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -18
+          },
+          "raw_readback": 0.5,
+          "display": "-18.0 dB",
+          "host_value": "-18.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -20
+          },
+          "raw_readback": 0.75,
+          "display": "-20.0 dB",
+          "host_value": "-20.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -3
+          },
+          "raw_readback": 0.9166666865348816,
+          "display": "-3.0 dB",
+          "host_value": "-3.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    },
+    {
+      "name": "rate44100",
+      "comparison": {
+        "frames": 88200,
+        "channels": 2,
+        "max_abs": 1.7881393432617188e-07,
+        "rms_error": 2.3410963216023053e-08,
+        "relative_rms": 1.045029364715527e-07,
+        "first_256_max": 7.275957614183426e-12,
+        "post_4096_max": 1.7881393432617188e-07
+      },
+      "capture_id": "20261027T143018-18272d2ba1f947ad83ed394b1a389256",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "2cc6be3494da024b5285aeb187aed5c7a2fbf81fe8179fb5491d1ba6e222cbd7",
+      "original_samples_sha256": "b713d0864d22f516c96ceca6a000b2f6b869a8ce417eeb6abcd61e9132716179",
+      "original_block": 127,
+      "sample_rate": 44100,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -18
+          },
+          "raw_readback": 0.5,
+          "display": "-18.0 dB",
+          "host_value": "-18.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -20
+          },
+          "raw_readback": 0.75,
+          "display": "-20.0 dB",
+          "host_value": "-20.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -3
+          },
+          "raw_readback": 0.9166666865348816,
+          "display": "-3.0 dB",
+          "host_value": "-3.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    },
+    {
+      "name": "heldout",
+      "comparison": {
+        "frames": 384000,
+        "channels": 1,
+        "max_abs": 1.1920928955078125e-07,
+        "rms_error": 5.783532695809065e-09,
+        "relative_rms": 9.66943494123648e-08,
+        "first_256_max": 3.725290298461914e-09,
+        "post_4096_max": 1.1920928955078125e-07
+      },
+      "capture_id": "20261027T143032-e618b7068d334a83a54034b9ad8ab8d5",
+      "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "input_wav_sha256": "c7a37d39433e59de95027d944208c59c87a817583353872e4fbdc1fdf8f78b8f",
+      "original_samples_sha256": "a5a20ef7920d3d6ab5fd855941d60334d90424ac46c2d654b44bbc0a16a30d21",
+      "original_block": 127,
+      "sample_rate": 48000,
+      "controls": {
+        "bypass": {
+          "requested": {
+            "value": false
+          },
+          "raw_readback": 0.0,
+          "display": "Off",
+          "host_value": "False"
+        },
+        "compression": {
+          "requested": {
+            "value": -18
+          },
+          "raw_readback": 0.5,
+          "display": "-18.0 dB",
+          "host_value": "-18.0"
+        },
+        "gate": {
+          "requested": {
+            "value": -20
+          },
+          "raw_readback": 0.75,
+          "display": "-20.0 dB",
+          "host_value": "-20.0"
+        },
+        "gain": {
+          "requested": {
+            "value": -3
+          },
+          "raw_readback": 0.9166666865348816,
+          "display": "-3.0 dB",
+          "host_value": "-3.0"
+        }
+      },
+      "original_all_finite": true,
+      "regression_guard_pass": true
+    }
+  ],
+  "wrong_control_negative": {
+    "compression_db": 0,
+    "intended_compression_db": -18,
+    "max_abs": 0.33376844227313995,
+    "rms_error": 0.04446487740612419,
+    "relative_rms": 0.7434041819459749,
+    "guard_pass": false
+  },
+  "gate_initialization": {
+    "hidden_release_ms": 130,
+    "direct_fir_red_max_abs": 0.000732729793526,
+    "direct_fir_green_max_abs": 0,
+    "fresh_state_capture_id": "20261027T142440-409252e8c7284c6599da32bc9033abea"
+  },
+  "tight_diagnostic": {
+    "max_abs": 1e-06,
+    "rms_error": 1e-08,
+    "changing_level_48k_mono_pass": false
+  },
+  "native_replacement_host_verified": false,
+  "rvox_ui_verified": false,
+  "changed_head_rerender": {
+    "source_sha256": "5a278aa0fef3db88e52109f492e34fc80dcd980c89f0c7e56e74633cce3d6427",
+    "change": "double-domain inverse-threshold makeup; numeric-domain policy (identity for finite ordinary audio)",
+    "scope": "existing captures re-rendered once; no original host run, no tuning; heldout is final validation only",
+    "rows": [
+      {
+        "name": "mono_fresh",
+        "role": "training",
+        "candidate_sha256": "8f9c1c4cc05cee93b24bdf4e044c43f51881d85945407f99662d845ab14f8306",
+        "metric": {
+          "frames": 96000,
+          "channels": 1,
+          "max_abs": 7.599592208862305e-06,
+          "rms_error": 1.2110014851527963e-07,
+          "relative_rms": 9.225358570282582e-07
+        },
+        "delta_max_abs": -8.940696716308594e-08,
+        "delta_rms": -1.8742933025189668e-09,
+        "worst_channel": 0,
+        "worst_frame": 34559,
+        "samples_exceeding_1e-6": 141,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "stereo_fresh",
+        "role": "training",
+        "candidate_sha256": "573172a9e68c59c4783dcec202ffea603ae488b9f2bbba948de2f478ea3871c8",
+        "metric": {
+          "frames": 96000,
+          "channels": 2,
+          "max_abs": 3.159046173095703e-06,
+          "rms_error": 1.3524318206850508e-08,
+          "relative_rms": 1.0539736933838344e-07
+        },
+        "delta_max_abs": 2.9802322387695312e-08,
+        "delta_rms": -4.780367649752899e-09,
+        "worst_channel": 1,
+        "worst_frame": 35999,
+        "samples_exceeding_1e-6": 6,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "mono_deep",
+        "role": "training",
+        "candidate_sha256": "b2f4bd5786e6704c582a44732a6c9927b91cfff7a8c874686604f38c02a468a0",
+        "metric": {
+          "frames": 96000,
+          "channels": 1,
+          "max_abs": 4.470348358154297e-06,
+          "rms_error": 5.7205215793233465e-08,
+          "relative_rms": 6.779958688638221e-07
+        },
+        "delta_max_abs": 2.9802322387695312e-08,
+        "delta_rms": -8.347530124974661e-11,
+        "worst_channel": 0,
+        "worst_frame": 28999,
+        "samples_exceeding_1e-6": 56,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "rate96000",
+        "role": "training",
+        "candidate_sha256": "a0a63bb9053f0d797fac633ecdb1a8ed4b448d37968c79a09a1737a1df6edb41",
+        "metric": {
+          "frames": 192000,
+          "channels": 1,
+          "max_abs": 2.980232238769531e-07,
+          "rms_error": 9.50049860867105e-09,
+          "relative_rms": 4.241587607102569e-08
+        },
+        "delta_max_abs": -2.9802322387695312e-08,
+        "delta_rms": -1.6606951848065036e-08,
+        "worst_channel": 0,
+        "worst_frame": 170823,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "rate44100",
+        "role": "training",
+        "candidate_sha256": "537b5ff98716516ddde913abbae15695438497dcf1ae3b696a224ab3862b6990",
+        "metric": {
+          "frames": 88200,
+          "channels": 2,
+          "max_abs": 1.1920928955078125e-07,
+          "rms_error": 5.106885058442502e-09,
+          "relative_rms": 2.279634886892101e-08
+        },
+        "delta_max_abs": -5.960464477539063e-08,
+        "delta_rms": -1.8304078157580552e-08,
+        "worst_channel": 0,
+        "worst_frame": 22908,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "heldout",
+        "role": "final validation only (not tuned)",
+        "candidate_sha256": "a5a20ef7920d3d6ab5fd855941d60334d90424ac46c2d654b44bbc0a16a30d21",
+        "metric": {
+          "frames": 384000,
+          "channels": 1,
+          "max_abs": 0.0,
+          "rms_error": 0.0,
+          "relative_rms": 0.0
+        },
+        "delta_max_abs": -1.1920928955078125e-07,
+        "delta_rms": -5.783532695809065e-09,
+        "worst_channel": 0,
+        "worst_frame": 0,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      }
+    ],
+    "tight_diagnostic_still_fails": [
+      "mono_fresh",
+      "stereo_fresh",
+      "mono_deep"
+    ]
+  },
+  "hosted_preset_recall": {
+    "scope": "Preset authored in one hosted Adapter, saved via getStateInformation, recalled into a fresh hosted Adapter via setStateInformation, rendered through processBlock at the original block size (Linux local build, JUCE 9.0.4 pinned). Stored genuine captures only; no new oracle render; held-out not used.",
+    "thresholds": "docs/evidence/rvox/thresholds.json (written before comparison)",
+    "rows": [
+      {
+        "name": "stereo_fresh",
+        "rate": 48000,
+        "block": 257,
+        "metric": {
+          "frames": 96000,
+          "channels": 2,
+          "max_abs": 3.159046173095703e-06,
+          "rms_error": 1.3524318206850508e-08,
+          "relative_rms": 1.0539736933838344e-07
+        },
+        "guard_pass": true,
+        "bit_identical_to_direct_core": true
+      },
+      {
+        "name": "rate44100",
+        "rate": 44100,
+        "block": 127,
+        "metric": {
+          "frames": 88200,
+          "channels": 2,
+          "max_abs": 1.1920928955078125e-07,
+          "rms_error": 5.106885058442502e-09,
+          "relative_rms": 2.279634886892101e-08
+        },
+        "guard_pass": true,
+        "bit_identical_to_direct_core": true
+      }
+    ],
+    "automation_oracle_limit": "oracle.py renders one static control set per fresh instance; mid-stream automation/state-load renders of the original are not supported, so automation semantics are grounded on the ELF RVoxMproc structure (coefficients read per call, state block untouched) and verified internally, not against genuine automation renders."
+  }
+}

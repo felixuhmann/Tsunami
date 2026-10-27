@@ -25,6 +25,9 @@ def taper_skew(p, lo, hi):
 
 
 def generate(data, plugin_id, product, core, editor=False):
+    mono = data.get('supports_mono', False)
+    if not isinstance(mono, bool):
+        raise ValueError('supports_mono must be true or false')
     descriptors = []
     seen = set()
     for index, p in enumerate(data['parameters']):
@@ -56,7 +59,7 @@ def generate(data, plugin_id, product, core, editor=False):
 #include "Parameter.hpp"
 %snamespace tsunami {
 struct PluginSpec {
-%s    using Core = %s;
+%s%s    using Core = %s;
     static constexpr const char* id = %s;
     static constexpr const char* name = %s;
     inline static constexpr Parameter parameters[] = {
@@ -69,7 +72,9 @@ struct PluginSpec {
                                                      juce::AudioProcessorValueTreeState& state) {
         return tsunami::createPluginEditor(processor, state);
     }
-''' if editor else '', core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
+''' if editor else '',
+       # Opt-in 1-in/1-out layout (shared Adapter SupportsMono); omitted by default (stable S1 output).
+       '    static constexpr bool supportsMono = true;\n' if mono else '', core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
 
 
 if __name__ == '__main__':
