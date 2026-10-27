@@ -1,5 +1,17 @@
 # RComp: partial detector, history and physical output-control processing
 
+**Round-2 status (task 3).** `MonoProcessor.h` connects the wet chain (detector ->
+gain law -> soft gain/ceiling -> history -> makeup) and the physical output mix.
+Characterized from targeted genuine renders ([characterization-r2t3.json](characterization-r2t3.json)):
+the static curve `gain=(1-b)*min(1,q+1.5q^2(1-q))+b`, `q=1/(1+m/10^(thr/20))`, a
+measured threshold-independent Ratio floor table `b` (interpolation provisional),
+and Attack feeding the recovered memory law. Gain also sets the c790 ceiling.
+The detector uses a 64-sample sliding maximum (approximation of the reference tree).
+Release uses a **provisional** one-pole (ARC d7d0 tables unrecovered).
+Held-out comparison under unchanged [thresholds.json](thresholds.json): Mix 0 PASS
+(max 7.5e-9); Mix 100 wet **FAIL** (max 6.3e-4, RMS 2.1e-5, rel RMS -63.7 dB;
+previously max 0.035). Native tests: 8/8 ctest targets.
+
 New milestone: [`OutputStage.h`](../../../plugins/rcomp/OutputStage.h) now maps
 physical Gain/Trim/Mix to aligned dry/wet processing. Native C++ comparisons
 against four fresh genuine original control renders pass over 192000 samples
