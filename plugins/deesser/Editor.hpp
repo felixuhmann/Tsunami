@@ -128,7 +128,7 @@ public:
         freq.setLookAndFeel(&valueWindow);
         freq.setColour(juce::Slider::textBoxTextColourId, colour::ink);
         freq.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-        freq.setTitle("Frequency"); freq.setTooltip("SideChain frequency (Hz): drag up/down, double-click to type");
+        freq.setTitle("Frequency"); freq.setTooltip("SideChain frequency (Hz): drag up/down, click to type");
         freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "freq", freq);
         // Genuine 2000*8^n taper on the slider side: the attachment converts in physical Hz, so a
         // custom range set AFTER it gives the taper even when the host parameter range is linear.
@@ -252,9 +252,9 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> sidechainAttachment;
     std::unique_ptr<juce::ParameterAttachment> monitorAttachment, sidechainShapeAttachment;
 
-    // Typed entry keeps the host's text parsing (installed by the attachment) but a nonfinite result
-    // ("nan", "inf", overflow such as "1e999") keeps the current value: NaN passes the range clamp and
-    // reached the host parameter before (adapter test 52).
+    // Typed entry keeps the host's text parsing (installed by the attachment); a NaN result keeps the
+    // current value, because NaN passes the range clamp and reached the host parameter before (adapter
+    // test 52). The host parser already clamps "inf"/"1e999" to the range end; garbage parses as the start.
     static void rejectNonfiniteEntry(juce::Slider& s) {
         s.valueFromTextFunction = [&s, parse = s.valueFromTextFunction](const juce::String& text) {
             const double v = parse ? parse(text) : text.getDoubleValue();

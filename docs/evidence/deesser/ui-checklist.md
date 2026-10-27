@@ -10,8 +10,8 @@ No pixel capture of either editor has been compared.
 | Original element (evidence) | Tsunami editor | Binding / data | Status |
 |---|---|---|---|
 | Audio button, shows "Split"/"Wideband" (fig.; ch.4 "Audio") | Toggle button `audio`, label shows the current mode | APVTS `audio` (ButtonAttachment); tested both ways | Matches function; look approximate |
-| Frequency value window, "5506" default (fig.; ch.4 "Freq") | Drag value box `freq`, whole Hz, genuine 2000*8^n taper via a slider-side custom NormalisableRange set after the attachment (the earlier skew call was a no-op and was removed) | APVTS `freq` (SliderAttachment); taper maths tested in `deesser_editor_model`; the JUCE harness has not been re-run with the new range | Matches function; the original's exact drag sensitivity is unknown |
-| SideChain filter selector with shape icon and drop-down (fig.; ch.4 "SideChain") | ComboBox `sidechain` with BandPass/HighPass text (compact 12 pt combo, 78 px in the 90 px column, so both names show whole; adapter test 37-39) | APVTS `sidechain` (ComboBoxAttachment); tested | Text replaces the original filter-shape icon (gap) |
+| Frequency value window, "5506" default (fig.; ch.4 "Freq") | Numeric value window `freq` (white framed box, whole-Hz text, no fill bar since 35b870a), vertical drag, click to type, keyboard/wheel via the JUCE slider; genuine 2000*8^n taper via a slider-side custom NormalisableRange set after the attachment | APVTS `freq` (SliderAttachment); taper maths tested in `deesser_editor_model`; adapter test 49 (no value-proportional fill), 50 (nonintegral host value kept, display-only rounding), 51 (drag: one balanced gesture, other parameters unchanged), 52/53 (typed entry, nonfinite text rejected) | Matches function (documentation-derived); the original's exact drag sensitivity is unknown |
+| SideChain filter selector with shape icon and drop-down (fig.; ch.4 "SideChain") | ComboBox `sidechain` with BandPass/HighPass text (compact 12 pt, 78 px; adapter test 37-39) plus an independently drawn vector filter-shape pictogram `sidechain_shape` under it (HighPass: rise then flat; BandPass: single hump). The pictogram is a button: click/keyboard selects the other shape; title/tooltip "SideChain filter: <name>" | APVTS `sidechain` (ComboBoxAttachment + ParameterAttachment); adapter test 54 (follows host change and state recall while open), 55 (click = one complete gesture, combo follows, other parameters unchanged) | Matches function (documentation-derived). Icon below rather than inside the selector; shape drawn from the manual text, not traced from vendor art |
 | Monitor pair "Audio" / "S Chain" + yellow light in SideChain mode (fig.; ch.4 "Monitor") | Two buttons `monitor_audio`/`monitor_sidechain`; painted lamp when S Chain | One parameter `monitor` (ParameterAttachment); tested | Matches |
 | Threshold slider with value handle "-43.6", 0..-80, aligned with Energy bar (fig.; ch.4 "Thresh", "Energy Detector") | Vertical slider `threshold` with value text, 0.1 dB steps; shares the 0..-80 scale with the Energy bar | APVTS `threshold`; tested | Matches function; handle shape is approximate |
 | Energy Detector bar (blue), scale 0/20/40/60/80, peak readout below (fig.; ch.4) | Blue bar `energy_meter` on the Threshold scale (envelope/sqrt(0.5), the detector's threshold comparison, so attenuation starts when the slider is below the bar peak) + readout with infinite peak hold accumulated in the core between polls, click to reset | Product build: core `meter(0)` (latest post-block value) via the shared `CoreMeterSource`; harness: `DetectorMeterSource`; tested in the real Adapter test | Live in the product build; not genuine-original ballistics; the 30 Hz poll samples the latest block only |
@@ -39,3 +39,19 @@ Readout and label fixes at 948e848, regressions in `tests/deesser/adapter_test.c
 - Both SideChain names show whole (37-39).
 - Readouts never show `-0.0` (40).
 - Before the first poll, meters are idle: empty Energy/Output bars and Atten `0.0` (41).
+
+Frequency/SideChain controls at 35b870a, regressions 49-56 in `tests/deesser/adapter_test.cpp`
+(RED witnessed for 49, 52, 54 and 56; 50/51/53/55 are behaviour guards):
+- 49: the bar-style slider drew a value-proportional fill behind the number (overlap seen in the hosted capture); now only a framed window.
+- 52: typing `nan` into the Frequency box set the host `freq` parameter to NaN (state corruption). Typed entry keeps the host's
+  text parsing; a NaN result keeps the current value (Frequency and Threshold). `inf`/`1e999` clamp to the range end and
+  garbage text parses as the range start (host parser behaviour; test 52 checks finite and in range only). Known gaps: an
+  accessibility numeric `setValue(NaN)` is not guarded, and tooltips are not shown because no TooltipWindow exists (titles
+  still reach accessibility).
+- 54/55: SideChain filter-shape pictogram.
+- 56 (02ca890): closing the editor during a Frequency drag left the host gesture open (begins 1, ends 0); the destructor
+  now releases a dragging slider while its attachment still listens.
+Hosted Linux capture of the 02ca890 module (pluginval 1.0.4 strictness 6 SUCCESS, Xvfb, 380x380, Frequency "2428" in the
+value window, BandPass pictogram): `state/deesser-ui-controls/ui-linux-02ca890/` outside the repository (module sha256
+80f0ac96..., screenshot 338e1d65..., Editor.hpp sha256 453cc5e4...).
+Not yet captured on Windows at this head. Not compared with the original host's pixels.

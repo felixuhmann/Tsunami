@@ -165,7 +165,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - Atten and Output read `0.0`.
 
   Logs are under the campaign state `deesser-native/editor-readouts/`.
-- Still pending: a native Windows capture at a new head (the initial-text fix is the Windows-visible one), original-UI equivalence, and the SideChain filter-shape icon.
+- Still pending: a native Windows capture at a new head (the initial-text fix is the Windows-visible one), original-UI equivalence. The SideChain filter-shape pictogram and the Frequency value window were added at 35b870a (see ui-checklist.md, adapter tests 49-56).
 
 ## Mono 1-in/1-out product layout (generator emission integrated on this branch; see the end of this section)
 - Gap: the core supports `prepare(rate, 1, block)`, but the product wrapper advertised only stereo (the original has mono and stereo components). The shared Adapter's reviewed opt-in (`Spec::supportsMono`, `detail::SupportsMono`) is on main. The generator emission from `supports_mono` came from the RVox PR18 branch (`origin/plugin/rvox` df1a8e2) and is now integrated here (see the end of this section).
