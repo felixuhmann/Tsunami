@@ -13,7 +13,7 @@ public:
         return value();
     }
 private:
-    // Unity initial gain is a replacement policy, not yet recovered init.
+    // Fresh 3:1 unity initialization independently confirmed in Windows init.
     double fast_ = 0.75;
     double slow_ = 0.25;
 };

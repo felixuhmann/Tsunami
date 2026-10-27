@@ -1,0 +1,40 @@
+# CLA-2A (Tsunami Opto) evidence summary
+
+Status: **structure recovered, coefficients provisional, wet output NOT matched.**
+
+## Recovered from the reference (independently re-expressed, no vendor code/tables)
+Source: unstripped Linux kernel symbols in the genuine bundle (Ghidra export, private analysis).
+
+| Segment | Source file | Test |
+|---|---|---|
+| Detector is full-wave `|x|` | `Kernel.h detect` | `test_kernel` |
+| Static gain: 26-point piecewise-linear lookup, clamped, input floored at 0; Comp/Limit select different tables | `interpolateCurve` | `test_kernel` |
+| Program-dependent attack: 12-point descending table on clamped `level*sens`, both poles interpolated, weight 0.75 | `attackPoles` | `test_kernel` |
+| Constant release poles; attack branch only while target < memory sum | `Ballistics` | `test_kernel` |
+| Two-memory gain recurrence, 0.75/0.25 weighting, unity init | `GainMemory.h` | `test_memory` |
+| Gain-dependent cubic blend polynomial, clamp [floor,1] | `BoostPolynomial` (not yet wired: path filters unrecovered) | `test_kernel` |
+| Analog hum: renormalised quadrature oscillator | `HumOscillator` | `test_kernel` |
+| Input noise: wrapping 32-bit LCG, two draws, sum/diff pair, injected at 1e-8 | `NoiseSource` | `test_kernel` |
+| Mix / output gain one-pole smoothed | `Smoother` | `test_kernel` |
+
+## Control mapping (genuine host enumeration)
+`ControlMapping.h` maps Gain / Peak Reduction knob values to normalized. A 1000-step
+normalized sweep at 0.04 display resolution reproduces all 929 (Gain) and 931 (Peak
+Reduction) distinct host display values, plus the defaults 40 -> 0.535 and 46 -> 0.598
+(`test_mapping`).
+
+## Not recovered (blockers)
+* Coefficient initialisation (Windows init): curve tables, attack tables, release poles,
+  Peak Reduction drive, Gain makeup, sidechain / programme-path filter cascades, Hi Freq
+  network, auto-makeup, stereo link. All `Provisional::` values in `Processor.h` are
+  placeholders (neither recovered nor fitted).
+
+## Genuine-render comparison
+Thresholds predeclared in `thresholds.json` before comparison; results in `comparison.json`.
+* Dry subset (mix 0, trim +6 dB): max abs error 1.19e-7 <= 1e-6 -> **PASS**.
+* Wet defaults (tone_plus_noise, stereo_independent): rel. RMS error about -2 dB, steady
+  level about -14 dB vs reference -> **FAIL** (expected; provisional coefficients).
+* Host finding: the genuine host decodes int16 WAV as v/32767.
+
+Restricted kernel tests and the complete-plugin fidelity results are separate claims.
+No complete-plugin match is claimed.

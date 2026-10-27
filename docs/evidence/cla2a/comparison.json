@@ -1,0 +1,77 @@
+{
+ "thresholds": "docs/evidence/cla2a/thresholds.json",
+ "driver": "tests/cla2a/reference_driver.cpp",
+ "script": "tests/cla2a/compare_oracle.py",
+ "results": [
+  {
+   "evidence": "20261027T095837-ae5b4e2286d3467081a4db543d3cacde",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 0.0,
+    "trim": 6.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": true,
+   "samples": 96000,
+   "rms_error": 1.3271924412260164e-08,
+   "max_abs_error": 1.1920928955078125e-07,
+   "rel_rms_error_db": -146.24198190843694,
+   "steady_level_diff_db": 0.0,
+   "candidate_all_finite": true,
+   "verdict": "PASS"
+  },
+  {
+   "evidence": "20261027T095855-ad921980db334cb1883f80ed7d9de816",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 100.0,
+    "trim": 0.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": false,
+   "samples": 384000,
+   "rms_error": 0.22903808862129804,
+   "max_abs_error": 0.5113983899354935,
+   "rel_rms_error_db": -2.044211330048597,
+   "steady_level_diff_db": -13.527968143073767,
+   "candidate_all_finite": true,
+   "verdict": "FAIL"
+  },
+  {
+   "evidence": "20261027T095937-841c31c3b048408c86c4bd989b903baa",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 100.0,
+    "trim": 0.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": false,
+   "samples": 768000,
+   "rms_error": 0.19788578278565383,
+   "max_abs_error": 0.41330163180828094,
+   "rel_rms_error_db": -1.8582303300600729,
+   "steady_level_diff_db": -14.275427617478787,
+   "candidate_all_finite": true,
+   "verdict": "FAIL"
+  }
+ ],
+ "input_scaling_finding": "Genuine host decodes int16 WAV as v/32767 (dry ratio exactly 32768/32767 above trim gain); comparison feeds identical samples."
+}

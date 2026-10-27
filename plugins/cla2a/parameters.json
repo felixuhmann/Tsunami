@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "id": "cla2a",
+  "status": "structure-recovered-coefficients-provisional",
+  "physical_values_not_normalized": true,
+  "parameters": [
+    {
+      "index": 0,
+      "id": "bypass",
+      "name": "Bypass",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "unit": "",
+      "type": "boolean",
+      "logarithmic": false,
+      "group": "Output",
+      "supported": true,
+      "fidelity": "verified"
+    },
+    {
+      "index": 1,
+      "id": "gain",
+      "name": "Gain",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 40,
+      "unit": "",
+      "type": "float",
+      "logarithmic": false,
+      "group": "Dynamics",
+      "supported": true,
+      "fidelity": "provisional"
+    },
+    {
+      "index": 2,
+      "id": "peak_reduction",
+      "name": "Peak Reduction",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 46,
+      "unit": "",
+      "type": "float",
+      "logarithmic": false,
+      "group": "Dynamics",
+      "supported": true,
+      "fidelity": "provisional"
+    },
+    {
+      "index": 3,
+      "id": "comp_limiter",
+      "name": "Comp/Limiter",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "unit": "",
+      "type": "enum",
+      "values": [
+        "Comp",
+        "Limit"
+      ],
+      "logarithmic": false,
+      "group": "Dynamics",
+      "supported": true,
+      "fidelity": "provisional"
+    },
+    {
+      "index": 4,
+      "id": "hi_freq",
+      "name": "Hi Freq",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 50,
+      "unit": "",
+      "type": "float",
+      "logarithmic": false,
+      "group": "Detector",
+      "supported": true,
+      "fidelity": "provisional"
+    },
+    {
+      "index": 5,
+      "id": "analog",
+      "name": "Analog",
+      "minimum": 0,
+      "maximum": 2,
+      "default": 2,
+      "unit": "",
+      "type": "enum",
+      "values": [
+        "50Hz",
+        "60Hz",
+        "Off"
+      ],
+      "logarithmic": false,
+      "group": "Character",
+      "supported": true,
+      "fidelity": "provisional"
+    },
+    {
+      "index": 6,
+      "id": "vu_display",
+      "name": "VU Display",
+      "minimum": 0,
+      "maximum": 2,
+      "default": 1,
+      "unit": "",
+      "type": "enum",
+      "values": [
+        "In",
+        "GR",
+        "Out"
+      ],
+      "logarithmic": false,
+      "group": "Meter",
+      "supported": true,
+      "fidelity": "meter-only-no-audio-effect"
+    },
+    {
+      "index": 7,
+      "id": "mix",
+      "name": "Mix",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 100,
+      "unit": "%",
+      "type": "float",
+      "logarithmic": false,
+      "group": "Output",
+      "supported": true,
+      "fidelity": "verified-at-0-only"
+    },
+    {
+      "index": 8,
+      "id": "trim",
+      "name": "Trim",
+      "minimum": -18,
+      "maximum": 18,
+      "default": 0,
+      "unit": "dB",
+      "type": "float",
+      "logarithmic": false,
+      "group": "Output",
+      "supported": true,
+      "fidelity": "verified"
+    },
+    {
+      "index": 9,
+      "id": "auto_makeup",
+      "name": "Auto Makeup",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0,
+      "unit": "",
+      "type": "boolean",
+      "logarithmic": false,
+      "group": "Dynamics",
+      "supported": true,
+      "fidelity": "accepted-not-implemented"
+    }
+  ],
+  "notes": [
+    "Control names/ranges/defaults measured from genuine reference host enumeration.",
+    "Gain / Peak Reduction knob<->normalized mapping (ControlMapping.h) reproduces all 929/931 genuine host display values of a 1000-step sweep.",
+    "Wet DSP structure recovered from reference kernel; numeric coefficients are PROVISIONAL (not recovered, not fitted). Wet output is NOT matched: see docs/evidence/cla2a/comparison.json.",
+    "Verified against genuine renders: bypass, mix=0 dry path with trim (max abs error 1.19e-7).",
+    "Unused MIDI host controls excluded."
+  ]
+}

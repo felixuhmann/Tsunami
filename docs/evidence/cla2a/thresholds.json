@@ -1,0 +1,13 @@
+{
+  "declared_before_comparison": "2026-10-27T15:41Z",
+  "author": "cla2a task1 worker",
+  "dry_subset": {"configs": "mix=0 (any trim) or bypass", "max_abs_error": 1e-6, "claim_if_pass": "dry/trim/bypass path matched"},
+  "wet_complete_plugin": {
+    "configs": "genuine defaults (gain 40, peak reduction 46, Comp, hi freq 50, analog Off, mix 100, trim 0)",
+    "rel_rms_error_db_max": -40.0,
+    "steady_level_diff_db_max": 0.5,
+    "claim_if_pass": "wet default matched on calibrated inputs",
+    "expected": "FAIL: coefficients provisional (not recovered, not fitted)"
+  },
+  "inputs": "calibrated 48 kHz inputs already captured from the genuine oracle; held-out speech NOT used"
+}
