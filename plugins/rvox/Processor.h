@@ -52,6 +52,20 @@ public:
  unsigned latencySamples() const noexcept { return lookahead_; }
  double tailSeconds() const noexcept { return double(lookahead_)/rate_; }
  float makeupCoefficient() const noexcept { return makeup_; }
+ // Project-defined taps of state the core already computes, read after a block
+ // (no effect on audio; not a proven reproduction of the original meter scale
+ // or ballistics). kEnergy: linear full-scale detector envelope (allpass-rotated
+ // peak with the 130ms gate release), >=0. kTotalGain: linear gate*compressor
+ // gain after the lookahead smoother and before makeup, aligned with the delayed
+ // output; 1 means no reduction. Unprepared/out-of-range reads are idle values.
+ enum : unsigned { kEnergy, kTotalGain };
+ static constexpr unsigned meterCount=2;
+ float meter(unsigned index) const noexcept {
+  if(index==kEnergy) return gateEnvelope_;
+  if(index!=kTotalGain) return 0;
+  if(minima_.empty()) return 1;
+  return static_cast<float>(double(accumulator1_)*4.656613e-10*normalization_);
+ }
  void process(const float* const* input,float* const* output,unsigned frames) noexcept {
   if(minima_.empty()) return;
   constexpr float ap[3]={.6303f,.3583f,.1607f};
