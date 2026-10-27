@@ -9,6 +9,33 @@ concurrency:
   group: deesser-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  renderer-streams:
+    # Quick test-only renderer job (no JUCE): binary stdin/stdout of deesser_render used by the mono host smoke.
+    name: deesser-renderer-streams-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Build only deesser_render (portable core, no framework)
+        run: |
+          cmake -S plugins/deesser -B build-core -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --config Release --target deesser_render --parallel 2
+      - name: Binary stdin/stdout exchange (CR/LF/0x1a float32 payload)
+        run: |
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('deesser_render*') if p.is_file() and p.name in ('deesser_render','deesser_render.exe')).resolve())")"
+          python tests/deesser/test_renderer_streams.py "$renderer"
   # Evidence steps after a successful build run even if a post-build gate failed; any failed gate still fails the job.
   native:
     name: deesser-native-${{ matrix.os }} (hosted DeEsser core + product editor; fidelity not claimed)
