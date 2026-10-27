@@ -7,6 +7,7 @@
 #include "Adapter.hpp"
 #include "EditorModel.hpp"
 #include <array>
+#include <set>
 #include <memory>
 
 namespace tsunami::s1 {
@@ -205,7 +206,15 @@ private:
     bool dragging=false;
 };
 
-class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
+// Nested mouse listener forwarding presses on child controls to the editor (unlink policy);
+// the editor's own background presses arrive through its normal mouseDown, never twice.
+struct ChildPressForwarder final : public juce::MouseListener {
+    juce::Component& owner;
+    explicit ChildPressForwarder(juce::Component& o) : owner(o) {}
+    void mouseDown(const juce::MouseEvent& e) override { if(e.eventComponent!=&owner) owner.mouseDown(e); }
+};
+
+class Editor final : public juce::AudioProcessorEditor, private juce::Timer, private juce::Slider::Listener {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
         : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), display(s), linkStrip(s) {
@@ -236,6 +245,8 @@ public:
         refreshPolarity();
         // Uniform resizing 50..125 %: children keep logical 1048x665 bounds and receive one
         // scale transform; paint draws through the same transform (no bitmap scaling).
+        for(auto* sl : {&gain, &width, &asymmetry, &rotation}) sl->addListener(this);
+        addMouseListener(&childPresses, true);
         setResizable(true, true);
         setResizeLimits(524, 333, 1310, 831);
         getConstrainer()->setFixedAspectRatio(1048.0/665.0);
@@ -244,6 +255,14 @@ public:
     }
     ~Editor() override {
         stopTimer();
+        endGroupDrag();
+        // JUCE SliderAttachment begins a host gesture on drag start and ends it only on release;
+        // an editor closed mid-drag must end it here so host gestures stay balanced.
+        for(auto* sl : {&gain, &width, &asymmetry, &rotation}) {
+            sl->removeListener(this);
+            if(draggingSliders.count(sl)) param(*sl)->endChangeGesture();
+        }
+        removeMouseListener(&childPresses);
         for(auto* sl : {&gain, &width, &asymmetry, &rotation}) sl->setLookAndFeel(nullptr);
     }
     // Manual: reset image restores width/asymmetry/rotation; gain and input options stay.
@@ -273,7 +292,59 @@ public:
     juce::Rectangle<int> channelLabelBounds(int k) const { return {(k ? 988 : 886)-10, 38, 20, 14}; }
     void setLinked(bool on) { getProperties().set("s1_linked", on); repaint(); }
     bool isLinked() const { return bool(getProperties()["s1_linked"]); }
-    void mouseDown(const juce::MouseEvent&) override { setLinked(false); } // click elsewhere unlinks
+    // Background press: unlinks (click elsewhere) and starts a selection rectangle (manual p8-9).
+    void mouseDown(const juce::MouseEvent& e) override {
+        if(e.eventComponent!=this) { // child press (via childPresses): outside the selected group unlinks
+            if(!inSelectedGroup(e.eventComponent)) setLinked(false);
+            return;
+        }
+        setLinked(false);
+        lassoStart=lassoEnd=toLogical(e.position); lassoActive=true;
+    }
+    bool inSelectedGroup(juce::Component* c) const {
+        for(const juce::Component* g : {static_cast<const juce::Component*>(&asymmetry), static_cast<const juce::Component*>(&rotation),
+                                        static_cast<const juce::Component*>(&linkStrip)})
+            if(c==g || g->isParentOf(c)) return true;
+        return false;
+    }
+    void mouseDrag(const juce::MouseEvent& e) override {
+        if(!lassoActive || e.eventComponent!=this) return;
+        lassoEnd=toLogical(e.position); repaint();
+    }
+    // Replacement scope: only a rectangle enclosing BOTH horizontal image faders selects them.
+    void mouseUp(const juce::MouseEvent& e) override {
+        if(!lassoActive || e.eventComponent!=this) return;
+        lassoActive=false; lassoEnd=toLogical(e.position);
+        const auto r=juce::Rectangle<float>(lassoStart, lassoEnd).toNearestInt();
+        setLinked(r.contains(asymmetry.getBounds()) && r.contains(rotation.getBounds()));
+    }
+    juce::Point<float> toLogical(juce::Point<float> p) const { return p/scale(); }
+    // Selected-pair drag (manual p8-9 replacement policy): the dragged fader's normalized delta is
+    // applied to its partner; the common delta is clamped so neither leaves its range (offset kept).
+    void sliderDragStarted(juce::Slider* s) override {
+        draggingSliders.insert(s);
+        if((s!=&asymmetry && s!=&rotation) || !isLinked() || groupDragged) return;
+        groupDragged=s; groupPartner=(s==&asymmetry ? &rotation : &asymmetry);
+        groupStart={param(*groupDragged)->getValue(), param(*groupPartner)->getValue()};
+        param(*groupPartner)->beginChangeGesture();
+    }
+    void sliderValueChanged(juce::Slider* s) override {
+        if(s!=groupDragged || groupApplying) return;
+        auto* dragged=param(*s); auto* partner=param(*groupPartner);
+        float delta=dragged->convertTo0to1(float(s->getValue()))-groupStart[0];
+        delta=juce::jlimit(-groupStart[0], 1.f-groupStart[0], delta);
+        delta=juce::jlimit(-groupStart[1], 1.f-groupStart[1], delta);
+        const juce::ScopedValueSetter<bool> guard(groupApplying, true);
+        s->setValue(dragged->convertFrom0to1(groupStart[0]+delta), juce::sendNotificationSync);
+        partner->setValueNotifyingHost(groupStart[1]+delta);
+    }
+    void sliderDragEnded(juce::Slider* s) override { draggingSliders.erase(s); if(s==groupDragged) endGroupDrag(); }
+    void endGroupDrag() {
+        if(!groupDragged) return;
+        param(*groupPartner)->endChangeGesture();
+        groupDragged=groupPartner=nullptr;
+    }
+    juce::RangedAudioParameter* param(juce::Slider& s) const { return state.getParameter(s.getComponentID()); }
     float heldPeakDb(int k) const { return held[size_t(k)]; }
     bool clipped(int k) const { return clip[size_t(k)]; }
     void resetHold(int k) { held[size_t(k)]=-100.f; clip[size_t(k)]=false; repaint(); }
@@ -292,6 +363,10 @@ public:
         g.drawText("Gain", gain.getX()-10, 40, gain.getWidth()+20, 20, juce::Justification::centred);
         g.drawText("Width", width.getX()-10, 40, width.getWidth()+20, 20, juce::Justification::centred);
         g.drawText("Input Mode", leftPanel.getX(), inputMode.getY()-24, leftPanel.getWidth(), 20, juce::Justification::centred);
+        if(lassoActive) { // live selection rectangle
+            g.setColour(juce::Colour(0x556b5fb4)); g.fillRect(juce::Rectangle<float>(lassoStart, lassoEnd));
+            g.setColour(juce::Colour(0xff6b5fb4)); g.drawRect(juce::Rectangle<float>(lassoStart, lassoEnd), 1.f);
+        }
         if(isLinked()) { // visible selection outline around the linked pair
             g.setColour(juce::Colour(0xff6b5fb4)); g.drawRoundedRectangle(juce::Rectangle<float>(234.f, 406.f, 548.f, 154.f), 6.f, 2.f);
         }
@@ -428,6 +503,13 @@ private:
     juce::Rectangle<int> leftPanel, centrePanel, rightPanel, meterArea;
     std::array<float,2> displayed{{-100.f,-100.f}};
     std::array<float,Processor::Count> shown{};
+    juce::Point<float> lassoStart, lassoEnd;
+    bool lassoActive=false;
+    ChildPressForwarder childPresses{*this};
+    juce::Slider* groupDragged=nullptr; juce::Slider* groupPartner=nullptr;
+    std::array<float,2> groupStart{};
+    bool groupApplying=false;
+    std::set<juce::Slider*> draggingSliders;
     std::array<float,2> held{{-100.f,-100.f}};
     std::array<bool,2> clip{};
     std::array<PeakTarget,2> lamps, readouts;

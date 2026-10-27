@@ -27,6 +27,11 @@ static juce::MouseEvent dragAt(juce::Component& c, float dx, juce::ModifierKeys 
                             &c, &c, juce::Time::getCurrentTime(), centre, juce::Time::getCurrentTime(), 1, dx != 0.f);
 }
 
+static juce::MouseEvent editorEvent(juce::Component& c, juce::Point<float> at, juce::Point<float> down, bool dragged) {
+    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), at, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier),
+                            0.f, 0.f, 0.f, 0.f, 0.f, &c, &c, juce::Time::getCurrentTime(), down, juce::Time::getCurrentTime(), 1, dragged);
+}
+
 int main() {
     juce::ScopedJuceInitialiser_GUI gui;
     tsunami::Adapter<tsunami::PluginSpec> p;
@@ -363,6 +368,105 @@ int main() {
         setPhysical(1, 2.37f);
         CHECK(std::abs(w->getValue() - 2.37) < 1e-3 && std::abs(physical(1) - 2.37f) < 1e-4, 62, "automation->UI continuous");
         setPhysical(1, 1.f);
+    }
+    // Manual p8-9 tracer 1: a rectangle drawn on the background around both horizontal image
+    // faders selects (links) them; a rectangle missing one selects nothing. At 100 % and 75 %.
+    {
+        for (float z : {1.f, .75f}) {
+            editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            auto lasso = [&](juce::Point<float> a, juce::Point<float> b) {
+                a *= z; b *= z;
+                editor->mouseDown(editorEvent(*editor, a, a, false));
+                editor->mouseDrag(editorEvent(*editor, b, a, true));
+                editor->mouseUp(editorEvent(*editor, b, a, true));
+            };
+            lasso({230.f, 402.f}, {792.f, 548.f});
+            CHECK(bool(editor->getProperties()["s1_linked"]), 73, "rectangle around asymmetry+rotation links them");
+            lasso({230.f, 402.f}, {792.f, 470.f});
+            CHECK(!bool(editor->getProperties()["s1_linked"]), 74, "rectangle around one fader selects nothing");
+        }
+        editor->setSize(1048, 665);
+    }
+    // Tracer 2: with the pair selected, a real mouse drag on either horizontal fader moves both by
+    // one common normalized delta (offset kept, clamped); partner gesture balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto select = [&] { editor->mouseDown(editorEvent(*editor, {230.f, 402.f}, {230.f, 402.f}, false));
+                            editor->mouseUp(editorEvent(*editor, {792.f, 548.f}, {230.f, 402.f}, true)); };
+        auto dragFader = [&](const char* id, float dx) {
+            auto* sl = child<juce::Slider>(*editor, id);
+            const juce::Point<float> down(float(sl->getPositionOfValue(sl->getValue())), 13.f);
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(dx, 0.f), down, true));
+            sl->mouseUp(editorEvent(*sl, down.translated(dx, 0.f), down, true));
+        };
+        setPhysical(3, 10.f); setPhysical(2, -5.f); select();
+        CHECK(bool(editor->getProperties()["s1_linked"]), 75, "pair selected");
+        p.addListener(&gestures);
+        dragFader("asymmetry", 31.7f);
+        p.removeListener(&gestures);
+        if (std::abs(physical(2) - 4.f) > .3f) std::cerr << "asym " << physical(3) << " rot " << physical(2) << "\n";
+        CHECK(std::abs(physical(3) - 28.f) < .3f && std::abs(physical(2) - 4.f) < .3f, 76, "selected faders move together");
+        CHECK(gestures.begins[2] == 1 && gestures.ends[2] == 1 && gestures.begins[3] == 1 && gestures.ends[3] == 1, 77, "balanced gestures on pair");
+        setPhysical(3, 80.f); setPhysical(2, 0.f);
+        dragFader("rotation", 200.f); // rotation would pass 45 later than asymmetry hits 90
+        CHECK(std::abs(physical(3) - 90.f) < .3f && std::abs(physical(2) - 5.f) < .3f, 78, "common delta clamped, offset kept");
+        editor->mouseDown(editorEvent(*editor, {10.f, 10.f}, {10.f, 10.f}, false));
+        editor->mouseUp(editorEvent(*editor, {10.f, 10.f}, {10.f, 10.f}, false));
+        setPhysical(3, 0.f); setPhysical(2, 0.f);
+    }
+    // Tracer 3: a press anywhere outside the selected group - including on other child controls -
+    // unlinks; presses on the selected faders keep it. The editor receives child presses as a nested
+    // mouse listener; here that callback is invoked with the child as eventComponent, as JUCE delivers
+    // it (real peer dispatch is not exercised locally: Xvfb without a WM rejects addToDesktop).
+    {
+        auto linked = [&] { return bool(editor->getProperties()["s1_linked"]); };
+        auto select = [&] { editor->mouseDown(editorEvent(*editor, {230.f, 402.f}, {230.f, 402.f}, false));
+                            editor->mouseUp(editorEvent(*editor, {792.f, 548.f}, {230.f, 402.f}, true)); };
+        auto childPress = [&](const char* id) {
+            auto* c = editor->findChildWithID(id); const auto at = c->getLocalBounds().getCentre().toFloat();
+            editor->mouseDown(editorEvent(*c, at, at, false)); editor->mouseUp(editorEvent(*c, at, at, false));
+        };
+        select(); childPress("asymmetry");
+        CHECK(linked(), 80, "press on a selected fader keeps the selection");
+        childPress("gain");
+        CHECK(!linked(), 81, "press on another control (gain) unlinks");
+        select(); childPress("input_mode");
+        CHECK(!linked(), 82, "press on input selector unlinks");
+    }
+    // Coverage (implemented in tracer 2): group drag closed mid-drag or released twice stays balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        p.addListener(&gestures);
+        for (bool closeMidDrag : {true, false}) {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            transient->mouseDown(editorEvent(*transient, {230.f, 402.f}, {230.f, 402.f}, false));
+            transient->mouseUp(editorEvent(*transient, {792.f, 548.f}, {230.f, 402.f}, true));
+            auto* sl = dynamic_cast<juce::Slider*>(transient->findChildWithID("rotation"));
+            const juce::Point<float> down(float(sl->getPositionOfValue(sl->getValue())), 13.f);
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(20.f, 0.f), down, true));
+            if (!closeMidDrag) { sl->mouseUp(editorEvent(*sl, down.translated(20.f, 0.f), down, true));
+                                 sl->mouseUp(editorEvent(*sl, down.translated(20.f, 0.f), down, true)); }
+            transient.reset();
+        }
+        p.removeListener(&gestures);
+        for (size_t i = 0; i < 9; ++i) if (gestures.begins[i] != gestures.ends[i]) std::cerr << "param " << i << " begins " << gestures.begins[i] << " ends " << gestures.ends[i] << "\n";
+        for (size_t i = 0; i < 9; ++i) CHECK(gestures.begins[i] == gestures.ends[i], 83, "group drag gestures balanced on close/duplicate release");
+        CHECK(gestures.begins[3] == 2, 84, "partner gesture begun once per group drag");
+        setPhysical(3, 0.f); setPhysical(2, 0.f);
     }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {

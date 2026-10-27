@@ -298,3 +298,39 @@ to the 1048x665 logical body, with an 18 px toolbar above).
   - There is no in-editor zoom menu; only host or corner resizing is available.
   - Whether hosts honour resize requests (VST3/CLAP) is not natively proven.
   - The Windows capture helper still expects the default 1048x665 body.
+
+## Rectangular selection tracer slice 10 (manual p8-9; local commit, native unproven)
+- **Scope: bounded replacement.**
+  - A rectangle drawn on the editor background that encloses **both** horizontal image faders (Asymmetry and
+    Rotation) links them. It is drawn live, then shown by the existing linked outline. A rectangle around only one
+    fader selects nothing.
+  - Dragging either selected fader with the mouse applies its normalized delta to the partner. The common delta is
+    clamped so neither leaves its range, which keeps the offset. The partner's host gesture spans the drag.
+  - A press outside the group unlinks, whether on the background or on other child controls; a nested
+    `MouseListener` forwards child presses. Presses on the selected faders or the link strip keep the selection.
+  - Coordinates are converted from the scaled editor space to logical space, so this works at 100 % and 75 %.
+- **Not implemented:**
+  - arbitrary contiguous selection, including the vertical Gain/Width pair and cross-axis sets;
+  - original sensitivity, and any original visual style for the selection rectangle.
+- **TDD, one tracer at a time.**
+  1. Selection.
+     - `lasso-select-red.log`: FAIL 73.
+     - `lasso-select-green.log`: PASS.
+  2. Group drag through real slider mouse events.
+     - `lasso-drag-red.log`: FAIL 76 (asym 28, rot -5).
+     - `lasso-drag-green.log`: PASS. Includes clamping 90/5 and balanced gestures.
+  3. Unlink on child press.
+     - `lasso-unlink-red.log`: a **setup crash, not a valid red**. `addToDesktop` under local Xvfb without a window
+       manager raised X BadAtom, so real `ComponentPeer` dispatch is not exercised locally.
+     - The test was revised to invoke the editor's child-press callback with the child as `eventComponent`, as
+       JUCE's nested listener delivers it. `lasso-unlink-red-2.log`: FAIL 80.
+     - `lasso-unlink-green.log`: PASS.
+  4. Lifecycle. This test was written as coverage but failed on its first run, so it is a genuine red.
+     - `lasso-lifecycle-coverage.log`: FAIL 83.
+     - `lasso-lifecycle-red-diag.log`: rotation begins 2 / ends 1. JUCE `SliderAttachment` begins a gesture on drag
+       start and ends it only on release, so an editor closed mid-drag left it open.
+     - Fix: the editor tracks slider drags and ends any open slider gesture in its destructor.
+     - `lasso-lifecycle-green.log`: PASS. Covers close mid-drag and duplicate release.
+- RT re-run: `rt-green-lasso.log` and `rt-green-lasso-final.log`, 0 allocations.
+- DSP, APVTS ranges and Width taper are unchanged. The existing link strip, graph gestures, resize and restore
+  tests still pass.
