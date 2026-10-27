@@ -5,10 +5,18 @@
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 int main(int argc,char** argv){
  if(argc!=11)return 2;
  unsigned channels=unsigned(std::atoi(argv[2])),frames=unsigned(std::atoi(argv[3])),block=unsigned(std::atoi(argv[4]));
  if((channels!=1&&channels!=2)||!block)return 2;
+#ifdef _WIN32
+ // Binary float32 pipes: the CRT defaults to text mode (CR/LF translation, 0x1a ends input).
+ if(_setmode(_fileno(stdin),_O_BINARY)==-1||_setmode(_fileno(stdout),_O_BINARY)==-1)return 5;
+#endif
  tsunami::deesser::Processor p;p.prepare(std::atof(argv[1]),channels,block);
  for(unsigned i=0;i<6;++i)p.setParameter(i,std::strtof(argv[5+i],nullptr));
  std::vector<float> data(channels*frames);if(std::fread(data.data(),sizeof(float),data.size(),stdin)!=data.size())return 3;
