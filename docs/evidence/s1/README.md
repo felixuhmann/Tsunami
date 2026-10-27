@@ -53,6 +53,22 @@ python3 /private/runtime/oracle.py render --target s1 --component 'S1 Imager Ste
 python3 tests/s1/compare_oracle.py /absolute/private/build/s1_render /private/capture 0 3
 ```
 
+## Actual native Linux target build and host smoke
+
+The real `TsunamiStereo_VST3` and `TsunamiStereo_CLAP` targets built successfully using pinned JUCE 9.0.4 and the existing shared adapter, in a private isolated build with two compiler jobs under heavy-slot 1. No root/shared source was edited. The shared generic editor emits a pre-existing deprecated-font-constructor warning; this is not a product-UI implementation.
+
+[Native Linux receipt](native-linux-summary.json) records exact module/core/metadata/test hashes. The actual VST3 loaded in native Linux Pedalboard 0.9.26 and passed **20 rate/block cases** (44100/48000/96000/192000 Hz × 1/17/64/257/1024). All nine controls restored from state; a fresh restored instance produced exactly the same output. At combined physical controls `[-6, 2, -22.5, -30, 0, 0, 0, 0, 0]`, hosted output matched the independently tested portable renderer exactly (worst error **0**). Replacement bypass and silent output were exact; reported latency was **0 samples**. This tests the adapter path, not additional original-plugin equivalence at those rates.
+
+Reproduce with the pinned host environment and a real native module:
+
+```
+python tests/s1/native_host_smoke.py '/path/Tsunami Stereo.vst3' /path/s1_render /private/native-host-receipt.json
+```
+
+These are local experimental binaries, not publicly packaged artifacts or native Windows evidence. The source hashes identify the compiled worktree contents; test/docs were committed after the build. Native CI still exercises the infrastructure fixture only.
+
+Mature native validators also executed on these exact modules: **pluginval 1.0.4 strictness 5: SUCCESS**, including Editor/Editor Automation on the existing generic editor (not product-layout acceptance); **CLAP validator 0.4.1: exit 0, 31 success, 11 skipped, 2 warnings**. Skips concern unimplemented optional preset discovery, float64, note or configurable-port features. Warnings remain explicit: denormal-input processing measured 3.71× slower, and random state bytes were accepted without crashing. These are follow-up issues, not an all-tests-green or realtime-certification claim. Validator/tool/log hashes and every non-success case appear in the native receipt.
+
 ## Still outstanding — keep draft
 
 - Genuine reference automation/continuing-state and broader rate/block/edge-control comparisons. Current numerical result establishes only the listed static scope. Short captures do not characterize demo interruptions; original outputs are preserved without mute repair.

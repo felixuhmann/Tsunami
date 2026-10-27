@@ -1,6 +1,6 @@
 {
   "status": "partial_static_dsp_milestone_not_equivalence",
-  "created_at": "2026-10-27T12:14:04.686633+00:00",
+  "created_at": "2026-10-27T12:22:40.984384+00:00",
   "environment": "Windows original under Wine9; native Linux portable C++17 candidate; not native Windows candidate evidence",
   "component": "S1 Imager Stereo",
   "capture_count": 7,
