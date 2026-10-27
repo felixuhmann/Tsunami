@@ -123,13 +123,17 @@ def _band_db(a, rate, hz):
 
 
 def alignment_lag(y, x):
-    """Lag (samples) of output y behind input x maximizing their mono cross-correlation."""
+    """Lag (samples) of output y behind input x maximizing their mono cross-correlation,
+    and the normalized correlation at that lag (a weak peak means no reliable alignment)."""
     import numpy as np
     a, b = y.astype(np.float64).mean(axis=0), x.astype(np.float64).mean(axis=0)
-    n = a.size - MAX_ALIGNMENT_LAG
-    return max(range(-MAX_ALIGNMENT_LAG, MAX_ALIGNMENT_LAG + 1),
-               key=lambda k: float(np.dot(a[MAX_ALIGNMENT_LAG + k:MAX_ALIGNMENT_LAG + k + n - MAX_ALIGNMENT_LAG],
-                                          b[MAX_ALIGNMENT_LAG:n])))
+    ref = b[MAX_ALIGNMENT_LAG:a.size - MAX_ALIGNMENT_LAG]
+
+    def corr(k):
+        seg = a[MAX_ALIGNMENT_LAG + k:a.size - MAX_ALIGNMENT_LAG + k]
+        return float(np.dot(seg, ref) / (np.linalg.norm(seg) * np.linalg.norm(ref) + 1e-30))
+    lag = max(range(-MAX_ALIGNMENT_LAG, MAX_ALIGNMENT_LAG + 1), key=corr)
+    return lag, corr(lag)
 
 
 def measure(metric, y, rate):
@@ -164,6 +168,15 @@ def apply_controls(host, controls):
     return readback
 
 
+def read_controls(host, controls):
+    """Read back profile controls; fail if the host does not hold the requested values."""
+    values = {k: float(getattr(host, k)) for k in controls}
+    for name, value in controls.items():
+        if abs(values[name] - value) > 1e-3:
+            raise SystemExit(f'control {name!r} reads {values[name]} at render time, expected {value}')
+    return values
+
+
 def physical_values(host):
     # Host display string plus normalized value: valid for float, bool and choice parameters alike.
     return {k: {'display': v.string_value, 'raw': float(v.raw_value)} for k, v in host.parameters.items()}
@@ -181,7 +194,9 @@ def check_active(load, manifest, profile):
     active_state = host.raw_state
     fresh = load()
     fresh.raw_state = active_state
-    recalled = {k: float(getattr(fresh, k)) for k in profile['active']}
+    recalled = read_controls(fresh, profile['active'])
+    if physical_values(fresh) != active_all:
+        raise SystemExit('fresh instance did not recall every active parameter')
     cases = []
     for rate in RATES:
         x = probe(profile['probe'], rate)
@@ -192,9 +207,11 @@ def check_active(load, manifest, profile):
             latency_before_prime[label] = plugin.reported_latency_samples
             plugin(x, rate, buffer_size=ACTIVE_BLOCK, reset=True)
         host.raw_state = neutral_state
+        read_controls(host, profile['neutral'])
         y0 = host(x, rate, buffer_size=ACTIVE_BLOCK, reset=True)
         latency0 = host.reported_latency_samples
         host.raw_state = active_state
+        read_controls(host, profile['active'])
         y1 = host(x, rate, buffer_size=ACTIVE_BLOCK, reset=True)
         latency1 = host.reported_latency_samples
         z1 = fresh(x, rate, buffer_size=ACTIVE_BLOCK, reset=True)
@@ -202,10 +219,12 @@ def check_active(load, manifest, profile):
             if y.shape != x.shape or not np.isfinite(y).all() or np.max(np.abs(y)) <= 1e-3:
                 raise SystemExit(f'{label} output trivial or non-finite at {rate} Hz')
         noise = probe('alignment_noise', rate)
-        host.raw_state = neutral_state
-        lag = alignment_lag(host(noise, rate, buffer_size=ACTIVE_BLOCK, reset=True), noise)
-        if lag or latency0 != latency1:
-            raise SystemExit(f'latency alignment: neutral output lags input by {lag} samples at {rate} Hz '
+        lag = {}
+        for label, state in (('neutral', neutral_state), ('active', active_state)):
+            host.raw_state = state
+            lag[label] = alignment_lag(host(noise, rate, buffer_size=ACTIVE_BLOCK, reset=True), noise)
+        if any(k or c < .5 for k, c in lag.values()) or latency0 != latency1:
+            raise SystemExit(f'latency alignment: (lag samples, correlation) {lag} at {rate} Hz '
                              f'(reported latency neutral {latency0}, active {latency1})')
         effect = measure(profile['metric'], y1, rate) - measure(profile['metric'], y0, rate)
         guard = None
@@ -218,7 +237,7 @@ def check_active(load, manifest, profile):
         cases.append({'rate': rate, 'block': ACTIVE_BLOCK, 'samples': x.shape[1],
                       'probe_sha256': hashlib.sha256(x.tobytes()).hexdigest(),
                       'latency_samples': {'neutral': latency0, 'active': latency1},
-                      'latency_before_prime': latency_before_prime, 'neutral_noise_alignment_lag': lag,
+                      'latency_before_prime': latency_before_prime, 'noise_alignment_lag_and_correlation': lag,
                       'neutral_metric': measure(profile['metric'], y0, rate),
                       'active_metric': measure(profile['metric'], y1, rate), 'effect': effect, 'guard': guard,
                       'neutral_peak': float(np.max(np.abs(y0))), 'active_peak': float(np.max(np.abs(y1))),
@@ -236,8 +255,8 @@ def check_active(load, manifest, profile):
         'signal_path': profile['signal_path'], 'metric': profile['metric'], 'min_effect': profile['min_effect'],
         'guard': profile.get('guard'), 'guard_max_db': profile.get('guard_max_db'),
         'latency_alignment': 'host compensates reported latency after one priming render per rate; '
-                             'neutral-state noise-probe output/input cross-correlation lag must be 0 and neutral/active '
-                             'reported latency equal; metrics skip a settle '
+                             'neutral- and active-state noise-probe output/input cross-correlation lag must be 0 '
+                             '(normalized peak >= 0.5) and reported latency equal; metrics skip a settle '
                              'window and compare neutral vs active outputs of the same plugin, not the dry input',
         'controls': {'neutral': {'requested': profile['neutral'], 'readback': neutral, 'all_parameters': neutral_all},
                      'active': {'requested': profile['active'], 'readback': active, 'all_parameters': active_all,

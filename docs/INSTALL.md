@@ -123,10 +123,12 @@ Pedalboard compensates for the latency that a plugin reports. A plugin can
 report a different latency at another sample rate, but Pedalboard only applies
 the new value after the first render at that rate. So the check renders once at
 each rate before measuring. It then checks that a noise signal comes out with
-no delay, and it compares the neutral and active outputs, not the input.
+no delay at both the neutral and the active setting. It compares the neutral and
+active outputs, not the input.
 
 A fresh instance must restore the active state and produce the same audio. A
 package for a product without a check fails the smoke test. It does not reuse
-another product's check. These checks show that the downloaded package
+another product's check. To release a newly registered target, first add its
+check to `tools/release_smoke.py`. These checks show that the downloaded package
 processes audio when its controls are set. They are not evidence of sound
 equivalence.

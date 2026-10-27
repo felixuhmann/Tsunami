@@ -108,9 +108,10 @@ class ActiveGateRejectsInactiveControls(unittest.TestCase):
         root = package(plugin_id)
         manifest = json.loads((root / 'MANIFEST.json').read_text())
         profile = {**copy.deepcopy(release_smoke.active_profile(manifest)), **override}
-        bundle = str(root / manifest['formats']['vst3'])
+        # Same host path rule as release_smoke.main: the PE module on Windows, the bundle elsewhere.
+        host_path = str(root / (manifest['vst3_module'] if sys.platform == 'win32' else manifest['formats']['vst3']))
         with self.assertRaises(SystemExit) as e:
-            release_smoke.check_active(lambda: load_plugin(bundle), manifest, profile)
+            release_smoke.check_active(lambda: load_plugin(host_path), manifest, profile)
         return str(e.exception)
 
     def test_neutral_values_as_active_are_rejected_for_every_profile(self):
