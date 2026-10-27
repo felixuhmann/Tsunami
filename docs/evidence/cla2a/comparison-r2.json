@@ -3,11 +3,21 @@
  "thresholds": "docs/evidence/cla2a/thresholds.json (unchanged, declared 2026-10-27T15:41Z)",
  "driver": "tests/cla2a/reference_driver.cpp",
  "script": "tests/cla2a/compare_oracle.py",
- "change_since_round1": "Gain makeup and Peak Reduction drive laws recovered from reference decompile (plugins/cla2a/ControlLaws.h); static curve, attack/release tables, filters still PROVISIONAL",
- "new_oracle_renders": 0,
+ "evaluation_renders_used_for_fitting": false,
  "heldout_used": false,
- "fitted_on_these_renders": false,
- "results": [
+ "characterization_renders": {
+  "input": "1 kHz sine, peak -42..0 dBFS in 3 dB steps, 1.2 s each, mono int16 48 kHz (generated; fit_static_curve.py documents it)",
+  "evidence": {
+   "20261027T161139-5bf980b98c6b44c4823fd815ffda0aaa": "PR 25 Comp (baseline, no reduction)",
+   "20261027T161007-313648bd4b8c49918a8190d416a7e7f5": "PR 46 Comp",
+   "20261027T161031-c7231b197fdd4ef293009013796d70e9": "PR 70 Comp",
+   "20261027T161215-25f76d944f6a45b7b15eae2ab7914407": "PR 46 Limit"
+  },
+  "blocked_attempt": "20261027T161056-9e9a5a391acd45ef888d00bf43b24415 (value 'Limit' without trailing space rejected by host; retried as 'Limit ')",
+  "fit_residual_worst_db": 0.079,
+  "check": "Comp detector level = input peak + recovered drive law: PR46 and PR70 curves coincide within ~0.1 dB at equal detector level"
+ },
+ "stage_a_recovered_laws_only": [
   {
    "evidence": "20261027T095837-ae5b4e2286d3467081a4db543d3cacde",
    "settings": {
@@ -74,6 +84,77 @@
    "max_abs_error": 0.2761050909757614,
    "rel_rms_error_db": -5.377467002353095,
    "steady_level_diff_db": -6.681043226794506,
+   "candidate_all_finite": true,
+   "verdict": "FAIL"
+  }
+ ],
+ "stage_b_plus_characterized_static_curve": [
+  {
+   "evidence": "20261027T095837-ae5b4e2286d3467081a4db543d3cacde",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 0.0,
+    "trim": 6.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": true,
+   "samples": 96000,
+   "rms_error": 1.3271924412260164e-08,
+   "max_abs_error": 1.1920928955078125e-07,
+   "rel_rms_error_db": -146.24198190843694,
+   "steady_level_diff_db": 0.0,
+   "candidate_all_finite": true,
+   "verdict": "PASS"
+  },
+  {
+   "evidence": "20261027T095855-ad921980db334cb1883f80ed7d9de816",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 100.0,
+    "trim": 0.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": false,
+   "samples": 384000,
+   "rms_error": 0.05713108935329519,
+   "max_abs_error": 0.12396514415740967,
+   "rel_rms_error_db": -14.104915442814045,
+   "steady_level_diff_db": 1.595281580636325,
+   "candidate_all_finite": true,
+   "verdict": "FAIL"
+  },
+  {
+   "evidence": "20261027T095937-841c31c3b048408c86c4bd989b903baa",
+   "settings": {
+    "bypass": 0.0,
+    "gain": 40.0,
+    "peak_reduction": 46.0,
+    "comp_limiter": 0.0,
+    "hi_freq": 50.0,
+    "analog": 2.0,
+    "vu_display": 1.0,
+    "mix": 100.0,
+    "trim": 0.0,
+    "auto_makeup": 0.0
+   },
+   "dry_subset": false,
+   "samples": 768000,
+   "rms_error": 0.027555133969164838,
+   "max_abs_error": 0.05528724193572998,
+   "rel_rms_error_db": -18.982471657122954,
+   "steady_level_diff_db": 0.9596813668909311,
    "candidate_all_finite": true,
    "verdict": "FAIL"
   }

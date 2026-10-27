@@ -18,6 +18,7 @@
 //    coefficient initialisation was not recovered. Wet output is therefore
 //    a structurally faithful but numerically UNMATCHED opto model.
 #include "ControlLaws.h"
+#include "CharacterizedCurve.h"
 #include "ControlMapping.h"
 #include "Kernel.h"
 #include <algorithm>
@@ -28,8 +29,6 @@ namespace tsunami::cla2a {
 namespace Provisional {
 constexpr unsigned CurvePoints = 26;     // breakpoint count recovered; values provisional
 constexpr unsigned AttackPoints = 12;    // breakpoint count recovered; values provisional
-constexpr double ThresholdDb = -20.0, KneeDb = 6.0;
-constexpr double CompRatio = 3.0, LimitRatio = 20.0;
 constexpr double AttackFastMs[2] = {1.0, 10.0}, AttackSlowMs[2] = {10.0, 60.0};
 constexpr double ReleaseFastS = 0.06, ReleaseSlowS = 1.5;
 constexpr double SmoothS = 0.02;
@@ -124,18 +123,11 @@ private:
     static double dbToGain(double db) noexcept { return std::pow(10.0, db / 20.0); }
     double pole(double seconds) const noexcept { return std::exp(-1.0 / (seconds * rate_)); }
     void buildCurves() noexcept {
-        const double ratio = parameters_[Mode] != 0 ? Provisional::LimitRatio : Provisional::CompRatio;
+        // CHARACTERIZED (not recovered) static curve, see CharacterizedCurve.h.
+        const auto& gr = parameters_[Mode] != 0 ? Characterized::LimitGrDb : Characterized::CompGrDb;
         for (unsigned i = 0; i < Provisional::CurvePoints; ++i) {
-            const double levelDb = -60.0 + 100.0 * i / (Provisional::CurvePoints - 1);
-            const double over = levelDb - Provisional::ThresholdDb;
-            double gr = 0.0;
-            if (2.0 * over > Provisional::KneeDb) gr = over * (1.0 - 1.0 / ratio);
-            else if (2.0 * std::abs(over) <= Provisional::KneeDb) {
-                const double k = over + Provisional::KneeDb / 2.0;
-                gr = (1.0 - 1.0 / ratio) * k * k / (2.0 * Provisional::KneeDb);
-            }
-            curveX_[i] = dbToGain(levelDb);
-            curveY_[i] = dbToGain(-gr);
+            curveX_[i] = dbToGain(Characterized::DetectorDb0 + Characterized::DetectorStepDb * i);
+            curveY_[i] = dbToGain(gr[i]);
         }
         for (unsigned i = 0; i < Provisional::AttackPoints; ++i) {
             const double t = double(i) / (Provisional::AttackPoints - 1); // loud -> quiet
@@ -149,7 +141,7 @@ private:
     }
     void updateDerived() noexcept {
         drive_ = dbToGain(peakReductionDriveDb(parameters_[PeakReduction]));
-        makeup_ = dbToGain(gainMakeupDb(parameters_[Gain]));
+        makeup_ = dbToGain(gainMakeupDb(parameters_[Gain]) + Characterized::ProgrammeLevelDb);
         mixTarget_ = parameters_[Mix] / 100.0;
         outTarget_ = dbToGain(parameters_[Trim]);
         hfWeight_ = parameters_[HiFreq] / 50.0;

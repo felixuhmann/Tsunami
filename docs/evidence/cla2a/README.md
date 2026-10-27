@@ -52,4 +52,11 @@ No complete-plugin match is claimed.
   the auto-makeup coupling; kernel placement of the two coefficients is assumed.
 * Wet defaults vs unchanged thresholds (`comparison-r2.json`): level diff -13.5 -> -6.1 dB
   and -14.3 -> -6.7 dB; rel. RMS error -2.0 -> -5.9 dB and -1.9 -> -5.4 dB -> still **FAIL**.
-  No fitting on these renders; no new oracle renders.
+  No fitting on these renders.
+* **Characterized** (not recovered; `CharacterizedCurve.h`, `tests/cla2a/fit_static_curve.py`):
+  26-point Comp and Limit static gain-reduction curves vs detector dB, plus a -0.35 dB
+  1 kHz programme-level offset, fitted to 4 new genuine stepped-tone renders (PR 25/46/70
+  Comp, PR 46 Limit). PR46 and PR70 Comp data coincide at equal (input + drive) level,
+  supporting the drive-law placement. Attack/release ballistics remain PROVISIONAL.
+* Wet defaults with characterized curve (same thresholds): rel. RMS error -14.1 / -19.0 dB,
+  level diff +1.60 / +0.96 dB -> still **FAIL** (thresholds -40 dB / 0.5 dB).

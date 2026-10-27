@@ -75,8 +75,21 @@ int main() {
             p.setParameter(Processor::PeakReduction, 0);
             p.setParameter(Processor::Gain, knob);
             const double ratio = rmsTail(render(p, 1e-3, frames), frames/2) / (1e-3 / std::sqrt(2.0));
-            const double expectDb = tsunami::cla2a::gainMakeupDb(knob);
+            const double expectDb = tsunami::cla2a::gainMakeupDb(knob) + tsunami::cla2a::Characterized::ProgrammeLevelDb;
             check(std::abs(20.0 * std::log10(ratio) - expectDb) < 0.05, "wet gain follows recovered makeup law");
+        }
+    }
+    { // characterized Comp static curve: genuine stepped 1 kHz tone renders
+      // (runtime/evidence/cla2a 20261027T161007 PR46, 20261027T161031 PR70)
+      // steady gain at peak input -12 / 0 dBFS. Tolerance 0.5 dB.
+        struct Point { float pr; double peak, genuineDb; };
+        for (const Point& q : {Point{46, 0.25118864315, 7.24}, Point{46, 1.0, -1.51},
+                               Point{70, 0.25118864315, -7.67}, Point{70, 0.0223872114, 7.64}}) {
+            Processor p; p.prepare(48000, 2, 256);
+            p.setParameter(Processor::Analog, 2);
+            p.setParameter(Processor::PeakReduction, q.pr);
+            const double ratio = rmsTail(render(p, q.peak, frames), frames/2) / (q.peak / std::sqrt(2.0));
+            check(std::abs(20.0 * std::log10(ratio) - q.genuineDb) < 0.5, "Comp static curve matches characterization");
         }
     }
     { // reset determinism
