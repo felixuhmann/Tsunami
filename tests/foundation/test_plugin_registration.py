@@ -28,7 +28,8 @@ class RegistrationTests(unittest.TestCase):
                 folder = self.make_plugin(root, plugin_id)
                 result = resolve(root, plugin_id)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(f'TSUNAMI_PLUGIN_DIR={folder}', result.stderr + result.stdout)
+                # CMake reports paths with forward slashes on every platform.
+                self.assertIn(f'TSUNAMI_PLUGIN_DIR={folder.as_posix()}', result.stderr + result.stdout)
 
     def test_rejects_invalid_ids_and_incomplete_folders(self):
         self.assertTrue(SCRIPT.exists(), 'generic plugin registration module missing')
