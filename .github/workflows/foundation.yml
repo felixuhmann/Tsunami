@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
       - name: Select CPython 3.11 for pinned host wheels
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -43,6 +43,29 @@ jobs:
             xvfb-run -a ctest --test-dir build -C Release --output-on-failure
           else
             ctest --test-dir build -C Release --output-on-failure
+          fi
+      - name: Native CLAP protocol, audio and state validation (upstream mature validator)
+        run: |
+          mkdir -p evidence validator
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            asset=clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+            digest=49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90
+            executable=validator/clap-validator
+          else
+            asset=clap-validator-0.4.1-127-g152b982-windows.zip
+            digest=d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10
+            executable=validator/clap-validator.exe
+          fi
+          curl -fL --retry 2 "https://github.com/free-audio/clap-validator/releases/download/0.4.1/$asset" -o validator.zip
+          printf '%s  validator.zip\n' "$digest" | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('validator.zip').extractall('validator')"
+          chmod +x "$executable"
+          "$executable" --version | tee evidence/clap-validator-version.txt
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiFixture_artefacts').rglob('*.clap')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
+          else
+            "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
           fi
       - name: Install hash-locked mature host wheels
         run: |

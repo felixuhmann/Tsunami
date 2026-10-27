@@ -22,7 +22,15 @@ class FrameworkTests(unittest.TestCase):
     def test_linux_runner_declares_juce9_fontconfig_and_xprop_provider(self):
         workflow = (ROOT / '.github/workflows/foundation.yml').read_text()
         self.assertIn('libfontconfig1-dev', workflow)
+        self.assertIn('libxi-dev', workflow)
         self.assertIn('x11-utils', workflow)  # xprop EWMH readiness, fixed in the fetched base
+
+    def test_native_ci_exercises_clap_with_hash_locked_validator(self):
+        workflow = (ROOT / '.github/workflows/foundation.yml').read_text()
+        self.assertIn('validate --json --jobs 2', workflow)
+        self.assertIn('49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90', workflow)
+        self.assertIn('d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10', workflow)
+        self.assertIn('sha256sum -c', workflow)
 
     def test_local_override_rejects_old_framework_before_build(self):
         guard = ROOT / 'cmake' / 'VerifyJuce.cmake'
