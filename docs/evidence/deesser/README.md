@@ -149,3 +149,19 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - Generator tests pass 9/9.
 - Local unchanged clap-validator 0.4.1 (sha256-pinned) on the rebuilt CLAP: exit 0, 32 success / 11 skipped / 1 warning. The warning is `state-invalid-random`: random bytes load without error and without a crash. It is reported as a warning, not as a pass.
 - Local builds use a scratch root at 3b64a12 whose `CMakeLists.txt`/`cmake`/`shared`/`tools/generate_metadata.py`/`tests/foundation` are byte-identical to this branch's committed files, overlaid with this change's shared/generator files (verified with `cmp`). The foundation fixture `adapter_test` was not rebuilt locally; CI runs it.
+
+## Editor readout/label fixes (948e848; local, not pushed)
+- These defects were seen in the native c99d1b2 captures (Windows Threshold `0.000...`, SideChain `B...`/`Hi...`, Output `-0.0`) and in a local hosted frame captured before the first meter poll (full Energy/Output bars, Atten `--`).
+- Each has a RED->GREEN regression in the real-Adapter test, against the real editor:
+  - initial value-box text, `updateText()` after installing the text function (code 36);
+  - whole SideChain labels: compact combo look-and-feel at 12 pt with a 14 px arrow zone; the box is 78 px, centred in the 90 px column, in the same row (37-39). RED: `'BandPass' needs 65.3 px, has 20`;
+  - display-only `-0.0` normalisation for the Energy/Output readouts; real `-0.1` is still shown (40);
+  - idle meters before the first poll (41).
+- The render hash is unchanged (`c19f9aa561842753`). DSP, parameters and shared code are unchanged.
+- Fresh hosted Linux capture of the rebuilt module (pluginval 1.0.4 strictness 6, Xvfb): SUCCESS, PID 476318, 380x380, module sha256 `63ca0b30...`, screenshot `b901a3ec...`. Visually inspected:
+  - SideChain shows `BandPass` whole;
+  - the Frequency and Threshold boxes show editor text;
+  - Atten and Output read `0.0`.
+
+  Logs are under the campaign state `deesser-native/editor-readouts/`.
+- Still pending: a native Windows capture at a new head (the initial-text fix is the Windows-visible one), original-UI equivalence, and the SideChain filter-shape icon.
