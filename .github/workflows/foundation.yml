@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Foundation native spike
+on:
+  push:
+    branches: [infrastructure/foundation]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: native-${{ matrix.os }} (infrastructure fixture, not target verification)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb
+      - name: Select preinstalled CPython 3.11
+        run: |
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            echo "$PYTHON_3_11_X64" >> "$GITHUB_PATH"
+            echo "$PYTHON_3_11_X64/Scripts" >> "$GITHUB_PATH"
+          else
+            command -v python3.11
+            mkdir -p "$RUNNER_TEMP/python-bin"
+            ln -s "$(command -v python3.11)" "$RUNNER_TEMP/python-bin/python"
+            echo "$RUNNER_TEMP/python-bin" >> "$GITHUB_PATH"
+          fi
+      - name: Configure pinned GPL JUCE7 and CLAP wrapper
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build actual native format modules and adapter test
+        run: cmake --build build --config Release --target adapter_test TsunamiFixture_VST3 TsunamiFixture_CLAP --parallel 2
+      - name: CTest
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a ctest --test-dir build -C Release --output-on-failure
+          else
+            ctest --test-dir build -C Release --output-on-failure
+          fi
+      - name: Install hash-locked mature host wheels
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+      - name: Native VST3 render, state, rate/block matrix and real editor capture
+        run: |
+          mkdir -p evidence
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiFixture_artefacts').rglob('Tsunami Infrastructure Fixture.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence --capture
+          else
+            python tests/foundation/host_smoke.py "$plugin" evidence --capture
+          fi
+      - name: Matching corresponding source and notices beside experimental binaries
+        if: always()
+        run: |
+          mkdir -p evidence
+          git archive --format=tar HEAD -o evidence/project-source.tar
+          tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
+      - name: Retain exact build bytes and diagnostic evidence (not a release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: foundation-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            build/TsunamiFixture_artefacts/Release/VST3/
+            build/TsunamiFixture_artefacts/Release/CLAP/
+            build/Testing/Temporary/
+            evidence/
+          if-no-files-found: error
+          retention-days: 14

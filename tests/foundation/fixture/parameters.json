@@ -1,0 +1,5 @@
+{
+  "parameters": [
+    {"index": 0, "id": "gain", "name": "Gain", "min": 0, "max": 2, "default": 1, "unit": "", "type": "float"}
+  ]
+}
