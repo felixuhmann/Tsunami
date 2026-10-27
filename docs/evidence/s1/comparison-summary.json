@@ -1,0 +1,513 @@
+{
+  "status": "partial_static_dsp_milestone_not_equivalence",
+  "created_at": "2026-10-27T12:14:04.686633+00:00",
+  "environment": "Windows original under Wine9; native Linux portable C++17 candidate; not native Windows candidate evidence",
+  "component": "S1 Imager Stereo",
+  "capture_count": 7,
+  "calibration_count": 6,
+  "heldout_count": 1,
+  "thresholds": {
+    "max_abs_exclusive": 2e-06,
+    "rms_exclusive": 2e-07,
+    "provenance": "max_abs inherited gate existed before fresh renders; RMS reporting gate added after first measurements; neither source coefficients nor controls fitted on heldout"
+  },
+  "source_sha256": {
+    "plugins/s1/Processor.hpp": "3eecd86f94f6c4ff5abbe39af74e1668151b05d00f284d5c9f79f725f94658f9",
+    "plugins/s1/parameters.json": "7bd122fab6292ce1c4de485d7a30b37ea4072a8934bd3d629d6bdc99cccd650b",
+    "tests/s1/render.cpp": "1d7d3f918b4ee188fb2d7df7368326bd83f883947c099d64a09288f1b5e04bae",
+    "tests/s1/compare_oracle.py": "8a54fdcc1bdf7394e38bae6c334531ccd390f8859439a242911a762bdb3709fd"
+  },
+  "negative_control": {
+    "description": "unity candidate on genuine width3 capture intentionally fails",
+    "exit_code": 1,
+    "max_abs": 0.35893864929676056,
+    "rms": 0.14856592016960002
+  },
+  "heldout": {
+    "reserved_at": "2026-10-27T12:09:37.557995+00:00",
+    "source_sha256": "c7a37d39433e59de95027d944208c59c87a817583353872e4fbdc1fdf8f78b8f",
+    "stereo_transform": "L=mono; R=mono delayed 137 frames; first <=3s; no DSP tuning on results"
+  },
+  "heldout_attribution": "LibriSpeech ASR corpus, Vassil Panayotov, Guoguo Chen, Daniel Povey and Sanjeev Khudanpur; OpenSLR SLR12; CC BY 4.0; https://www.openslr.org/12; synthetic noise mixture from campaign manifest",
+  "limitations": [
+    "Static controls at fresh-instance reset only; no original automation timeline or continuing-state comparison",
+    "Only 48000Hz/block512 genuine captures in this receipt; portable safety matrix separately covers other rates and blocks",
+    "Short probes do not characterize demo interruption timing; no interruption repair",
+    "M/S input is a control of Imager, not the separate MS-Matrix or Shuffler component",
+    "No product UI, native candidate plugin acceptance, release or full-equivalence claim"
+  ],
+  "cases": [
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [],
+      "frames": 8192,
+      "max_abs": 1.4901161193847656e-08,
+      "rms": 2.374721791044025e-09,
+      "reference_samples_sha256": "3b92df9da0c46f5f18d5d9430c0bb621533f3979995c4e21b8cfb26bd131e73a",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {},
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "unity",
+      "split": "calibration",
+      "capture_id": "20261027T120937-ca13134158514b5ba7d89ef3850cd05a",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.14474453563088516
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        0.0,
+        3.0
+      ],
+      "frames": 8192,
+      "max_abs": 1.1920928955078125e-07,
+      "rms": 1.6081995530739912e-08,
+      "reference_samples_sha256": "77d7ae79c9fccbfdd13cbbae55e313c44939b55bad919c243bd14230356bd79e",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "width": {
+          "requested": {
+            "value": "3.00 Deg"
+          },
+          "raw_readback": 1.0,
+          "display": "3.00 Deg",
+          "host_value": "3.00 Deg"
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "width3",
+      "split": "calibration",
+      "capture_id": "20261027T120951-a791503dea6c413ab9c02585d1fab90c",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.2628461832236804
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        0.0,
+        1.0,
+        30.0
+      ],
+      "frames": 8192,
+      "max_abs": 2.9802322387695312e-08,
+      "rms": 2.6353430406596704e-09,
+      "reference_samples_sha256": "93c14e7db006523bafd76e34a5286416f150c67131e73554e7267a02fe137492",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "rotation": {
+          "requested": {
+            "value": "30.0 Deg"
+          },
+          "raw_readback": 0.8333333134651184,
+          "display": "30.0 Deg",
+          "host_value": "30.0 Deg"
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "rotation",
+      "split": "calibration",
+      "capture_id": "20261027T121005-d3794174edbe42318b0acd0bfd383b67",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.1447445336397119
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        -6.0,
+        2.0,
+        -22.5,
+        -30.0
+      ],
+      "frames": 8192,
+      "max_abs": 1.4901161193847656e-08,
+      "rms": 4.135031354558357e-09,
+      "reference_samples_sha256": "79f54c703be2fe88eb8aa92bbed9edb0615cf0367f2f15a93e67d4310d9c0a4b",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "gain": {
+          "requested": {
+            "value": -6.0
+          },
+          "raw_readback": 0.75,
+          "display": "-6.0 dB",
+          "host_value": "-6.0"
+        },
+        "width": {
+          "requested": {
+            "value": "2.00 Deg"
+          },
+          "raw_readback": 0.7807763814926147,
+          "display": "2.00 Deg",
+          "host_value": "2.00 Deg"
+        },
+        "rotation": {
+          "requested": {
+            "value": "-22.5 Deg"
+          },
+          "raw_readback": 0.25,
+          "display": "-22.5 Deg",
+          "host_value": "-22.5 Deg"
+        },
+        "asymmetry": {
+          "requested": {
+            "value": "-30 Deg"
+          },
+          "raw_readback": 0.3333333432674408,
+          "display": "-30 Deg",
+          "host_value": "-30 Deg"
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "combined",
+      "split": "calibration",
+      "capture_id": "20261027T121019-aad82016d82841df9f7c29eb2b2db600",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.09680408453930878
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "frames": 8192,
+      "max_abs": 1.4901161193847656e-08,
+      "rms": 2.374721791044025e-09,
+      "reference_samples_sha256": "284bc70e14ab20b94f33e6dad71391a73094c2629197459c1be62f24d80cb836",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "inv_l": {
+          "requested": {
+            "raw": 1
+          },
+          "raw_readback": 1.0,
+          "display": "- ",
+          "host_value": "- "
+        },
+        "swap": {
+          "requested": {
+            "raw": 1
+          },
+          "raw_readback": 1.0,
+          "display": "On ",
+          "host_value": "On "
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "phase_swap",
+      "split": "calibration",
+      "capture_id": "20261027T121033-4340354fbcfc4aec8a97eae91f3e63a2",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.14474453563088516
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "frames": 8192,
+      "max_abs": 2.9802322387695312e-08,
+      "rms": 3.739700655415585e-09,
+      "reference_samples_sha256": "596b868f30e7706b8feca6062279848d64368ab671bd13a635df485389d94510",
+      "input_sha256": "1c6b4817f91b6addd68435076c3e3442b5264d2d02924d67378a706b777e1aba",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "ms_lr_input": {
+          "requested": {
+            "raw": 1
+          },
+          "raw_readback": 1.0,
+          "display": "M-input-S ",
+          "host_value": "M-input-S "
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "input_ms",
+      "split": "calibration",
+      "capture_id": "20261027T121047-5d761445d4bd4ab99b0e128c6cf41a83",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.20469968535927566
+    },
+    {
+      "component": "S1 Imager Stereo",
+      "controls": [
+        -6.0,
+        2.0,
+        -22.5,
+        -30.0
+      ],
+      "frames": 144000,
+      "max_abs": 1.4901161193847656e-08,
+      "rms": 9.766235864830017e-10,
+      "reference_samples_sha256": "c847f5b8ae3be4f1835f626aea6e9f8dfd47f499b2fdbf89f545dab253dc5679",
+      "input_sha256": "8722828106c87530440190885489a32852542c19978ec52e9d3b7776c58ec494",
+      "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+      "readback": {
+        "gain": {
+          "requested": {
+            "value": -6.0
+          },
+          "raw_readback": 0.75,
+          "display": "-6.0 dB",
+          "host_value": "-6.0"
+        },
+        "width": {
+          "requested": {
+            "value": "2.00 Deg"
+          },
+          "raw_readback": 0.7807763814926147,
+          "display": "2.00 Deg",
+          "host_value": "2.00 Deg"
+        },
+        "rotation": {
+          "requested": {
+            "value": "-22.5 Deg"
+          },
+          "raw_readback": 0.25,
+          "display": "-22.5 Deg",
+          "host_value": "-22.5 Deg"
+        },
+        "asymmetry": {
+          "requested": {
+            "value": "-30 Deg"
+          },
+          "raw_readback": 0.3333333432674408,
+          "display": "-30 Deg",
+          "host_value": "-30 Deg"
+        }
+      },
+      "thresholds": {
+        "max_abs_exclusive": 2e-06,
+        "rms_exclusive": 2e-07
+      },
+      "case": "heldout",
+      "split": "reserved_heldout",
+      "capture_id": "20261027T121101-52e34c3486b34cb1ae94069d2a4e3f96",
+      "reference_version": "17.1.42.50",
+      "reference_files": [
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/S1.dll",
+          "sha256": "0abf4580b176950ce4e167271699bee1d4e3d6b88b0e531f10f6ce62be01c386",
+          "bytes": 762712
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/S1.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+          "sha256": "ca67bc6806ec6cc8a36117377b13919103e62398af1e7934cdf109c2d0c7ce78",
+          "bytes": 85336
+        },
+        {
+          "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+          "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+          "bytes": 10523480
+        },
+        {
+          "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+          "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+          "bytes": 7983960
+        }
+      ],
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08",
+      "sample_rate": 48000,
+      "block_size": 512,
+      "reference_finite": true,
+      "reference_rms": 0.020965628894192914
+    }
+  ]
+}
