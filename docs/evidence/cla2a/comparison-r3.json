@@ -1,0 +1,83 @@
+{
+ "thresholds": "docs/evidence/cla2a/thresholds.json (r3_* declared before comparison; wet thresholds unchanged)",
+ "filter_programme_path": {
+  "evidence": "20261027T161747",
+  "genuine_gain_db_40Hz_to_16kHz": [
+   8.429,
+   8.472,
+   8.496,
+   8.508,
+   8.514,
+   8.514,
+   8.512,
+   8.502,
+   8.478,
+   8.423,
+   8.302,
+   8.096,
+   7.877,
+   7.926
+  ],
+  "verdict": "FAIL as programme-path placement (cascade varies ~6 dB; genuine flat within 0.1 dB to 2.5 kHz) -> cascade placed in sidechain"
+ },
+ "sidechain_filter": {
+  "evidence": "20261027T161915",
+  "freqs_hz": [
+   100,
+   250,
+   1000,
+   4000,
+   10000
+  ],
+  "genuine_db": [
+   7.98,
+   8.462,
+   8.479,
+   6.925,
+   4.83
+  ],
+  "model_db": [
+   7.527,
+   8.33,
+   8.397,
+   8.318,
+   7.75
+  ],
+  "threshold_abs_db": 0.5,
+  "verdict": "PASS 100/250/1000 Hz, FAIL 4k (+1.39) and 10k (+2.92): Hi Freq network unported"
+ },
+ "ballistics": {
+  "fit_renders": [
+   "20261027T161805 PR46",
+   "20261027T161819 PR70"
+  ],
+  "envelope_rms_db": {
+   "PR46": 0.117,
+   "PR70": 0.296
+  },
+  "threshold": 0.5,
+  "verdict": "PASS on the fitting renders only (in-sample; characterized, not recovered, not independent validation)"
+ },
+ "wet_defaults": [
+  {
+   "evidence": "20261027T095837",
+   "dry_subset": true,
+   "max_abs_error": 1.19e-07,
+   "verdict": "PASS"
+  },
+  {
+   "evidence": "20261027T095855",
+   "rel_rms_error_db": -19.04,
+   "steady_level_diff_db": 0.912,
+   "verdict": "FAIL"
+  },
+  {
+   "evidence": "20261027T095937",
+   "rel_rms_error_db": -19.11,
+   "steady_level_diff_db": 0.941,
+   "verdict": "FAIL"
+  }
+ ],
+ "default_renders_used_for_fitting": false,
+ "heldout_used": false
+}

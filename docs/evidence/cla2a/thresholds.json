@@ -1,0 +1,42 @@
+{
+  "declared_before_comparison": "2026-10-27T15:41Z",
+  "author": "cla2a task1 worker",
+  "dry_subset": {
+    "configs": "mix=0 (any trim) or bypass",
+    "max_abs_error": 1e-06,
+    "claim_if_pass": "dry/trim/bypass path matched"
+  },
+  "wet_complete_plugin": {
+    "configs": "genuine defaults (gain 40, peak reduction 46, Comp, hi freq 50, analog Off, mix 100, trim 0)",
+    "rel_rms_error_db_max": -40.0,
+    "steady_level_diff_db_max": 0.5,
+    "claim_if_pass": "wet default matched on calibrated inputs",
+    "expected": "FAIL: coefficients provisional (not recovered, not fitted)"
+  },
+  "inputs": "calibrated 48 kHz inputs already captured from the genuine oracle; held-out speech NOT used",
+  "r3_filter_response": {
+    "declared_before_comparison": "2026-10-27T16:18Z",
+    "author": "cla2a r2-task3 worker",
+    "input": "14-tone multitone 40..16000 Hz, 0.02 per tone, 3 s, mono int16 48 kHz; PR 0 Comp (drive -50 dB: no gain reduction), other params default",
+    "metric": "per-tone gain (dB) model vs genuine over last 1 s; shape = per-tone diff minus mean diff",
+    "shape_max_abs_db": 0.25,
+    "level_mean_abs_db": 0.5,
+    "claim_if_pass": "recovered 48 kHz biquad cascade placement/shape matches the programme path"
+  },
+  "r3_ballistics": {
+    "declared_before_comparison": "2026-10-27T16:18Z",
+    "fit_inputs": "genuine 1 kHz step bursts (-30/-6 dBFS) at PR 46 and PR 70 Comp; default and held-out renders NOT used for fitting",
+    "metric": "10 ms RMS gain envelope (dB) model vs genuine, excluding first 50 ms",
+    "envelope_rms_db_max": 0.5,
+    "claim_if_pass": "attack/release CHARACTERIZED (fitted, not recovered) on step bursts"
+  },
+  "r3_wet_defaults": "unchanged: wet_complete_plugin thresholds above apply (rel RMS <= -40 dB, |level| <= 0.5 dB)",
+  "r3_sidechain_filter": {
+    "declared_before_comparison": "2026-10-27T16:18Z",
+    "reason": "r3_filter_response render (PR 0) shows a flat programme path, so the cascade is tested in the sidechain",
+    "input": "stepped-frequency sines 100,250,1000,4000,10000 Hz at -18 dBFS peak, 1.2 s each, mono int16 48 kHz; PR 46 Comp, other params default",
+    "metric": "steady gain (dB, RMS ratio, last 0.4 s of each step) model vs genuine",
+    "max_abs_db": 0.5,
+    "claim_if_pass": "recovered 48 kHz biquad cascade acts as detector (sidechain) weighting"
+  }
+}
