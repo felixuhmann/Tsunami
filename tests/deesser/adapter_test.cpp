@@ -392,7 +392,27 @@ int main() {
         }
         CHECK(diff == 0.0 && coreMeters->coreMeter(1) >= 3.f, 48, "stereo render and de-essing after returning from mono");
     }
-    ed.reset();
+    // 56: closing the editor during a Frequency drag leaves no open host gesture.
+    {
+        struct Gestures final : juce::AudioProcessorListener {
+            int begins = 0, ends = 0;
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) override { ++begins; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override { ++ends; }
+        } gestures;
+        p->addListener(&gestures);
+        auto src = juce::Desktop::getInstance().getMainMouseSource();
+        const auto now = juce::Time::getCurrentTime(); const juce::Point<float> down(30.f, 12.f);
+        freq->mouseDown(juce::MouseEvent(src, down, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 1.f, 0.f, 0.f, 0.f, 0.f,
+                                         freq, freq, now, down, now, 1, false));
+        const int begun = gestures.begins;
+        ed.reset();
+        p->removeListener(&gestures);
+        if (begun != 1 || gestures.ends != gestures.begins) {
+            std::cerr << "FAIL editor closed mid-drag: begins " << gestures.begins << " ends " << gestures.ends << "\n"; return 56;
+        }
+    }
     p->releaseResources();
     std::cout << "PASS DeEsser real Adapter: identity, editor bindings, state, render parity, meters\n";
     return 0;

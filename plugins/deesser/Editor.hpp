@@ -184,7 +184,18 @@ public:
         setSize(380, 380);
         startTimerHz(30);
     }
-    ~Editor() override { stopTimer(); sidechain.setLookAndFeel(nullptr); freq.setLookAndFeel(nullptr); }
+    ~Editor() override {
+        stopTimer();
+        // A host may close the editor during a drag: release it while the attachments still listen,
+        // so the host gesture begun on mouse-down is ended (adapter test 56).
+        for (juce::Slider* s : {&freq, &threshold})
+            if (s->getThumbBeingDragged() >= 0) {
+                const auto at = s->getLocalBounds().getCentre().toFloat(); const auto now = juce::Time::getCurrentTime();
+                s->mouseUp(juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), at, {}, 1.f, 0.f, 0.f, 0.f, 0.f,
+                                            s, s, now, at, now, 1, false));
+            }
+        sidechain.setLookAndFeel(nullptr); freq.setLookAndFeel(nullptr);
+    }
 
     void paint(juce::Graphics& g) override {
         g.fillAll(colour::body);
