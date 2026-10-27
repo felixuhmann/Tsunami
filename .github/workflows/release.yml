@@ -1,0 +1,293 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Builds every registered target adapter natively, packages installable zips with
+# matching Corresponding Source and smoke-tests the downloaded packages.
+# Default output is Actions artifacts only. A versioned DRAFT prerelease is created
+# only on manual dispatch with publish_preview=true; never on PRs, never stable.
+name: Release packages (preview)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - tools/release*.py
+      - tests/release/**
+      - docs/INSTALL.md
+      - docs/LICENSING.md
+      - CMakeLists.txt
+      - cmake/**
+      - shared/**
+      - plugins/**
+      - dependencies.lock.json
+      - targets.json
+      - LICENSE
+      - LICENSES/**
+      - THIRD_PARTY_NOTICES.md
+      - tools/generate_metadata.py
+      - tools/host-requirements.txt
+  workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: Create a versioned DRAFT prerelease (never a public stable release)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  discover:
+    name: discover registered targets
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      source_id: ${{ steps.discover.outputs.source_id }}
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Release helper regressions
+        run: python -m unittest discover -s tests/release -v
+      - name: Discover registered native adapters; report all exact targets
+        id: discover
+        run: python tools/release.py discover --out-dir "$RUNNER_TEMP/discovery"
+      - name: Derive immutable preview version (no free-form input)
+        id: version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          python tools/release.py version --run-number "$RUN_NUMBER" --sha "$commit"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-discovery-${{ steps.version.outputs.version }}
+          path: ${{ runner.temp }}/discovery/
+          if-no-files-found: error
+          retention-days: 30
+
+  source:
+    name: corresponding source (project + fetched dependencies)
+    needs: discover
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.discover.outputs.version }}
+      COMMIT: ${{ needs.discover.outputs.commit }}
+      SOURCE_ID: ${{ needs.discover.outputs.source_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Fetch pinned dependencies exactly as the build does
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID="$SOURCE_ID"
+      - name: Stage and verify Corresponding Source
+        run: |
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+          python tools/release.py stage-source --deps build/_deps --commit "$COMMIT" --version "$VERSION" --out "$RUNNER_TEMP/source"
+          cd "$RUNNER_TEMP/source"
+          sha256sum "Tsunami-source-$VERSION.tar.gz" > "Tsunami-source-$VERSION.tar.gz.sha256"
+          tar -tzf "Tsunami-source-$VERSION.tar.gz" > members.txt
+          for required in dependencies/juce-src/JUCE.spdx.json dependencies/juce-src/LICENSE.md dependencies/clap_juce-src/LICENSE.md \
+              dependencies/clap_juce-src/clap-libs/clap/LICENSE dependencies/clap_juce-src/clap-libs/clap-helpers/LICENSE \
+              project/tools/release.py project/.github/workflows/release.yml project/CMakeLists.txt BUILDING.md SOURCE-MANIFEST.json; do
+            grep -qxF "Tsunami-source-$VERSION/$required" members.txt || { echo "missing $required"; exit 1; }
+          done
+          rm members.txt
+          ls -l
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Tsunami-source-${{ needs.discover.outputs.version }}
+          path: ${{ runner.temp }}/source/
+          if-no-files-found: error
+          retention-days: 30
+
+  build:
+    name: build ${{ matrix.plugin.id }} ${{ matrix.host.platform }}
+    needs: [discover, source]
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.discover.outputs.matrix) }}
+        host:
+          - {os: ubuntu-22.04, platform: linux-x64}
+          - {os: windows-2022, platform: windows-x64}
+    runs-on: ${{ matrix.host.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.discover.outputs.version }}
+      COMMIT: ${{ needs.discover.outputs.commit }}
+      PLUGIN_ID: ${{ matrix.plugin.id }}
+      PLATFORM: ${{ matrix.host.platform }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: Tsunami-source-${{ needs.discover.outputs.version }}
+          path: ${{ runner.temp }}/source
+      - name: Release helper regressions on this platform
+        run: python -m unittest discover -s tests/release -v
+      - name: Configure actual registered target (no fixture)
+        run: |
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID="$PLUGIN_ID"
+      - name: Build VST3, CLAP and registered test targets
+        run: cmake --build build --config Release --parallel 2
+      - name: CTest (registered metadata/editor tests)
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a ctest --test-dir build -C Release --output-on-failure
+          else
+            ctest --test-dir build -C Release --output-on-failure
+          fi
+      - name: Stage installable package bound to the companion source
+        id: stage
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          zip="$(python tools/release.py stage-package --id "$PLUGIN_ID" --platform "$PLATFORM" --deps build/_deps --build build --commit "$COMMIT" --version "$VERSION" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --out "$RUNNER_TEMP/dist")"
+          name="$(basename "$zip" .zip)"
+          (cd "$RUNNER_TEMP/dist" && sha256sum "$name.zip" > "$name.zip.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+      - name: Pre-upload package verification and host smoke
+        env:
+          NAME: ${{ steps.stage.outputs.name }}
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/dist/$NAME.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/preflight" --expect-version "$VERSION" --expect-platform "$PLATFORM" --expect-id "$PLUGIN_ID")"
+          python tools/release_smoke.py "$pkg" "$RUNNER_TEMP/preflight-receipt.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.stage.outputs.name }}
+          path: |
+            ${{ runner.temp }}/dist/${{ steps.stage.outputs.name }}.zip
+            ${{ runner.temp }}/dist/${{ steps.stage.outputs.name }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain build test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-build-logs-${{ matrix.plugin.id }}-${{ matrix.host.platform }}-${{ needs.discover.outputs.version }}
+          path: build/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  downloaded-smoke:
+    name: downloaded ${{ matrix.plugin.id }} ${{ matrix.host.platform }} (package smoke, not equivalence)
+    needs: [discover, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.discover.outputs.matrix) }}
+        host:
+          - {os: ubuntu-22.04, platform: linux-x64}
+          - {os: windows-2022, platform: windows-x64}
+    runs-on: ${{ matrix.host.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.discover.outputs.version }}
+      PLUGIN_ID: ${{ matrix.plugin.id }}
+      PLATFORM: ${{ matrix.host.platform }}
+      NAME: ${{ matrix.plugin.artifact }}-${{ needs.discover.outputs.version }}-${{ matrix.host.platform }}
+    steps:
+      - name: Checkout helper scripts only (no build tree)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: tools
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ${{ matrix.plugin.artifact }}-${{ needs.discover.outputs.version }}-${{ matrix.host.platform }}
+          path: ${{ runner.temp }}/downloaded
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: Tsunami-source-${{ needs.discover.outputs.version }}
+          path: ${{ runner.temp }}/source
+      - name: Verify hashes, manifest and source binding before loading
+        id: verify
+        run: |
+          (cd "$RUNNER_TEMP/downloaded" && sha256sum -c "$NAME.zip.sha256")
+          (cd "$RUNNER_TEMP/source" && sha256sum -c "Tsunami-source-$VERSION.tar.gz.sha256")
+          pkg="$(python tools/release.py verify --zip "$RUNNER_TEMP/downloaded/$NAME.zip" --source-manifest "$RUNNER_TEMP/source/Tsunami-source-$VERSION.manifest.json" --dest "$RUNNER_TEMP/extracted" --expect-version "$VERSION" --expect-platform "$PLATFORM" --expect-id "$PLUGIN_ID")"
+          echo "pkg=$pkg" >> "$GITHUB_OUTPUT"
+      - name: Load and process the downloaded VST3 (no rebuild)
+        env:
+          PKG: ${{ steps.verify.outputs.pkg }}
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+          mkdir -p receipt
+          python tools/release_smoke.py "$PKG" "receipt/$NAME-smoke.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-smoke-${{ matrix.plugin.id }}-${{ matrix.host.platform }}-${{ needs.discover.outputs.version }}
+          path: receipt/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-preview:
+    name: draft prerelease (manual opt-in only)
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && github.ref == 'refs/heads/main'
+    needs: [discover, source, build, downloaded-smoke]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.discover.outputs.version }}
+      COMMIT: ${{ needs.discover.outputs.commit }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          path: assets
+          pattern: '*-${{ needs.discover.outputs.version }}*'
+          merge-multiple: true
+      - name: Create DRAFT prerelease (not published, not stable)
+        run: |
+          cd assets
+          ls -l
+          test -f "Tsunami-source-$VERSION.tar.gz" && test -f "Tsunami-source-$VERSION.manifest.json"
+          ls ./*.zip >/dev/null
+          sha256sum ./*.zip "Tsunami-source-$VERSION.tar.gz" "Tsunami-source-$VERSION.manifest.json" > SHA256SUMS
+          {
+            echo "Experimental, unsigned **draft preview** built from \`$COMMIT\`. Not a stable release."
+            echo "Not verified as equivalent to any original product. Install guide: docs/INSTALL.md."
+            echo "Corresponding Source: Tsunami-source-$VERSION.tar.gz (project + all fetched dependencies)."
+            echo
+            echo "Targets not included in this build:"
+            python3 -c "import json; [print('- %s (%s): %s' % (u['requested_name'], u['id'], u['reason'])) for u in json.load(open('unavailable.json'))]"
+          } > notes.md
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --prerelease --target "$COMMIT" \
+            --title "Tsunami $VERSION (experimental draft preview)" --notes-file notes.md \
+            ./*.zip "Tsunami-source-$VERSION.tar.gz" "Tsunami-source-$VERSION.manifest.json" SHA256SUMS unavailable.json

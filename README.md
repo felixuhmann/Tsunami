@@ -8,6 +8,8 @@ Independent audio-plugin reimplementations, developed using direct REA-guided an
 
 **Current status: project bootstrap; no target plugin is verified or release-ready.**
 
+Want to try the experimental preview builds in a DAW? See [docs/INSTALL.md](docs/INSTALL.md). Only the registered targets are built (currently Tsunami Stereo only).
+
 Native Windows x64 and Linux x64 are required. Target formats: VST3 and CLAP. UI screenshots, original-reference comparison evidence, automated native-host tests and reproducible release artifacts are required for every plugin PR. Wine is a reference-research convenience, not native Windows acceptance.
 
 ## Target list
