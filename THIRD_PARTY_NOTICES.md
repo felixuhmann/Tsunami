@@ -37,6 +37,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+The CLAP module is compiled from a build-local copy of the pinned upstream
+`src/wrapper/clap-juce-wrapper.cpp` modified by the checked, hash-pinned
+`cmake/patches/clap-juce-wrapper-audio-ports-config.patch` (host-selectable
+mono/stereo audio-ports configs); the MIT notice above covers that file and the
+fetched dependency tree itself is left unmodified.
+
 The MIT CLAP and clap-helpers notices are preserved verbatim in their matching
 source trees alongside CI artifacts. Separate pluginval, clap-validator,
 Pedalboard, NumPy and Pillow tools are test-only and are **not** shipped linked

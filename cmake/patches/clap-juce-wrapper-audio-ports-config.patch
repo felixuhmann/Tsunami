@@ -1,0 +1,107 @@
+--- a/src/wrapper/clap-juce-wrapper.cpp
++++ b/src/wrapper/clap-juce-wrapper.cpp
+@@ -553,6 +553,7 @@
+         }
+ #endif
+         defineAudioPorts();
++        tsunamiDefinePortsConfigs(); // Tsunami patch
+ 
+         return true;
+     }
+@@ -1005,7 +1006,9 @@
+     {
+         // For now hardcode to stereo out. Fix this obviously.
+         const auto bus = processor->getBus(isInput, (int)index);
+-        const auto busDefaultLayout = bus->getDefaultLayout();
++        // Tsunami patch: report the current layout so a host-selected audio-ports config reads back.
++        // Until a config is selected this equals the default layout applied by defineAudioPorts().
++        const auto busDefaultLayout = bus->getCurrentLayout();
+ 
+         // For now we only support mono or stereo buses
+         jassert(busDefaultLayout == juce::AudioChannelSet::mono() ||
+@@ -1060,17 +1063,80 @@
+ 
+         return true;
+     }
++    /* Tsunami patch: host-selectable main-bus layouts through clap.audio-ports-config.
++     * Offered only for a processor with exactly one input and one output bus that accepts BOTH
++     * matched mono and matched stereo; every other processor keeps the upstream behaviour of no
++     * configs (extension not exposed). IDs are stable: 1 = mono, 2 = stereo. */
++    struct TsunamiPortsConfig
++    {
++        clap_id id;
++        const char *name;
++        juce::AudioChannelSet layout;
++    };
++    std::vector<TsunamiPortsConfig> tsunamiPortsConfigs;
++
++    void tsunamiDefinePortsConfigs()
++    {
++        tsunamiPortsConfigs.clear();
++        if (processor->getBusCount(true) != 1 || processor->getBusCount(false) != 1)
++            return;
++        const TsunamiPortsConfig candidates[] = {{1, "Mono", juce::AudioChannelSet::mono()},
++                                                 {2, "Stereo", juce::AudioChannelSet::stereo()}};
++        for (const auto &candidate : candidates)
++        {
++            auto layout = processor->getBusesLayout();
++            layout.getChannelSet(true, 0) = candidate.layout;
++            layout.getChannelSet(false, 0) = candidate.layout;
++            if (processor->checkBusesLayoutSupported(layout))
++                tsunamiPortsConfigs.push_back(candidate);
++        }
++        if (tsunamiPortsConfigs.size() < 2)
++            tsunamiPortsConfigs.clear();
++    }
++
++    bool implementsAudioPortsConfig() const noexcept override
++    {
++        return !tsunamiPortsConfigs.empty();
++    }
+     uint32_t audioPortsConfigCount() const noexcept override
+     {
+-        DBG("audioPortsConfigCount CALLED - returning 0");
+-        return 0;
++        return (uint32_t)tsunamiPortsConfigs.size();
++    }
++    bool audioPortsGetConfig(uint32_t index,
++                             clap_audio_ports_config *config) const noexcept override
++    {
++        if (index >= tsunamiPortsConfigs.size() || config == nullptr)
++            return false;
++        const auto &c = tsunamiPortsConfigs[index];
++        const bool isMono = c.layout == juce::AudioChannelSet::mono();
++        const auto channels = (uint32_t)c.layout.size();
++        config->id = c.id;
++        snprintf(config->name, sizeof(config->name), "%s", c.name);
++        config->input_port_count = 1;
++        config->output_port_count = 1;
++        config->has_main_input = true;
++        config->main_input_channel_count = channels;
++        config->main_input_port_type = isMono ? CLAP_PORT_MONO : CLAP_PORT_STEREO;
++        config->has_main_output = true;
++        config->main_output_channel_count = channels;
++        config->main_output_port_type = isMono ? CLAP_PORT_MONO : CLAP_PORT_STEREO;
++        return true;
+     }
+-    bool audioPortsGetConfig(uint32_t /*index*/,
+-                             clap_audio_ports_config * /*config*/) const noexcept override
++    bool audioPortsSetConfig(clap_id configId) noexcept override
+     {
++        if (isActive())
++            return false; // [main-thread & plugin-deactivated]
++        for (const auto &c : tsunamiPortsConfigs)
++        {
++            if (c.id != configId)
++                continue;
++            auto layout = processor->getBusesLayout();
++            layout.getChannelSet(true, 0) = c.layout;
++            layout.getChannelSet(false, 0) = c.layout;
++            return processor->setBusesLayout(layout);
++        }
+         return false;
+     }
+-    bool audioPortsSetConfig(clap_id /*configId*/) noexcept override { return false; }
+ 
+     bool implementsNotePorts() const noexcept override { return true; }
+     uint32_t notePortsCount(bool is_input) const noexcept override
