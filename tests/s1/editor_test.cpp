@@ -168,7 +168,9 @@ int main() {
         };
         auto gainCap = capStats(72, 82, 18, 11);
         CHECK(gainCap.first > .55f && gainCap.second >= 20, 34, "gain cap broad dark with pale index line");
-        auto widthCap = capStats(160, 274, 18, 11);
+        // Revised 2026-10-27: the genuine original 17.1 static capture shows Width 1.00 near mid-travel
+        // (y226), superseding the earlier documentation-only one-third assumption (y274).
+        auto widthCap = capStats(160, 226, 18, 11);
         CHECK(widthCap.first > .55f && widthCap.second >= 20, 35, "width cap at value 1");
         auto rotationCap = capStats(523, 512, 11, 18);
         CHECK(rotationCap.first > .5f, 36, "rotation cap centred");
@@ -294,6 +296,26 @@ int main() {
         }
         CHECK(gestures.begins[3] == 3 && gestures.begins[0] == 1, 57, "one gesture per drag, no nesting on repeated press");
         for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Original 17.1 static capture: Input Mode and Meter Mode selectors share one row
+    // (physical y~274 in the 2x-scaled frame => logical body y~512); titles align too.
+    {
+        auto* in = editor->findChildWithID("input_mode"); auto* meter = editor->findChildWithID("meter_mode");
+        CHECK(std::abs(in->getBounds().getCentreY() - 512) <= 2 && in->getBounds().getCentreY() == meter->getBounds().getCentreY(), 58, "selectors share the original row");
+        CHECK(child<juce::Button>(*editor, "swap")->getBounds().getCentreY() == 570, 59, "polarity/swap row unchanged");
+    }
+    // Width: anchor-calibrated replacement mapping (0 bottom, 1.00 mid-travel, 3 top) on the slider only;
+    // parameter stays physical/continuous. Intermediate curve is NOT the recovered original law.
+    {
+        auto* w = child<juce::Slider>(*editor, "width");
+        auto y = [&](double v) { return w->getY() + float(w->getPositionOfValue(v)); };
+        if (std::abs(y(1.0) - 226.f) > 1.5f) std::cerr << "width thumb y " << y(0.) << " " << y(1.) << " " << y(3.) << "\n";
+        CHECK(std::abs(y(1.0) - 226.f) <= 1.5f && std::abs(y(0.0) - 370.f) <= 1.5f && std::abs(y(3.0) - 82.f) <= 1.5f, 60, "width 0/1/3 anchors");
+        w->setValue(1.0, juce::sendNotificationSync);
+        CHECK(std::abs(physical(1) - 1.f) < 1e-4 && w->getTextFromValue(w->getValue()) == "1.00", 61, "UI->parameter physical 1.00");
+        setPhysical(1, 2.37f);
+        CHECK(std::abs(w->getValue() - 2.37) < 1e-3 && std::abs(physical(1) - 2.37f) < 1e-4, 62, "automation->UI continuous");
+        setPhysical(1, 1.f);
     }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {

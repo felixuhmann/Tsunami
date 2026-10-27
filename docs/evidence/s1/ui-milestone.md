@@ -10,10 +10,17 @@
 >   - Run 40516362962 for `65c9f23` was cancelled by a later push.
 >   - Run 40517143898 for `76ca0ce` was in progress when this was written.
 >   - Later local commits are pending native CI.
+> - **Update 2026-10-27 (supersedes "original GUI renders black").** A genuine original S1 Imager 17.1.42.50 editor
+>   has now been captured statically and painted, privately. Private evidence:
+>   - `original-viewability-20261027T135616/child-12-10485772.png` (sha256 e5dc30a9…5d69);
+>   - report `original-editor-bounded-20261027T1413.json` (sha256 b00cce99…b9a).
+>   It was hosted under Wine with a demo banner, and nothing from it is shipped. It is **static visual evidence
+>   only**: original drags did not change its readouts, so original interaction and automation parity remain
+>   unverified. Calibrated against it so far: the shared Input/Meter Mode selector row, and Width 1.00 at mid-travel.
 > - Target remains a **draft/partial**. Open items:
 >   - exact linked-drag sensitivity, vector projection and meter ballistics;
 >   - rectangular multi-control selection and editor resize;
->   - reference-host automation/GUI comparison (the original GUI still renders black);
+>   - original interaction/automation comparison (static reference only);
 >   - release, SBOM and source-archive gates.
 >
 > Detailed UI receipts: `ui-milestone.md`.
@@ -219,3 +226,27 @@ head's native CI is **pending** and is not accepted.
   - The portable selection tests (`test_windows_capture.py`, synthetic records) pass in
     `windows-selection-green.log`. They were written together with the helper, so **no red was witnessed** for them.
   - The helper has **not been executed on Windows yet**. The native Windows CI job is the authoritative proof.
+
+## Original-reference layout calibration slice 7 (local commit, native pending)
+The reference is the private static capture of the genuine original 17.1 editor (524x376 frame, about 2x scale
+to the 1048x665 logical body, with an 18 px toolbar above).
+- **Selectors.** The original Input Mode and Meter Mode selectors share one row, at physical y≈274, which is
+  logical y≈512. Both drawn selectors are now centred at y512, with their titles aligned. The polarity/swap row
+  (centre y570) and all audio behaviour are unchanged.
+- **Width taper.** The original shows Width 1.00 near mid-travel. A slider-only replacement taper,
+  `NormalisableRange(0,3).setSkewForCentre(1)`, places 0 at the bottom (y370), 1 at the middle (y226) and 3 at the
+  top (y82). It has to replace the attachment's lambda range, because JUCE's `SliderAttachment` installs custom
+  conversion lambdas that ignore skew; the first attempt (`setSkewFactorFromMidPoint`) failed for that reason.
+  The APVTS parameter stays physical 0..3 and continuous, in both the UI→parameter and automation→UI directions.
+  The curve between the anchors is **not** the recovered original law.
+- **Provenance of the revised expectation.** The earlier fader test expected Width 1 at y274, a documentation-only
+  one-third assumption. It now expects y226, justified by the genuine original capture. This is a correction, not
+  retroactive fidelity.
+- **TDD:**
+  - `original-layout-red.log`: runtime FAIL 35, the width cap was not at mid-travel.
+  - `original-layout-green.log`: still FAIL 35 (the skew was ignored by the attachment's lambda range).
+  - `original-layout-green-2.log`: PASS.
+  - The selector-row assertion (58) was written in the same red batch but was never reached before failure 35, so
+    no separate red was witnessed for it.
+  - RT re-run `rt-green-original-layout.log`: 0 allocations.
+- In-process snapshot (not hosted): `s1-ui-logs/candidates/candidate-default.png`.

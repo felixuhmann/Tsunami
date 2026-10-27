@@ -12,10 +12,17 @@ Independent portable C++17 implementation for **S1 Imager Stereo**, not a comple
 >   - Run 40516362962 for `65c9f23` was cancelled by a later push.
 >   - Run 40517143898 for `76ca0ce` was in progress when this was written.
 >   - Later local commits are pending native CI.
+> - **Update 2026-10-27 (supersedes "original GUI renders black").** A genuine original S1 Imager 17.1.42.50 editor
+>   has now been captured statically and painted, privately. Private evidence:
+>   - `original-viewability-20261027T135616/child-12-10485772.png` (sha256 e5dc30a9…5d69);
+>   - report `original-editor-bounded-20261027T1413.json` (sha256 b00cce99…b9a).
+>   It was hosted under Wine with a demo banner, and nothing from it is shipped. It is **static visual evidence
+>   only**: original drags did not change its readouts, so original interaction and automation parity remain
+>   unverified. Calibrated against it so far: the shared Input/Meter Mode selector row, and Width 1.00 at mid-travel.
 > - Target remains a **draft/partial**. Open items:
 >   - exact linked-drag sensitivity, vector projection and meter ballistics;
 >   - rectangular multi-control selection and editor resize;
->   - reference-host automation/GUI comparison (the original GUI still renders black);
+>   - original interaction/automation comparison (static reference only);
 >   - release, SBOM and source-archive gates.
 >
 > Detailed UI receipts: `ui-milestone.md`.

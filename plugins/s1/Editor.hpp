@@ -210,6 +210,12 @@ public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
         : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), display(s), linkStrip(s) {
         vertical(gain, "gain", 0.0, 1); vertical(width, "width", 1.0, 2);
+        // Anchor-calibrated replacement taper (slider only, after attachment): the original 17.1
+        // static capture shows Width 1.00 at mid-travel. 0 bottom / 1 middle / 3 top; the curve
+        // between anchors is not the recovered original law. Parameter stays physical 0..3.
+        // SliderAttachment installs a lambda range (ignores skew), so replace the slider's own
+        // display range; the attachment still converts physical values via the parameter.
+        { juce::NormalisableRange<double> taper(0.0, 3.0); taper.setSkewForCentre(1.0); width.setNormalisableRange(taper); }
         horizontal(asymmetry, "asymmetry", 0.0, 0); horizontal(rotation, "rotation", 0.0, 1);
         toggle(inputMode, "input_mode", "L-R | M-S"); toggle(invertLeft, "invert_left", "+/-");
         toggle(swap, "swap", "<->"); toggle(invertRight, "invert_right", "+/-"); toggle(bypass, "bypass", "Bypass");
@@ -340,7 +346,7 @@ public:
         auto area=getLocalBounds(); auto strip=area.removeFromBottom(stripHeight);
         leftPanel=area.removeFromLeft(222); rightPanel=area.removeFromRight(222); centrePanel=area;
         gain.setBounds(41, 60, 62, 379); width.setBounds(129, 60, 62, 379);
-        inputMode.setBounds(leftPanel.getX()+36, 516, 150, 30);
+        inputMode.setBounds(leftPanel.getX()+36, 497, 150, 30); // original 17.1: shared selector row, centre y512
         invertLeft.setBounds(leftPanel.getX()+36, 556, 44, 28); swap.setBounds(leftPanel.getX()+86, 556, 50, 28);
         invertRight.setBounds(leftPanel.getX()+142, 556, 44, 28);
         display.setBounds(244, 32, 560, 321);
@@ -352,7 +358,7 @@ public:
             lamps[size_t(k)].setBounds(k ? 976 : 874, 56, 24, 12);
             readouts[size_t(k)].setBounds(k ? 957 : 855, 414, 62, 25);
         }
-        meterMode.setBounds(rightPanel.getX()+36, 556, 150, 30);
+        meterMode.setBounds(rightPanel.getX()+36, 497, 150, 30);
         bypass.setBounds(strip.getX()+16, strip.getY()+14, 90, strip.getHeight()-28);
     }
 private:
