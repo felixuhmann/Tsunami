@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include <limits>
+#include <vector>
 #include "Processor.h"
 #include <cmath>
 #include <cstdio>
@@ -40,6 +42,14 @@ int main(){
   q.setParameter(0,9514.0f); q.reset(); q.process(ci,bo,2048);
   for(unsigned i=0;i<2048;++i)require(a[i]==b[i],"freq is quantized to whole Hz");
   require(q.getParameter(0)==9514.0f,"getParameter reports the applied whole-Hz frequency");
+ }
+ { // NaN-safe: a single non-finite input sample must not poison later output (review finding)
+  tsunami::deesser::Processor q; q.prepare(48000,1,512); q.setParameter(1,-40);
+  std::vector<float> a(1024),b(1024); for(unsigned i=0;i<1024;++i)a[i]=.5f*float(std::sin(2*3.14159265358979*7000.0*i/48000.0));
+  a[100]=std::numeric_limits<float>::quiet_NaN(); a[200]=std::numeric_limits<float>::infinity();
+  const float* in[]={a.data()}; float* out[]={b.data()}; q.process(in,out,1024);
+  for(unsigned i=0;i<1024;++i)require(std::isfinite(b[i]),"non-finite input sample does not poison output");
+  require(std::isfinite(q.gainReductionDb())&&std::isfinite(q.detectorLevelDb()),"meters stay finite after non-finite input");
  }
  std::puts("PASS bypass, clipping, detector, reset, compression and mode behavior");
 }

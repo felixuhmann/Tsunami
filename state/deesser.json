@@ -1,7 +1,0 @@
-{
-  "target": "deesser",
-  "phase": "core-matched; automation core-tested; editor model drafted (not hosted)",
-  "commit": "pending",
-  "blockers": ["root integration (plugin wrapper/APVTS, Processor.h vs Processor.hpp contract) owned by foundation", "oracle has no automation timeline", "editor not hosted/screenshotted"],
-  "updated_at": "2026-10-27T16:15Z"
-}

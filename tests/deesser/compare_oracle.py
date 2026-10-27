@@ -63,7 +63,7 @@ def main():
         res_db = 10*math.log10(err2/ref2) if err2 > 0 and ref2 > 0 else -math.inf
         ok = mx <= crit["max_abs_error"] and res_db <= crit["residual_db"]
         src = str(q.get("input_original", q.get("input")))
-        cases.append({"evidence": d.name, "set": "heldout" if "heldout" in src else "calibrated", "component": q.get("component"), "input": q.get("input_original", q.get("input")),
+        cases.append({"evidence": d.name, "set": "heldout" if "heldout" in src else "calibrated", "component": q.get("component"), "input": Path(src).name, "input_sha256": q.get("input_sha256"),  # capture-ID + file name only; no private absolute paths in public evidence
                       "oracle_params": q.get("params", {}), "physical": phys, "max_abs_error": mx,
                       "residual_db": res_db if math.isfinite(res_db) else -999.0, "pass": ok})
     report = {"thresholds": thr, "cases": cases, "all_pass": all(c["pass"] for c in cases) and bool(cases)}

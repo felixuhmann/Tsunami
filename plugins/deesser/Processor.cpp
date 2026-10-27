@@ -53,6 +53,7 @@ void Processor::process(const float* const* in,float* const* out,unsigned n) noe
  for(unsigned i=0;i<n;++i){
   float x[2]={in[0][i],channels_==2?in[1][i]:0};
   if(params_[5]>.5f){for(unsigned c=0;c<channels_;++c)out[c][i]=x[c];continue;}
+  for(auto& v:x)if(!std::isfinite(v))v=0; // non-finite input must not poison filter/detector state
   double side=channels_==2?(x[0]+x[1])*.5f:x[0];
   for(auto& s:detector_)side=s.tick(side);
   const float monitored=static_cast<float>(side*std::sqrt(.5));

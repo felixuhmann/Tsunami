@@ -7,6 +7,8 @@ class Processor {
 public:
  void prepare(double sampleRate,unsigned channels,unsigned maxBlockSize);
  void reset() noexcept;
+ // Not thread-safe: call setParameter/prepare/reset on the audio (processing) thread between
+ // process() blocks only; the UI must go through the host parameter state, never this object.
  void setParameter(unsigned index,float value) noexcept;
  float getParameter(unsigned index) const noexcept;
  void process(const float* const* inputs,float* const* outputs,unsigned frames) noexcept;

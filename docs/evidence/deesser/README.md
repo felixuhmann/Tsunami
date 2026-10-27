@@ -41,3 +41,15 @@ Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, p
 - Parameter changes mid-stream not compared to the genuine plugin (oracle has no automation path); intra-block (sample-accurate) changes not modelled.
 - Sample rates outside 44.1/48/96 kHz, and Freq near 16 kHz at 44.1 kHz (Nyquist clamp path), not compared.
 - No editor/UI or host wrapper; root build integration belongs to the foundation worker.
+
+## Round 2: editor and mid-stream automation
+- `tests/deesser/test_editor_model.cpp` (ctest `deesser_editor_model`, no JUCE): every control maps to a genuine parameter, and no control is invented. Covers clamp/quantise, the Freq taper, display text, all-or-nothing state restore, Energy/Atten fed from the core's realtime-safe meters, and infinite peak hold with click reset.
+- `tests/deesser/editor_test.cpp` (native JUCE, harness processor): builds the real `Editor.hpp` and checks:
+  - UI to APVTS updates and APVTS to UI updates
+  - state save/restore
+  - Atten/Energy readings taken from the core
+  - Output readings taken from MeterSource
+
+  It was compiled against the pinned JUCE9 build cache, using origin/main `shared/` and the adapter_test link line, and run under xvfb. It is not wired into CMake because the root build integrates only s1.
+- `automation-midstream.txt`: the genuine oracle cannot apply mid-render parameter changes. The splice model was measured against the predeclared criteria in `thresholds.json` and is invalid for Threshold and Freq.
+- `ui-checklist.md`: a control-by-control comparison against the manual figure.
