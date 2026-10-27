@@ -70,7 +70,7 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=deesser
       - name: Build actual DeEsser native format modules and real-Adapter test
         id: build
-        run: cmake --build build --config Release --target TsunamiDeEsser_VST3 TsunamiDeEsser_CLAP deesser_adapter_test --parallel 2
+        run: cmake --build build --config Release --target TsunamiDeEsser_VST3 TsunamiDeEsser_CLAP deesser_adapter_test deesser_clap_abi_test --parallel 2
       - name: CTest (real Adapter, product editor, meters)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -81,6 +81,14 @@ jobs:
             ctest --test-dir build -C Release -R '^deesser\.adapter$' --output-on-failure -V | tee evidence/deesser-adapter-test.log
           fi
           grep -q 'PASS DeEsser real Adapter' evidence/deesser-adapter-test.log
+      - name: Product CLAP mono/stereo ABI regression (real DeEsser .clap vs portable core)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          mkdir -p evidence
+          ctest --test-dir build -C Release -N -R '^deesser\.clap_abi$' | tee evidence/deesser-clap-abi-list.log
+          grep -q 'Total Tests: 1' evidence/deesser-clap-abi-list.log
+          ctest --test-dir build -C Release -R '^deesser\.clap_abi$' --no-tests=error --output-on-failure -V | tee evidence/deesser-clap-abi-test.log
+          grep -q 'PASS-GATE org.tsunami.deesser: PASS' evidence/deesser-clap-abi-test.log
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
