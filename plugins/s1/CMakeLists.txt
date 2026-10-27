@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+cmake_minimum_required(VERSION 3.16)
+project(tsunami_s1 LANGUAGES CXX)
+enable_testing()
+add_library(tsunami_s1 INTERFACE)
+target_include_directories(tsunami_s1 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(tsunami_s1 INTERFACE cxx_std_17)
+add_executable(s1_test ../../tests/s1/processor_test.cpp)
+target_link_libraries(s1_test PRIVATE tsunami_s1)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(s1_test PRIVATE -Wall -Wextra -Wpedantic -ffp-contract=off)
+endif()
+add_test(NAME s1_processor COMMAND s1_test)
