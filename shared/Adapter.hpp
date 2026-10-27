@@ -8,6 +8,7 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace tsunami {
 // Optional read-only output meter bridge for plugin editors (dynamic_cast from AudioProcessor).
@@ -63,6 +64,25 @@ template<class Spec> class Adapter final : public juce::AudioProcessor, public M
     std::array<std::atomic<float>*, count> values{};
     unsigned maxBlock = 0, channels = 2;
     std::array<std::atomic<float>, 4> peaks{};
+    // Dry input history of exactly latencySamples(), fed on every callback so a host
+    // bypass toggle (processBlockBypassed) continues with already aligned delayed input.
+    std::array<std::vector<float>, 2> dry;
+    size_t dryAt = 0;
+    void delayDry(float* const* io, unsigned frames, bool writeOut) noexcept {
+        const size_t length = dry[0].size();
+        if (length == 0) return;
+        size_t at = dryAt;
+        for (unsigned c=0;c<channels;++c) {
+            auto& ring = dry[c]; at = dryAt;
+            for (unsigned n=0;n<frames;++n) {
+                const float x=io[c][n];
+                if (writeOut) io[c][n]=ring[at];
+                ring[at]=x; if (++at==length) at=0;
+            }
+        }
+        dryAt=at;
+    }
+    void clearDry() noexcept { for (auto& ring : dry) std::fill(ring.begin(), ring.end(), 0.f); dryAt=0; }
     void publishPeaks(const float* l, const float* r, int frames) noexcept {
         std::array<float, 4> block{};
         for (int n=0;n<frames;++n) {
@@ -157,13 +177,22 @@ public:
         channels=detail::SupportsMono<Spec>::value && getTotalNumOutputChannels()==1 ? 1u : 2u;
         apply(); core.prepare(rate, channels, maxBlock);
         setLatencySamples(int(core.latencySamples()));
+        for (auto& ring : dry) ring.assign(size_t(getLatencySamples()), 0.f);
+        dryAt=0;
     }
-    void releaseResources() override { core.reset(); }
-    void reset() override { apply(); core.reset(); }
+    void releaseResources() override { core.reset(); clearDry(); }
+    void reset() override { apply(); core.reset(); clearDry(); }
+    // Host bypass keeps the reported latency: output is the input delayed by latencySamples().
+    void processBlockBypassed(juce::AudioBuffer<float>& b, juce::MidiBuffer&) override {
+        juce::ScopedNoDenormals guard;
+        if (unsigned(b.getNumChannels())!=channels || unsigned(b.getNumSamples())>maxBlock || maxBlock==0) { b.clear(); return; }
+        delayDry(b.getArrayOfWritePointers(), unsigned(b.getNumSamples()), true);
+    }
     void processBlock(juce::AudioBuffer<float>& b, juce::MidiBuffer&) override {
         juce::ScopedNoDenormals guard;
         if (unsigned(b.getNumChannels())!=channels || unsigned(b.getNumSamples())>maxBlock || maxBlock==0) { b.clear(); return; }
         apply();
+        delayDry(b.getArrayOfWritePointers(), unsigned(b.getNumSamples()), false);
         const unsigned last=channels-1; // mono: L and R views alias channel 0; the core processes 1 channel
         const float* inputs[]{b.getReadPointer(0), b.getReadPointer(int(last))};
         float* outputs[]{b.getWritePointer(0), b.getWritePointer(int(last))};

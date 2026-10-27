@@ -231,6 +231,69 @@ int monoLayout() {
     std::cout << "rvox.adapter mono PASS: 1-in/1-out bit-identical to 1-channel core, meters, state, layout refusal\n";
     return 0;
 }
+// Host bypass (VST3/LV2 wrappers call processBlockBypassed when the plugin has no
+// bypass parameter) must keep the reported lookahead latency, otherwise host delay
+// compensation shifts the bypassed audio earlier. Nonperiodic noise so a lag is unique.
+std::vector<float> noise(unsigned frames, uint32_t seed) {
+    std::vector<float> x(frames);
+    for (auto& v : x) { seed = seed * 1664525u + 1013904223u; v = float(int32_t(seed) >> 8) / float(1 << 23) * .5f; }
+    return x;
+}
+// Lag (0..maxLag) maximizing correlation of y[at..at+len) against x shifted by lag.
+int bestLag(const std::vector<float>& x, const std::vector<float>& y, unsigned at, unsigned len, int maxLag) {
+    int best = -1; double top = -1e30;
+    for (int lag = 0; lag <= maxLag; ++lag) {
+        double s = 0; for (unsigned n = at; n < at + len; ++n) s += double(y[n]) * x[n - unsigned(lag)];
+        if (s > top) { top = s; best = lag; }
+    }
+    return best;
+}
+int bypassLatency() {
+    using Set = juce::AudioChannelSet;
+    for (int chans : {1, 2}) {
+        tsunami::Adapter<Spec> p;
+        juce::AudioProcessor::BusesLayout l; l.inputBuses.add(chans == 1 ? Set::mono() : Set::stereo()); l.outputBuses.add(l.inputBuses[0]);
+        if (!p.setBusesLayout(l)) return fail(80, "bypass layout");
+        const int block = 64; const unsigned frames = 48000, toggle = 24000 - 17; // toggle mid-block stream position
+        for (int round = 0; round < 2; ++round) { // second round: repeated prepare + reset must restart cleanly
+            p.prepareToPlay(48000, block); p.reset();
+            const int latency = p.getLatencySamples();
+            if (latency <= 0) return fail(81, "RVox reports no lookahead");
+            std::vector<float> in[2]{noise(frames, 7u), noise(frames, 99u)}, out[2]{std::vector<float>(frames), std::vector<float>(frames)};
+            // Pure bypass from a cold start: exact copy of input delayed by getLatencySamples().
+            juce::MidiBuffer midi; juce::AudioBuffer<float> b(chans, block);
+            for (unsigned at = 0; at < frames; at += unsigned(block)) {
+                for (int c = 0; c < chans; ++c) b.copyFrom(c, 0, in[c].data() + at, block);
+                p.processBlockBypassed(b, midi);
+                for (int c = 0; c < chans; ++c) std::memcpy(out[c].data() + at, b.getReadPointer(c), size_t(block) * sizeof(float));
+            }
+            const int lag = bestLag(in[0], out[0], 4800, 9600, 256);
+            std::cout << "bypass " << chans << "ch round " << round << ": reported latency " << latency << ", measured bypass delay " << lag << '\n';
+            for (int c = 0; c < chans; ++c)
+                for (unsigned n = 0; n < frames; ++n)
+                    if (out[c][n] != (n >= unsigned(latency) ? in[c][n - unsigned(latency)] : 0.f))
+                        return fail(82, "bypass output is not the input delayed by the reported latency");
+            // Continuous stream: neutral/default processing, then host bypass from `toggle`.
+            p.reset();
+            for (unsigned at = 0, k = 0; at < frames; ++k) {
+                const unsigned n = std::min({unsigned(block), frames - at, at < toggle && at + unsigned(block) > toggle ? toggle - at : unsigned(block)});
+                juce::AudioBuffer<float> s(chans, int(n));
+                for (int c = 0; c < chans; ++c) s.copyFrom(c, 0, in[c].data() + at, int(n));
+                if (at < toggle) p.processBlock(s, midi); else p.processBlockBypassed(s, midi);
+                for (int c = 0; c < chans; ++c) std::memcpy(out[c].data() + at, s.getReadPointer(c), n * sizeof(float));
+                at += n;
+            }
+            const int before = bestLag(in[0], out[0], toggle - 4800, 4800, 256), after = bestLag(in[0], out[0], toggle + 512, 4800, 256);
+            std::cout << "  toggle processing->bypass: delay before " << before << ", after " << after << '\n';
+            if (before != latency || after != latency) return fail(83, "bypass toggle jumps in time (not just amplitude)");
+            for (int c = 0; c < chans; ++c) // already-aligned history: exact delayed input right at the toggle
+                for (unsigned n = toggle; n < frames; ++n)
+                    if (out[c][n] != in[c][n - unsigned(latency)]) return fail(84, "bypass after toggle lacks aligned dry history");
+        }
+    }
+    std::cout << "rvox.adapter bypass PASS: host bypass delayed by reported latency, mono/stereo, toggle aligned, reset/re-prepare\n";
+    return 0;
+}
 // Genuine-comparison mode: recall a preset through saved state into a fresh
 // hosted instance, render interleaved stereo float32 at the original block size.
 int presetRender(char** a) {
@@ -319,6 +382,7 @@ int main(int argc, char** argv) {
     if (int r = hiddenStateMatrix()) return r;
     if (int r = hotInputMeter()) return r;
     if (int r = monoLayout()) return r;
+    if (int r = bypassLatency()) return r;
     std::cout << "rvox.adapter PASS: hosted RVox core bit-identical across 3 rates x 3 blocks, state restore exact\n";
     return 0;
 }
