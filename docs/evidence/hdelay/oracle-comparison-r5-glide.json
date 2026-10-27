@@ -1,0 +1,28 @@
+{
+ "thresholds_path": "docs/evidence/hdelay/thresholds.json#round2_task5",
+ "cases": {
+  "154836_first_echo": {
+   "genuine": 21555,
+   "law_prediction": 21557,
+   "err_samples": 2,
+   "pass": false
+  },
+  "154836_second_echo": {
+   "genuine": 44620,
+   "law_prediction": 44621,
+   "err_samples": 1,
+   "pass": true
+  },
+  "160946_first_echo": {
+   "genuine": 21555,
+   "law_prediction": 21557,
+   "err_samples": 2,
+   "pass": false
+  }
+ },
+ "info_162912_666ms": {
+  "genuine_echo": 319967,
+  "law_prediction_glide_from_0": 320000
+ },
+ "pass": false
+}
