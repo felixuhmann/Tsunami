@@ -1,0 +1,16 @@
+{
+  "scope": "rcomp round-2 task4: read-only findings from EXISTING exports (no new Ghidra run, no new renders). Not implemented in this commit; nothing here is presented as a verified port.",
+  "release_tables_0x18002d7d0": {
+    "status": "structure read from existing export; NOT ported, NOT verified against renders",
+    "summary": "Builds two 256-entry double tables A and B (written to the kernel table buffer, A first then B; non-native build halves B).",
+    "A_j": "0.5^(d/(j+1)), j=0..255, d=c^2*0.01 with c=10 or 3 selected by an integer control at coefficient block +0x66b0 (mode switch; which user control is unresolved)",
+    "B_j": "exp(-1/(max(0.002, (1-(x_j/256)^4)^4 * R) * fs * 0.001)) / A_j, R = control at +0xb0 (Release, ms assumed), x_j = j when control +0x84b0 == 0, else x_j = 256-j (+0x84b0 assumed Manual/ARC switch, unconfirmed)",
+    "kernel_lookup_0x101100": "release memory for the next sample = T[(int)((s11+1)*k+1)] * T[(int)(min(s10,s11)*k)], s10 = gain follower state, s11 = a second follower of s10 with coefficients from control slots 0x2c/0x30, k = int control 0x34 (table scale). With k=255 the first index lands in B and the second in A.",
+    "unresolved": ["values of k (0x34) and the s11 coefficients (0x2c/0x30) at the held-out settings", "unit of R", "which user control drives +0x66b0 and +0x84b0"]
+  },
+  "maximum_history_0x101100": {
+    "status": "structure read; exact equivalence to the plain 64-sample sliding max NOT established",
+    "summary": "Per sample: write the running max at the shared-ring position, advance by 1,2,4,...,H/2 (H = control 0x6c) and take max with each slot read; then Q31 gain write, CIC taps at +A, +A+B, +2A+B, then Output writes two audio values at +H steps. All indices mod R (control 0x58).",
+    "index_trace": "A literal index-only trace with H=64, A=27, B=11, R=193 and per-sample advance (H-1)+(2A+B)+2H does NOT give a clean dyadic tree (reads hit max values 49/3/6/12/24 samples old and one audio slot). That advance is also inconsistent with the passing native history probe (H=1 would give stride 0). So the ring-advance reading is incomplete (another kernel path or a missed position update). The exact structure remains unported."
+  }
+}

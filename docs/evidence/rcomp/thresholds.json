@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "declared_utc": "2026-10-27T16:07:33Z",
+  "max_absolute_error": 3e-06,
+  "rms_error": 5e-07,
+  "origin": "Unchanged values of the predeclared output-segment gates (docs/evidence/rcomp/output-segment-comparison.json); reused, not tuned, for the MonoProcessor comparison against stored genuine 48 kHz captures.",
+  "alignment": "Genuine captures are host latency-compensated (genuine Mix0 equals the probe sample-for-sample), so candidate[n+latency] is compared with genuine[n] over 48000-latency samples.",
+  "verdict_scope": {
+    "dry_mix0": "grounded gate: full MonoProcessor (wet chain running) at Gain0/Trim0/Mix0",
+    "wet_mix100": "diagnostic only: wet coefficients are provisional GainStage defaults because the Threshold/Ratio/Attack/Release/ARC mapping is not recovered; a FAIL is expected and is not a tuning target"
+  }
+}

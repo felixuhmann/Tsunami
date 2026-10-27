@@ -1,0 +1,410 @@
+{
+  "schema": 1,
+  "claim": "Genuine oracle characterization only; not a candidate equivalence comparison. Physical-control coefficient generation remains unrecovered.",
+  "reference_version": {
+    "bundle": "RComp.bundle",
+    "version": "17.1.42.50",
+    "build_id": "293546",
+    "framework_versions": {
+      "plugin_declared_external": "17.1.42.50",
+      "framework_manifest_actual": "17.1.42.54",
+      "framework_identifier": "WavesLib1_17_1_42_IID",
+      "matched_shell_manifest": "17.1.42.50",
+      "note": "Plugin Info.xml requests WavesLib1_17.1.42 path. Distributed framework has later patch .54; preserved without relabelling as .50."
+    },
+    "identity_sha256": "f4cf8c3fe126ad4e71357e10c09111c5996d8012151cb2b7b08e80ca408c0041"
+  },
+  "reference_files": [
+    {
+      "path": "vendor-layout/Plug-Ins V17/RComp.bundle/Contents/Win64/RComp.dll",
+      "sha256": "4ecaafa3628a11c3e34e60c34182d7daabefadd3f231918fd47bcefe88d5ac79",
+      "bytes": 850776
+    },
+    {
+      "path": "vendor-layout/Plug-Ins V17/RComp.bundle/Contents/Win64/GenericMultiCoreProcessor.dll",
+      "sha256": "109e3535dca5a7fe3fdd77286dd19cdd19a74ec593356905708ed1d9c1999eeb",
+      "bytes": 108888
+    },
+    {
+      "path": "vendor-layout/Shells/WaveShell1-VST3 17.1_x64.vst3",
+      "sha256": "ee6b1a818fb6392e9c28c1b053ead872c6d12ab654daf079293461721da7bb90",
+      "bytes": 10523480
+    },
+    {
+      "path": "vendor-layout/Plug-Ins V17/WavesLib1_17.1.42.framework/Versions/A/WavesLib1_17.1.42.dll",
+      "sha256": "55e5218f7ad6a0049a965b6449470a3da40b71332bf89c0f4432ea86b70464bf",
+      "bytes": 7983960
+    }
+  ],
+  "runtime": "Windows CPython 3.11.9 / Wine 9 / Pedalboard 0.9.26",
+  "captures": [
+    {
+      "capture": "20261027T112721-bd530122339e4866ba754206991d8bda",
+      "result_sha256": "eda8b7ef4f28d5eaf59d027c307e9d908ef5b899dd1928ee88f4f940fe4d2913",
+      "component": "RCompressor Mono",
+      "controls": {
+        "gain": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 0.5,
+          "display": "0.0 dB",
+          "host_value": "0.0"
+        },
+        "threshold": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 1.0,
+          "display": "0.0 dB",
+          "host_value": "0.0"
+        },
+        "ratio": {
+          "requested": {
+            "value": 1.0
+          },
+          "raw_readback": 0.625,
+          "display": "1.00 ",
+          "host_value": "1.0"
+        },
+        "mix": {
+          "requested": {
+            "value": 100.0
+          },
+          "raw_readback": 1.0,
+          "display": "100.0 ",
+          "host_value": "100.0"
+        },
+        "trim": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 0.5,
+          "display": "0.0 dB",
+          "host_value": "0.0"
+        }
+      },
+      "audio": {
+        "input_shape": [
+          1,
+          96000
+        ],
+        "output_shape": [
+          1,
+          96000
+        ],
+        "same_shape": true,
+        "all_finite": true,
+        "input_rms": 0.11389152243315004,
+        "output_rms": 0.11389152243315004,
+        "output_peak": 0.31998658180236816,
+        "exact_zero_samples": 8599,
+        "difference_rms": 0.0,
+        "sample_rate": 48000,
+        "block_size": 512,
+        "reset": true,
+        "fresh_instance": true,
+        "warmup_frames": 0,
+        "processing_seconds": 0.0,
+        "magnitude_windows_seconds": 0.1,
+        "window_peaks": [
+          0.25000762939453125,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.019989624619483948,
+          0.019989624619483948,
+          0.019989624619483948,
+          0.019989624619483948,
+          0.019989624619483948,
+          0.07998901605606079,
+          0.07998901605606079,
+          0.07998901605606079,
+          0.07998901605606079,
+          0.07998901605606079,
+          0.31998658180236816,
+          0.31998658180236816,
+          0.31998658180236816,
+          0.31998658180236816,
+          0.31998658180236816
+        ],
+        "low_magnitude_windows_below_1e-7": [],
+        "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+        "input_wav_sha256": "13d54bb6640e7ac9ec1a58de82552a5b1b21cb91200a284744cb7870c42393dd",
+        "output_wav_sha256": "68a3f6cb2ca4cd089ccb836cab78bd29df5faaa91ab66a69abb23cf453e641b4",
+        "output_npy_sha256": "ec3ec6905bdd3e83cb5629a062d1431232373285fd473ceffd0acd7b6c501f2f",
+        "output_samples_sha256": "22de6837dd09c5fab7482e767fe7d13ab5e6c23a85134225618b074eedc51d3b"
+      },
+      "independent_npy_hash_shape_finite_verified": true
+    },
+    {
+      "capture": "20261027T112846-f2f2b98afff7418e944e0c4fd7ad5386",
+      "result_sha256": "e63c2f9c8ab738cda743f8bf1aa833a05b599aa337ddf84218ac9430292051ec",
+      "component": "RCompressor Mono",
+      "controls": {
+        "gain": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 0.5,
+          "display": "0.0 dB",
+          "host_value": "0.0"
+        },
+        "threshold": {
+          "requested": {
+            "value": -24.0
+          },
+          "raw_readback": 0.6000000238418579,
+          "display": "-24.0 dB",
+          "host_value": "-24.0"
+        },
+        "ratio": {
+          "requested": {
+            "value": 4.0
+          },
+          "raw_readback": 0.40299999713897705,
+          "display": "4.01 ",
+          "host_value": "4.01"
+        },
+        "attack": {
+          "requested": {
+            "value": 0.5
+          },
+          "raw_readback": 0.0,
+          "display": "0.50 ms",
+          "host_value": "0.5"
+        },
+        "release": {
+          "requested": {
+            "value": 160.0
+          },
+          "raw_readback": 0.5019999742507935,
+          "display": "160 ms",
+          "host_value": "160.0"
+        },
+        "arc_manual": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Manual ",
+          "host_value": "Manual "
+        },
+        "warm_smooth": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Smooth ",
+          "host_value": "Smooth "
+        }
+      },
+      "audio": {
+        "input_shape": [
+          1,
+          96000
+        ],
+        "output_shape": [
+          1,
+          96000
+        ],
+        "same_shape": true,
+        "all_finite": true,
+        "input_rms": 0.11389152243315004,
+        "output_rms": 0.030594330930540023,
+        "output_peak": 0.12085200846195221,
+        "exact_zero_samples": 8599,
+        "difference_rms": 0.08642752260713951,
+        "sample_rate": 48000,
+        "block_size": 512,
+        "reset": true,
+        "fresh_instance": true,
+        "warmup_frames": 0,
+        "processing_seconds": 0.0,
+        "magnitude_windows_seconds": 0.1,
+        "window_peaks": [
+          0.12085200846195221,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.019386805593967438,
+          0.01935884915292263,
+          0.01935884915292263,
+          0.01935884915292263,
+          0.01935884915292263,
+          0.0540924146771431,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.09529367834329605,
+          0.07123236358165741,
+          0.07123236358165741,
+          0.07123236358165741,
+          0.07123236358165741
+        ],
+        "low_magnitude_windows_below_1e-7": [],
+        "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+        "input_wav_sha256": "13d54bb6640e7ac9ec1a58de82552a5b1b21cb91200a284744cb7870c42393dd",
+        "output_wav_sha256": "31d980badc301792fb9aab075269531ff9d14729d35364af87041675e8103f4f",
+        "output_npy_sha256": "c9b56aab018231de3e0092f034b153840153f61b7bc0e1284613c4187848d2e9",
+        "output_samples_sha256": "8884f25bdc78924b93fbfffc8af9e65f624a87baa4d6b00cc3de6453bada3249"
+      },
+      "independent_npy_hash_shape_finite_verified": true
+    },
+    {
+      "capture": "20261027T113217-affc0519e2b942849b5eb9e22d462331",
+      "result_sha256": "6a9719f3977e66bc1a2328e5ca24631283a6c6a4ce6135df0a404cdd635d9f8e",
+      "component": "RCompressor Mono",
+      "controls": {
+        "gain": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 0.5,
+          "display": "0.0 dB",
+          "host_value": "0.0"
+        },
+        "threshold": {
+          "requested": {
+            "value": -24.0
+          },
+          "raw_readback": 0.6000000238418579,
+          "display": "-24.0 dB",
+          "host_value": "-24.0"
+        },
+        "ratio": {
+          "requested": {
+            "value": 4.0
+          },
+          "raw_readback": 0.40299999713897705,
+          "display": "4.01 ",
+          "host_value": "4.01"
+        },
+        "attack": {
+          "requested": {
+            "value": 0.5
+          },
+          "raw_readback": 0.0,
+          "display": "0.50 ms",
+          "host_value": "0.5"
+        },
+        "release": {
+          "requested": {
+            "value": 5.0
+          },
+          "raw_readback": 0.0,
+          "display": "5.00 ms",
+          "host_value": "5.0"
+        },
+        "arc_manual": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Manual ",
+          "host_value": "Manual "
+        },
+        "warm_smooth": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Smooth ",
+          "host_value": "Smooth "
+        }
+      },
+      "audio": {
+        "input_shape": [
+          1,
+          216000
+        ],
+        "output_shape": [
+          1,
+          216000
+        ],
+        "same_shape": true,
+        "all_finite": true,
+        "input_rms": 0.24633395034527986,
+        "output_rms": 0.046703832706280375,
+        "output_peak": 0.09922943264245987,
+        "exact_zero_samples": 0,
+        "difference_rms": 0.20662164125711097,
+        "sample_rate": 48000,
+        "block_size": 512,
+        "reset": true,
+        "fresh_instance": true,
+        "warmup_frames": 0,
+        "processing_seconds": 0.0,
+        "magnitude_windows_seconds": 0.1,
+        "window_peaks": [
+          0.0010071108117699623,
+          0.0010071108117699623,
+          0.0010071108117699623,
+          0.0010071108117699623,
+          0.0010071108117699623,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.005005035549402237,
+          0.010010071098804474,
+          0.010010071098804474,
+          0.010010071098804474,
+          0.010010071098804474,
+          0.010010071098804474,
+          0.01954178884625435,
+          0.019359763711690903,
+          0.019359763711690903,
+          0.019359763711690903,
+          0.019359763711690903,
+          0.03495164215564728,
+          0.033408425748348236,
+          0.033408425748348236,
+          0.033408425748348236,
+          0.033408425748348236,
+          0.0543263778090477,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.04926081374287605,
+          0.07258309423923492,
+          0.06203456595540047,
+          0.06203456595540047,
+          0.06203456595540047,
+          0.06203456595540047,
+          0.08649812638759613,
+          0.07123236358165741,
+          0.07123236358165741,
+          0.07123236358165741,
+          0.07123236358165741,
+          0.09922943264245987,
+          0.08165086060762405,
+          0.08165086060762405,
+          0.08165086060762405,
+          0.08165086060762405
+        ],
+        "low_magnitude_windows_below_1e-7": [],
+        "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+        "input_wav_sha256": "ad44fd06a31debca1e06d317e4c899ba191f8f0036c6507dc16383af01a4f23a",
+        "output_wav_sha256": "944c7ba552b06332d8ba0efa959e8130f50f28e262c0eea9c6af87291118da8d",
+        "output_npy_sha256": "a05bdcd7d04aca630b4d213df30cf5e0a0d0a8a06fe716621b472a1440af46a9",
+        "output_samples_sha256": "21c95efbe68d0f14d01e5ea185865e5a46dc1cd2095ebf37ded000b89d8766c1"
+      },
+      "independent_npy_hash_shape_finite_verified": true,
+      "dc_last_100ms_means": [
+        0.0010071108117699623,
+        0.005005035549402237,
+        0.010009014494911147,
+        0.019350826401496306,
+        0.033379054866964,
+        0.04919968658825383,
+        0.061946091741944355,
+        0.07113052275031805,
+        0.08154597790523743
+      ]
+    }
+  ]
+}

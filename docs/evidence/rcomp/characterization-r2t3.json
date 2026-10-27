@@ -1,0 +1,73 @@
+{
+ "schema": 1,
+ "claim": "Characterization from targeted genuine renders plus a diagnostic held-out wet comparison. Not an equivalence claim.",
+ "probes": "synthesized 1 kHz sines: 21-step staircase -60..0 dBFS peak (3 dB, 150 ms/step); burst -40/-6/-40 dBFS (0.3/0.4/0.6 s). All renders RCompressor Mono, 48 kHz, block 512, Manual, Smooth.",
+ "captures": {
+  "s1": "20261027T161405-c13ab40b67fe4ba0be20705098ccd883",
+  "s2": "20261027T161420-98d8070400a149a8bcd3868e71b870bc",
+  "s3": "20261027T161532-e0c9d522beac470980dfbd3bfc12e61d",
+  "t-12_r8": "20261027T162032-cdb08109c6ae47a4b5437d979c7baba6",
+  "t-30_r2": "20261027T162045-22b3a24375df42a1911fb608ea36b62f",
+  "t-20_r2": "20261027T162059-2b27daf3168744089e994622eea39bab",
+  "t-20_r8": "20261027T162113-e35cb44dbe874deb8f3ae326fa6b08dd",
+  "t-20_r1.5": "20261027T162126-c03a06cfd94e41099827d98a06a83321",
+  "t-12_r4": "20261027T162505-0a3413a805d4427989c670149a1a1d01",
+  "b_a05": "20261027T161435-6bf026587c894ad9a4a95021276c1f7b",
+  "b_a16": "20261027T161449-701f78a661d747a18988c02af64630c3",
+  "b_a100": "20261027T161503-c0462f75ba3b4e6db669e9e7b94ad573",
+  "b_r50": "20261027T161518-7c0ef7b1d54d44958f05fbc8a4821e3b",
+  "b_r500": "20261027T161546-f046d3cfeaed466b8bccf015600ea08b"
+ },
+ "static_curve": {
+  "law": "gain = (1-b)*min(1, q + 1.5*q^2*(1-q)) + b, q = 1/(1 + m/10^(threshold/20)), m = detector peak",
+  "evidence": "steady per-sample gain y/x is constant within each step; T/S = 10^(thr/20) exact at -12/-20/-30 dB; shape 1.5; max fit error 5e-5 dB (Ratio 2, -12 dB)",
+  "knee": "no separate knee: gain is exactly 1 while 1.5*q^2 >= 1 (q >= 0.8165), i.e. below threshold - 12.96 dB",
+  "ratio_floor_b": {
+   "t-12_r4": {
+    "threshold_db": -12.0,
+    "ratio_display": "4.01",
+    "ratio_raw": 0.40299999713897705,
+    "b": [
+     0.02982423171271468,
+     0.029857755847016693
+    ]
+   }
+  },
+  "ratio_floor_note": "b is threshold-independent; no closed form recovered; table is measured, interpolation provisional. Ratio 4.01 floor measured at Threshold -12 (the held-out capture is Threshold -24) because b is threshold-independent.",
+  "coefficient_slots_2_3": "Consistent with coefficients 2/3 = thresholdScale/slope (only their ratio is observable) but no exported writer confirms the slot assignment; not claimed."
+ },
+ "ballistics": {
+  "attack": "Attack 0.5/16/100 ms -> measured 50%->10% decay tau 0.62/15.5/100.0 ms: Attack feeds the gain-decrease memory via the recovered law pow(e^-1, 1/(fs*ms*1e-3)), no x5 flag.",
+  "release": "Release 50/160/500 ms (Manual) is NOT a one-pole: recovery is near-linear in gain and passes through the kernel ARC table product (param_8[0xf]); d7d0 tables not recovered. Implementation uses a PROVISIONAL one-pole of Release."
+ },
+ "comparison": {
+  "thresholds": "docs/evidence/rcomp/thresholds.json (unchanged)",
+  "thresholds_sha256": "6826f4f113a14cac37a6c6aa83d226d3d9fe2e01ee3f0bf7530da4f04ede7016",
+  "held_out": "stored genuine wet capture Threshold -24, Ratio 4.01, Attack 0.5, Release 160, Manual, Smooth, probe.wav; not used for fitting",
+  "dry_mix0": {
+   "samples": 47936,
+   "max_absolute_error": 7.450580596923828e-09,
+   "rms_error": 1.3134296257972976e-09,
+   "pass": true
+  },
+  "wet_mix100_window1": {
+   "samples": 47936,
+   "max_absolute_error": 0.008217155933380127,
+   "rms_error": 0.0004189077722136214,
+   "pass": false,
+   "rel_rms_error_db": -37.7
+  },
+  "wet_mix100_window64": {
+   "samples": 47936,
+   "max_absolute_error": 0.0006291419267654419,
+   "rms_error": 2.0954978648489168e-05,
+   "pass": false,
+   "rel_rms_error_db": -63.72
+  },
+  "previous_wet_mix100": {
+   "max_absolute_error": 0.03514504060149193,
+   "rms_error": 0.021307466215009962
+  },
+  "verdict": "FAIL under the strict thresholds (diagnostic). Remaining error attributed to provisional release (ARC tables), approximate maximum-history tree, phase branches/ceiling release unset."
+ }
+}

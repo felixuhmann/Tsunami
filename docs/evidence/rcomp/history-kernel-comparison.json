@@ -1,0 +1,84 @@
+{
+  "status": "partial_restricted_kernel_slice",
+  "verified_plugin": false,
+  "full_plugin_candidate_comparison": false,
+  "utc": "2026-10-27T12:18:39.465706+00:00",
+  "reference": {
+    "product": "RComp",
+    "version": "17.1.42.50",
+    "component": "Original Linux64/XLMC ProcessFuncM mono float-input kernel",
+    "sha256": "95a060dc2868f8858e3102c8e9970d53b0ea4a0b9a2e1dc22ce04a48815a3822"
+  },
+  "candidate_source_sha256": "09b6eb1143f8e628566883dbe299d8556cd7e1193ef927187ace6aeef30540b5",
+  "candidate_test_sha256": "4746a9e1451641b5564dd8f9c194b7bc77cc4f4775d36dc9110adfd8040fbbc0",
+  "private_snapshot_id": "20261027T121703435311Z",
+  "private_snapshot_hashes": {
+    "GainHistory.h": "09b6eb1143f8e628566883dbe299d8556cd7e1193ef927187ace6aeef30540b5",
+    "run_history_kernel_probe.py": "8c8d5235a72ff8e88aa43ef5f80c738ea323e7898376f4faad36391c5e8b0624",
+    "history_kernel_probe": "fd72e518b9615875a539412cea1f02329f82a4701fdcc89518bb8545fa50e3d1",
+    "history_kernel_probe.cpp": "309d05d9d18c9ee6686f60778dced9d82be7ab79c4f4b9a6c99008231bcf601b",
+    "XLMC": "95a060dc2868f8858e3102c8e9970d53b0ea4a0b9a2e1dc22ce04a48815a3822"
+  },
+  "private_result_sha256": "a237bdcc3a01e51bd810cf36069a008d9c469da87c6471f594e6dff822680349",
+  "runtime": {
+    "kind": "Native Linux auxiliary ELF in scoped nonroot no-network container; not full plugin or Windows host",
+    "image_id": "sha256:ed1bd9923a8537b362e00fdd22d3fd2b9ddd4971ec130989066a1de3453f23c7",
+    "common_oracle_lock": true,
+    "heavy_job_lock": "heavy-2",
+    "immutable_readonly_snapshots": true,
+    "shared_wine_prefix_mounted": false
+  },
+  "experiment": {
+    "gain_path": "Synthetic internal coefficients; earlier gain computer held at unity, downstream multiplier varied",
+    "ring_length": "2*H+2*A+B",
+    "first_spans": [
+      1,
+      2,
+      3,
+      7
+    ],
+    "middle_spans": [
+      0,
+      1,
+      2,
+      5
+    ],
+    "audio_delays": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "shifts": [
+      0,
+      1,
+      3,
+      7,
+      31
+    ],
+    "samples_per_case": 1024,
+    "seed": 731,
+    "audio": "deterministic changing signed samples",
+    "gain": "deterministic values in [0,1), periodic zero and unity",
+    "initial_state": "zero ring and accumulators, specified synthetic follower/wet state",
+    "call_size": 1
+  },
+  "result": {
+    "cases": 320,
+    "samples": 327680,
+    "mismatches": 0,
+    "max_absolute_error": 0
+  },
+  "native_tests": {
+    "release_ctest": "2/2 passed",
+    "asan_ubsan_float_cast_overflow_ctest": "2/2 passed",
+    "independent_direct_FIR": "320 geometries / 327680 exact sample comparisons",
+    "log": "history-native-tests.txt"
+  },
+  "limitations": [
+    "Synthetic internal coefficients only; no physical-control mapping",
+    "Actual wrapper geometry/startup and ARC tables remain unknown",
+    "No complete Processor, UI, hosted candidate or native Windows test",
+    "No full-plugin equivalence or release acceptance claim"
+  ]
+}

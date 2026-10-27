@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "spdx_license_identifier": "GPL-3.0-or-later",
+  "target": "rcomp",
+  "implementation_status": "reference metadata only; not wired to the partial coefficient-domain GainStage",
+  "component": "RCompressor Mono",
+  "normalization": "Physical units below are not vendor normalized controls. OutputStage implements Gain/Trim/Mix on aligned dry/wet signals; full compression coefficient generation and adapter wiring remain incomplete.",
+  "parameters": [
+    {"index": 0, "id": "bypass", "name": "Bypass", "minimum": 0, "maximum": 1, "default": 0, "unit": "", "type": "boolean", "logarithmic": false, "group": "Global"},
+    {"index": 1, "id": "gain", "name": "Gain", "minimum": -30, "maximum": 30, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Output"},
+    {"index": 2, "id": "threshold", "name": "Threshold", "minimum": -60, "maximum": 0, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Compression"},
+    {"index": 3, "id": "attack", "name": "Attack", "minimum": 0.5, "maximum": 500, "default": 16, "unit": "ms", "type": "float", "logarithmic": true, "group": "Timing"},
+    {"index": 4, "id": "ratio", "name": "Ratio", "minimum": 0.5, "maximum": 50, "default": 1, "unit": ":1", "type": "float", "logarithmic": false, "group": "Compression"},
+    {"index": 5, "id": "arc_manual", "name": "Release control", "minimum": 0, "maximum": 1, "default": 0, "unit": "", "type": "enum", "choices": ["ARC", "Manual"], "logarithmic": false, "group": "Timing"},
+    {"index": 6, "id": "warm_smooth", "name": "Character", "minimum": 0, "maximum": 1, "default": 0, "unit": "", "type": "enum", "choices": ["Warm", "Smooth"], "logarithmic": false, "group": "Compression"},
+    {"index": 7, "id": "release", "name": "Release", "minimum": 5, "maximum": 5000, "default": 160, "unit": "ms", "type": "float", "logarithmic": true, "group": "Timing"},
+    {"index": 8, "id": "electro_opto", "name": "Behavior", "minimum": 0, "maximum": 1, "default": 0, "unit": "", "type": "enum", "choices": ["Electro", "Opto"], "logarithmic": false, "group": "Compression"},
+    {"index": 9, "id": "mix", "name": "Mix", "minimum": 0, "maximum": 100, "default": 100, "unit": "%", "type": "float", "logarithmic": false, "group": "Output"},
+    {"index": 10, "id": "trim", "name": "Trim", "minimum": -18, "maximum": 18, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Output"}
+  ]
+}

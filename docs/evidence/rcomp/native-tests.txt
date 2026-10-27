@@ -1,0 +1,15 @@
+Consolidate compiler generated dependencies of target rcomp_gain_stage_tests
+[100%] Built target rcomp_gain_stage_tests
+Internal ctest changing into directory: /home/felix/.hermes/cache/scratch/rcomp-build
+Test project /home/felix/.hermes/cache/scratch/rcomp-build
+    Start 1: rcomp_gain_stage
+1/1 Test #1: rcomp_gain_stage .................   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.00 sec
+PASS nonlinear coefficient-domain gain law
+PASS impulse through detector and asymmetric follower
+PASS invalid coefficient rejection is atomic
+PASS parallel peak ceiling and release
+PASS polarity, bounded gain and detector disable regressions

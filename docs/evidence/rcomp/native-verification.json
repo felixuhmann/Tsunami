@@ -1,0 +1,60 @@
+{
+  "timestamp_utc": "2026-10-27T11:36:49.707349+00:00",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "scope": "Partial coefficient-domain stage only; not a hosted plugin.",
+  "results": [
+    {
+      "command": [
+        "c++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "c++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "/home/felix/.hermes/cache/scratch/rcomp-build",
+        "-j",
+        "2"
+      ],
+      "exit_code": 0,
+      "output": "[ 50%] Building CXX object CMakeFiles/rcomp_gain_stage_tests.dir/home/felix/work/tsunami-campaign/worktrees/rcomp/tests/rcomp/test_gain_stage.cpp.o\n[100%] Linking CXX executable rcomp_gain_stage_tests\n[100%] Built target rcomp_gain_stage_tests\n"
+    },
+    {
+      "command": [
+        "ctest",
+        "--test-dir",
+        "/home/felix/.hermes/cache/scratch/rcomp-build",
+        "--output-on-failure"
+      ],
+      "exit_code": 0,
+      "output": "Internal ctest changing into directory: /home/felix/.hermes/cache/scratch/rcomp-build\nTest project /home/felix/.hermes/cache/scratch/rcomp-build\n    Start 1: rcomp_gain_stage\n1/1 Test #1: rcomp_gain_stage .................   Passed    0.00 sec\n\n100% tests passed, 0 tests failed out of 1\n\nTotal Test time (real) =   0.00 sec\n"
+    },
+    {
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-Iplugins/rcomp",
+        "tests/rcomp/test_gain_stage.cpp",
+        "-o",
+        "/home/felix/.hermes/cache/scratch/rcomp-sanitized"
+      ],
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "/home/felix/.hermes/cache/scratch/rcomp-sanitized"
+      ],
+      "exit_code": 0,
+      "output": "PASS nonlinear coefficient-domain gain law\nPASS impulse through detector and asymmetric follower\nPASS invalid coefficient rejection is atomic\nPASS parallel peak ceiling and release\nPASS polarity, bounded gain and detector disable regressions\n"
+    }
+  ]
+}

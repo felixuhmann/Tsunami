@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# RComp PORTABLE PARTIAL-CORE tests only (header-only coefficient-domain stages,
+# lifecycle/control-state API). NOT plugin fidelity, VST3, UI or acceptance evidence.
+name: rcomp portable partial-core tests
+on:
+  pull_request:
+    paths:
+      - 'plugins/rcomp/**'
+      - 'tests/rcomp/**'
+      - '.github/workflows/rcomp-core.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rcomp-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    name: rcomp-core-${{ matrix.os }} (partial core, not fidelity/UI acceptance)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Configure
+        run: cmake -S plugins/rcomp -B build-rcomp -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build-rcomp --config Release --parallel 2
+      - name: Test
+        run: ctest --test-dir build-rcomp -C Release --output-on-failure

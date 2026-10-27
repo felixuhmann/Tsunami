@@ -1,0 +1,752 @@
+{
+  "schema": 1,
+  "scope": "Physical static output gain/mix/trim segment with genuine original wet AND aligned dry as inputs; NOT complete compressor comparison",
+  "thresholds_declared_before_captures": {
+    "max_absolute_error": 3e-06,
+    "rms_error": 5e-07,
+    "scope": "physical output/mix segment; genuine wet input, not complete compression"
+  },
+  "calibration": {
+    "domain": "float32(PCM16 / 32767), established against genuine dry capture",
+    "metrics": {
+      "max_absolute_error": 7.450580596923828e-09,
+      "rms_error": 1.3138196751235519e-09
+    }
+  },
+  "baselines": {
+    "dry": {
+      "capture": "20261027T142550-9e35f87744684ed0a29de00a0e091520",
+      "controls": {
+        "threshold": {
+          "requested": {
+            "value": -24.0
+          },
+          "raw_readback": 0.6000000238418579,
+          "display": "-24.0 dB",
+          "host_value": "-24.0"
+        },
+        "ratio": {
+          "requested": {
+            "value": 4.0
+          },
+          "raw_readback": 0.40299999713897705,
+          "display": "4.01 ",
+          "host_value": "4.01"
+        },
+        "attack": {
+          "requested": {
+            "value": 0.5
+          },
+          "raw_readback": 0.0,
+          "display": "0.50 ms",
+          "host_value": "0.5"
+        },
+        "release": {
+          "requested": {
+            "value": 160.0
+          },
+          "raw_readback": 0.5019999742507935,
+          "display": "160 ms",
+          "host_value": "160.0"
+        },
+        "arc_manual": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Manual ",
+          "host_value": "Manual "
+        },
+        "warm_smooth": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Smooth ",
+          "host_value": "Smooth "
+        },
+        "mix": {
+          "requested": {
+            "value": 0.0
+          },
+          "raw_readback": 0.0,
+          "display": "0.0 ",
+          "host_value": "0.0"
+        }
+      },
+      "audio": {
+        "input_shape": [
+          1,
+          48000
+        ],
+        "output_shape": [
+          1,
+          48000
+        ],
+        "same_shape": true,
+        "all_finite": true,
+        "input_rms": 0.05310814428934268,
+        "output_rms": 0.05310814428934268,
+        "output_peak": 0.08545182645320892,
+        "exact_zero_samples": 9,
+        "difference_rms": 0.0,
+        "sample_rate": 48000,
+        "block_size": 512,
+        "reset": true,
+        "fresh_instance": true,
+        "warmup_frames": 0,
+        "processing_seconds": 0.0,
+        "magnitude_windows_seconds": 0.1,
+        "window_peaks": [
+          0.025635547935962677,
+          0.025635547935962677,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892,
+          0.08545182645320892
+        ],
+        "low_magnitude_windows_below_1e-7": [],
+        "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+        "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+        "output_wav_sha256": "9fd3177f505bc989df94e43f1a5a302e22bb8c3bc6e4de42c0856b19e16deb76",
+        "output_npy_sha256": "a4ff5e63cc2dd4db4c547651f43f5b5511872f4895c3e6a8b7aec02f29d21c48",
+        "output_samples_sha256": "49f775b4034e46782626f999962b06a48222f0a6aaf09c1f9198fe2c93066cd8"
+      },
+      "output_npy_sha256": "a4ff5e63cc2dd4db4c547651f43f5b5511872f4895c3e6a8b7aec02f29d21c48",
+      "result_sha256": "a2e943751f8353a29e4bb1a5c1a2fdc2c4e00a52ba848240d99edff28fcdcf9f",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+    },
+    "wet": {
+      "capture": "20261027T142250-01a44e188cad4ac597839bfa92377076",
+      "controls": {
+        "threshold": {
+          "requested": {
+            "value": -24.0
+          },
+          "raw_readback": 0.6000000238418579,
+          "display": "-24.0 dB",
+          "host_value": "-24.0"
+        },
+        "ratio": {
+          "requested": {
+            "value": 4.0
+          },
+          "raw_readback": 0.40299999713897705,
+          "display": "4.01 ",
+          "host_value": "4.01"
+        },
+        "attack": {
+          "requested": {
+            "value": 0.5
+          },
+          "raw_readback": 0.0,
+          "display": "0.50 ms",
+          "host_value": "0.5"
+        },
+        "release": {
+          "requested": {
+            "value": 160.0
+          },
+          "raw_readback": 0.5019999742507935,
+          "display": "160 ms",
+          "host_value": "160.0"
+        },
+        "arc_manual": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Manual ",
+          "host_value": "Manual "
+        },
+        "warm_smooth": {
+          "requested": {
+            "raw": 1.0
+          },
+          "raw_readback": 1.0,
+          "display": "Smooth ",
+          "host_value": "Smooth "
+        }
+      },
+      "audio": {
+        "input_shape": [
+          1,
+          48000
+        ],
+        "output_shape": [
+          1,
+          48000
+        ],
+        "same_shape": true,
+        "all_finite": true,
+        "input_rms": 0.05310814428934268,
+        "output_rms": 0.03215706183956298,
+        "output_peak": 0.05904686823487282,
+        "exact_zero_samples": 9,
+        "difference_rms": 0.021310141860149446,
+        "sample_rate": 48000,
+        "block_size": 512,
+        "reset": true,
+        "fresh_instance": true,
+        "warmup_frames": 0,
+        "processing_seconds": 0.0,
+        "magnitude_windows_seconds": 0.1,
+        "window_peaks": [
+          0.024104714393615723,
+          0.02389993891119957,
+          0.05904686823487282,
+          0.05066652595996857,
+          0.05066530779004097,
+          0.05066400393843651,
+          0.050662700086832047,
+          0.050662700086832047,
+          0.050662700086832047,
+          0.050662700086832047
+        ],
+        "low_magnitude_windows_below_1e-7": [],
+        "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+        "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+        "output_wav_sha256": "9fd8ed07a6e8237f9802a8478297603777857b8122190ca3032ae627e95f8d4b",
+        "output_npy_sha256": "89a1ebd71314390b9a5560449550fbda119c0ff482971da4e1543cd40d9c7c95",
+        "output_samples_sha256": "63fc41e34bf3ecf7300cae066c36afb9eb98393cf1400386a9b6201d5da6f959"
+      },
+      "output_npy_sha256": "89a1ebd71314390b9a5560449550fbda119c0ff482971da4e1543cd40d9c7c95",
+      "result_sha256": "1b4d443a08808b5fab96ca66801b60c2633025c65ed4fc0b7cdb76a0bb7ae323",
+      "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+      "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+    }
+  },
+  "comparisons": [
+    {
+      "name": "mix25",
+      "physical_controls": {
+        "gain_db": 0,
+        "trim_db": 0,
+        "mix_percent": 25
+      },
+      "samples": 48000,
+      "metrics": {
+        "max_absolute_error": 7.450580596923828e-09,
+        "rms_error": 2.108329411276885e-09
+      },
+      "pass": true,
+      "reference": {
+        "capture": "20261027T142304-1f7a08047fd948f5bdbb717f131fc80c",
+        "controls": {
+          "threshold": {
+            "requested": {
+              "value": -24.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "-24.0 dB",
+            "host_value": "-24.0"
+          },
+          "ratio": {
+            "requested": {
+              "value": 4.0
+            },
+            "raw_readback": 0.40299999713897705,
+            "display": "4.01 ",
+            "host_value": "4.01"
+          },
+          "attack": {
+            "requested": {
+              "value": 0.5
+            },
+            "raw_readback": 0.0,
+            "display": "0.50 ms",
+            "host_value": "0.5"
+          },
+          "release": {
+            "requested": {
+              "value": 160.0
+            },
+            "raw_readback": 0.5019999742507935,
+            "display": "160 ms",
+            "host_value": "160.0"
+          },
+          "arc_manual": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Manual ",
+            "host_value": "Manual "
+          },
+          "warm_smooth": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Smooth ",
+            "host_value": "Smooth "
+          },
+          "mix": {
+            "requested": {
+              "value": 25.0
+            },
+            "raw_readback": 0.25,
+            "display": "25.0 ",
+            "host_value": "25.0"
+          }
+        },
+        "audio": {
+          "input_shape": [
+            1,
+            48000
+          ],
+          "output_shape": [
+            1,
+            48000
+          ],
+          "same_shape": true,
+          "all_finite": true,
+          "input_rms": 0.05310814428934268,
+          "output_rms": 0.04784064693132373,
+          "output_peak": 0.07885058224201202,
+          "exact_zero_samples": 9,
+          "difference_rms": 0.00532753544168813,
+          "sample_rate": 48000,
+          "block_size": 512,
+          "reset": true,
+          "fresh_instance": true,
+          "warmup_frames": 0,
+          "processing_seconds": 0.0,
+          "magnitude_windows_seconds": 0.1,
+          "window_peaks": [
+            0.02525283955037594,
+            0.025201644748449326,
+            0.07885058224201202,
+            0.07675550132989883,
+            0.07675519585609436,
+            0.0767548680305481,
+            0.07675454765558243,
+            0.07675454765558243,
+            0.07675454765558243,
+            0.07675454765558243
+          ],
+          "low_magnitude_windows_below_1e-7": [],
+          "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+          "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+          "output_wav_sha256": "6e4fdc68227a04c0478845d08b00c9329f8b7fc6638b7e35cf6308d446c92836",
+          "output_npy_sha256": "958c504fe072840a24b6902ba8125c8a47783aa2b0373dcf72a1540924efcebd",
+          "output_samples_sha256": "cedc5c80b7b758a6a67e7f2243339f3b79db64b2f86f7da454875931c6d20e2b"
+        },
+        "output_npy_sha256": "958c504fe072840a24b6902ba8125c8a47783aa2b0373dcf72a1540924efcebd",
+        "result_sha256": "51bb9f5bcf21b63254cbfbde25dc8629cdf9252ac819d6ee34c2bcfe28efa086",
+        "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+        "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+      },
+      "candidate_samples_sha256": "3144df67e9628b0a58cd4cdc8bac792b01fb18fced4f9e9b51529e79366d5d92"
+    },
+    {
+      "name": "gain6",
+      "physical_controls": {
+        "gain_db": 6,
+        "trim_db": 0,
+        "mix_percent": 100
+      },
+      "samples": 48000,
+      "metrics": {
+        "max_absolute_error": 1.4901161193847656e-08,
+        "rms_error": 3.2862938268752915e-09
+      },
+      "pass": true,
+      "reference": {
+        "capture": "20261027T142318-9f8a0f8bac064685b3c7eca0634ad3f2",
+        "controls": {
+          "threshold": {
+            "requested": {
+              "value": -24.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "-24.0 dB",
+            "host_value": "-24.0"
+          },
+          "ratio": {
+            "requested": {
+              "value": 4.0
+            },
+            "raw_readback": 0.40299999713897705,
+            "display": "4.01 ",
+            "host_value": "4.01"
+          },
+          "attack": {
+            "requested": {
+              "value": 0.5
+            },
+            "raw_readback": 0.0,
+            "display": "0.50 ms",
+            "host_value": "0.5"
+          },
+          "release": {
+            "requested": {
+              "value": 160.0
+            },
+            "raw_readback": 0.5019999742507935,
+            "display": "160 ms",
+            "host_value": "160.0"
+          },
+          "arc_manual": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Manual ",
+            "host_value": "Manual "
+          },
+          "warm_smooth": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Smooth ",
+            "host_value": "Smooth "
+          },
+          "gain": {
+            "requested": {
+              "value": 6.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "6.0 dB",
+            "host_value": "6.0"
+          }
+        },
+        "audio": {
+          "input_shape": [
+            1,
+            48000
+          ],
+          "output_shape": [
+            1,
+            48000
+          ],
+          "same_shape": true,
+          "all_finite": true,
+          "input_rms": 0.05310814428934268,
+          "output_rms": 0.06416177248519721,
+          "output_peak": 0.11781398952007294,
+          "exact_zero_samples": 9,
+          "difference_rms": 0.012347444628495755,
+          "sample_rate": 48000,
+          "block_size": 512,
+          "reset": true,
+          "fresh_instance": true,
+          "warmup_frames": 0,
+          "processing_seconds": 0.0,
+          "magnitude_windows_seconds": 0.1,
+          "window_peaks": [
+            0.048095230013132095,
+            0.04768664389848709,
+            0.11781398952007294,
+            0.10109300911426544,
+            0.10109058022499084,
+            0.10108797997236252,
+            0.1010853722691536,
+            0.1010853722691536,
+            0.1010853722691536,
+            0.1010853722691536
+          ],
+          "low_magnitude_windows_below_1e-7": [],
+          "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+          "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+          "output_wav_sha256": "41460057e1603b3fb26bfecdcc04c6bb2fb0e4d25d1f521adf1b4ba2f89033bd",
+          "output_npy_sha256": "226fab3193af466e0c5a2c3c740587dd79d9ebad52a2dfd5c0eedbfc15d13014",
+          "output_samples_sha256": "7cd16949b8d331746788e2dc97b24d0aca8be702970226d3a3a52ee08f389804"
+        },
+        "output_npy_sha256": "226fab3193af466e0c5a2c3c740587dd79d9ebad52a2dfd5c0eedbfc15d13014",
+        "result_sha256": "e180181ed3e5e19f853fd47216d1fc01598ba1aa6edc939925413a231c7a74fd",
+        "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+        "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+      },
+      "candidate_samples_sha256": "23359df49239ed7fabb2a8f7c6666ae25b5057025d006dc0dfea2dc2d1797d06"
+    },
+    {
+      "name": "trim-3",
+      "physical_controls": {
+        "gain_db": 0,
+        "trim_db": -3,
+        "mix_percent": 100
+      },
+      "samples": 48000,
+      "metrics": {
+        "max_absolute_error": 3.725290298461914e-09,
+        "rms_error": 1.0576143956832215e-09
+      },
+      "pass": true,
+      "reference": {
+        "capture": "20261027T142345-8c27c0d269ef4449b66347e3631b7565",
+        "controls": {
+          "threshold": {
+            "requested": {
+              "value": -24.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "-24.0 dB",
+            "host_value": "-24.0"
+          },
+          "ratio": {
+            "requested": {
+              "value": 4.0
+            },
+            "raw_readback": 0.40299999713897705,
+            "display": "4.01 ",
+            "host_value": "4.01"
+          },
+          "attack": {
+            "requested": {
+              "value": 0.5
+            },
+            "raw_readback": 0.0,
+            "display": "0.50 ms",
+            "host_value": "0.5"
+          },
+          "release": {
+            "requested": {
+              "value": 160.0
+            },
+            "raw_readback": 0.5019999742507935,
+            "display": "160 ms",
+            "host_value": "160.0"
+          },
+          "arc_manual": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Manual ",
+            "host_value": "Manual "
+          },
+          "warm_smooth": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Smooth ",
+            "host_value": "Smooth "
+          },
+          "trim": {
+            "requested": {
+              "value": -3.0
+            },
+            "raw_readback": 0.4166666567325592,
+            "display": "-3.0 dB",
+            "host_value": "-3.0"
+          }
+        },
+        "audio": {
+          "input_shape": [
+            1,
+            48000
+          ],
+          "output_shape": [
+            1,
+            48000
+          ],
+          "same_shape": true,
+          "all_finite": true,
+          "input_rms": 0.05310814428934268,
+          "output_rms": 0.02276545574226727,
+          "output_peak": 0.04180198162794113,
+          "exact_zero_samples": 9,
+          "difference_rms": 0.03051919597318551,
+          "sample_rate": 48000,
+          "block_size": 512,
+          "reset": true,
+          "fresh_instance": true,
+          "warmup_frames": 0,
+          "processing_seconds": 0.0,
+          "magnitude_windows_seconds": 0.1,
+          "window_peaks": [
+            0.017064830288290977,
+            0.016919858753681183,
+            0.04180198162794113,
+            0.03586915135383606,
+            0.035868290811777115,
+            0.035867366939783096,
+            0.03586644306778908,
+            0.03586644306778908,
+            0.03586644306778908,
+            0.03586644306778908
+          ],
+          "low_magnitude_windows_below_1e-7": [],
+          "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+          "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+          "output_wav_sha256": "6d938a2e7d780f09eacd0cebcc007314e80c7acfb3a59d99019f769bed4cc667",
+          "output_npy_sha256": "e565712217cd9b560cc46897bec5e40029b2ef01c69747915981b7002e9a6290",
+          "output_samples_sha256": "63ef052ebc50ba8c46aba3afd5a224f3bdb3f455a52cc4de28ed6a0f2eefbee3"
+        },
+        "output_npy_sha256": "e565712217cd9b560cc46897bec5e40029b2ef01c69747915981b7002e9a6290",
+        "result_sha256": "bdbe0175c1f23a4f3499d0a3cca55ab5507331a3e384719a25ca090064d9cb65",
+        "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+        "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+      },
+      "candidate_samples_sha256": "d3bb8f20ddb6bfd0f69889bc7362caebafad601d54497708b419d48219c8a939"
+    },
+    {
+      "name": "combined",
+      "physical_controls": {
+        "gain_db": 6,
+        "trim_db": -3,
+        "mix_percent": 25
+      },
+      "samples": 48000,
+      "metrics": {
+        "max_absolute_error": 1.4901161193847656e-08,
+        "rms_error": 3.7480321581279414e-09
+      },
+      "pass": true,
+      "reference": {
+        "capture": "20261027T142604-8646f217981a4b27b733507cc34cb296",
+        "controls": {
+          "threshold": {
+            "requested": {
+              "value": -24.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "-24.0 dB",
+            "host_value": "-24.0"
+          },
+          "ratio": {
+            "requested": {
+              "value": 4.0
+            },
+            "raw_readback": 0.40299999713897705,
+            "display": "4.01 ",
+            "host_value": "4.01"
+          },
+          "attack": {
+            "requested": {
+              "value": 0.5
+            },
+            "raw_readback": 0.0,
+            "display": "0.50 ms",
+            "host_value": "0.5"
+          },
+          "release": {
+            "requested": {
+              "value": 160.0
+            },
+            "raw_readback": 0.5019999742507935,
+            "display": "160 ms",
+            "host_value": "160.0"
+          },
+          "arc_manual": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Manual ",
+            "host_value": "Manual "
+          },
+          "warm_smooth": {
+            "requested": {
+              "raw": 1.0
+            },
+            "raw_readback": 1.0,
+            "display": "Smooth ",
+            "host_value": "Smooth "
+          },
+          "mix": {
+            "requested": {
+              "value": 25.0
+            },
+            "raw_readback": 0.25,
+            "display": "25.0 ",
+            "host_value": "25.0"
+          },
+          "gain": {
+            "requested": {
+              "value": 6.0
+            },
+            "raw_readback": 0.6000000238418579,
+            "display": "6.0 dB",
+            "host_value": "6.0"
+          },
+          "trim": {
+            "requested": {
+              "value": -3.0
+            },
+            "raw_readback": 0.4166666567325592,
+            "display": "-3.0 dB",
+            "host_value": "-3.0"
+          }
+        },
+        "audio": {
+          "input_shape": [
+            1,
+            48000
+          ],
+          "output_shape": [
+            1,
+            48000
+          ],
+          "same_shape": true,
+          "all_finite": true,
+          "input_rms": 0.05310814428934268,
+          "output_rms": 0.039518048334806266,
+          "output_peak": 0.06622292846441269,
+          "exact_zero_samples": 9,
+          "difference_rms": 0.013646515546177912,
+          "sample_rate": 48000,
+          "block_size": 512,
+          "reset": true,
+          "fresh_instance": true,
+          "warmup_frames": 0,
+          "processing_seconds": 0.0,
+          "magnitude_windows_seconds": 0.1,
+          "window_peaks": [
+            0.022123638540506363,
+            0.02205132320523262,
+            0.06622292846441269,
+            0.06326353549957275,
+            0.06326311081647873,
+            0.06326264888048172,
+            0.06326218694448471,
+            0.06326218694448471,
+            0.06326218694448471,
+            0.06326218694448471
+          ],
+          "low_magnitude_windows_below_1e-7": [],
+          "demo_note": "Raw vendor output preserved, possible demo interruptions; low magnitude windows not necessarily licensing. No interruption timing inferred from this short render.",
+          "input_wav_sha256": "ec540bf730c06c4185512de45765a6d00873fd97fbccd6ddde99146cda59e0b7",
+          "output_wav_sha256": "41ff55d33cd74fd2966c5757687a2b0fcf3dd21fed88b089f413a437d39a5794",
+          "output_npy_sha256": "00e796476b3fa27efb0bfc43c991497635bf62fca8e23c69262d40935a4333a3",
+          "output_samples_sha256": "017dfa6bd093f5054db9e05b8c0429826f9a780a72aaf3444bae7b909d42e65a"
+        },
+        "output_npy_sha256": "00e796476b3fa27efb0bfc43c991497635bf62fca8e23c69262d40935a4333a3",
+        "result_sha256": "4f450a4c8a0ce5362ab3b188c8278ccb2bc28529c98356414d081bf4cdca0145",
+        "host_script_sha256": "a564a354bfa72c9a95529d5516d7c42f61dc5104f39f1ed0408fb443b60267c4",
+        "runner_script_sha256": "3639def68714f803f1eca4cca7d31af4ee88894faf28fdffd1f8f9a5df9faa08"
+      },
+      "candidate_samples_sha256": "0184cce6b3af57529fb5967eda4aa3d951095159b8254ed7f71e38120a89eead"
+    }
+  ],
+  "negative_control_wrong_trim_placement": {
+    "metrics": {
+      "max_absolute_error": 0.018717427487597735,
+      "rms_error": 0.011632842074842128
+    },
+    "rejected": true
+  },
+  "compared_samples": 192000,
+  "all_pass": true,
+  "source_sha256": {
+    "plugins/rcomp/OutputStage.h": "8300745cade837d9c398a48d1a38eb08c882a966fe08422523b4dcfd22e681c4",
+    "tests/rcomp/render_output_stage.cpp": "cef143687c590b3353b57bc265859c6b64af9055cb358446981ba5517416b38f",
+    "tests/rcomp/test_output_stage.cpp": "11bcb4cbce9077b5f70c526cf7dfb8f98ac6b4101dc4dedcd4fb836f2e6fe022"
+  },
+  "candidate_binary_sha256": "eda020787eacd706935bd22f759a0b66791706968693f9be8de5b6cf27fdd30d",
+  "runner_sha256": "8126ff2a414e4b953c04c0d73f459bd3fb53edffe542612ec4fbdb4e8ed278b0",
+  "runtime": "Original: Windows CPython3.11.9/Pedalboard0.9.26 under Wine9; candidate: native Linux GCC11.4 Release",
+  "limitations": [
+    "Only 48kHz mono block512 static controls captured",
+    "No automation smoothing, peak-limiter interaction at overload, complete compression, held-out, stereo or native Windows claims"
+  ],
+  "threshold_chronology_qualification": "Initial threshold bytes were not immutably retained; file birth precedes the first capture but the file was rewritten with the same values before the dry/combined batch. Predeclaration is proven by retained launcher only for the later batch; the key name thresholds_declared_before_captures is historical and is qualified by this field. Original captures were not rerun."
+}
