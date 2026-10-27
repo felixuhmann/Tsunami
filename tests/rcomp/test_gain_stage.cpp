@@ -119,4 +119,24 @@ int main() {
     if (soft.configure(bad)) { std::cerr << "accepted nonfinite soft offset\n"; return 1; }
     near(soft.tick(0.0f), 0.0625f + 2.0f * 0.01f, 0.0f, "rejected soft update is atomic");
     std::cout << "PASS soft scale/offset before ceiling minimum, startup ceiling state\n";
+    {
+        // Kernel maximum-history: the detector magnitude is the maximum over the
+        // last detectorWindow samples (64 in the reference) before the gain law.
+        GainStage::Coefficients c;
+        c.thresholdScale = 1.0f; c.slope = 1.0f; c.shape = 0.0f;
+        c.detectorWindow = 64;
+        GainStage s;
+        if (!s.configure(c)) return 1;
+        s.reset();
+        const float held = s.tick(1.0f);
+        bool ok = held < 1.0f;
+        for (unsigned n = 1; n < 64; ++n) ok = ok && s.tick(0.0f) == held;
+        ok = ok && s.tick(0.0f) == 1.0f;
+        c.detectorWindow = 0;
+        ok = ok && !s.configure(c);
+        c.detectorWindow = GainStage::kMaxDetectorWindow + 1;
+        ok = ok && !s.configure(c);
+        if (!ok) { std::cerr << "FAIL detector window\n"; return 1; }
+        std::cout << "PASS 64-sample detector maximum window\n";
+    }
 }

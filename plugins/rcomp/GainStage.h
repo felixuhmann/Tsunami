@@ -24,7 +24,13 @@ public:
         // wrapper; the writer of the individual values is unresolved.
         float softScale = 1.0f;
         float softOffset = 0.0f;
+        // Detector maximum over the last detectorWindow magnitudes (including the
+        // current one) before the gain law. The reference kernel's maximum-history
+        // tree spans 64 samples; 1 = instantaneous. The exact dyadic tree/ring
+        // interleaving of the reference is approximated by a plain sliding maximum.
+        unsigned detectorWindow = 1;
     };
+    static constexpr unsigned kMaxDetectorWindow = 64;
 
     bool configure(const Coefficients& coefficients) noexcept {
         const auto memoryValid = [](float value) {
@@ -40,7 +46,9 @@ public:
             || !std::isfinite(coefficients.ceiling) || coefficients.ceiling <= 0.0f
             || !memoryValid(coefficients.ceilingRelease)
             || !std::isfinite(coefficients.softScale) || coefficients.softScale <= 0.0f
-            || !std::isfinite(coefficients.softOffset)) return false;
+            || !std::isfinite(coefficients.softOffset)
+            || coefficients.detectorWindow < 1
+            || coefficients.detectorWindow > kMaxDetectorWindow) return false;
         coefficients_ = coefficients;
         return true;
     }
@@ -50,6 +58,8 @@ public:
     void reset(float ceilingState = 1.0f) noexcept {
         previousInput_ = 0.0f;
         previousPhase_.fill(0.0f);
+        window_.fill(0.0f);
+        windowPos_ = 0;
         gain_ = 1.0f;
         ceilingGain_ = ceilingState;
     }
@@ -66,6 +76,11 @@ public:
             }
             previousInput_ = input;
         }
+        window_[windowPos_] = magnitude;
+        windowPos_ = (windowPos_ + 1) % kMaxDetectorWindow;
+        for (unsigned back = 1; back < coefficients_.detectorWindow; ++back)
+            magnitude = std::max(magnitude,
+                window_[(windowPos_ + kMaxDetectorWindow - 1 - back) % kMaxDetectorWindow]);
         const float target = targetGain(magnitude, coefficients_.thresholdScale,
                                         coefficients_.slope, coefficients_.shape);
         const float memory = gain_ <= target ? coefficients_.gainIncrease
@@ -89,6 +104,8 @@ private:
     Coefficients coefficients_{};
     float previousInput_ = 0.0f;
     std::array<float, 3> previousPhase_{};
+    std::array<float, kMaxDetectorWindow> window_{};
+    unsigned windowPos_ = 0;
     float gain_ = 1.0f;
     float ceilingGain_ = 1.0f;
 };

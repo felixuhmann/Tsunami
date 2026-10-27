@@ -4,7 +4,8 @@
 // With the optional controls, wet coefficients use the characterized static
 // curve, ratio floor and attack memory; the release memory is a PROVISIONAL
 // one-pole of the Release time (ARC d7d0 tables not recovered), the detector
-// is instantaneous (64-sample sliding maximum not ported) and phase/ceiling
+// is a plain 64-sample sliding maximum (reference tree interleaving not
+// reproduced exactly) and phase/ceiling
 // release are zero. The ceiling follows the recovered Gain law. Test utility,
 // not a plugin host.
 #include "CoefficientLaws.h"
@@ -35,6 +36,7 @@ int main(int argc, char** argv) {
         provisional.softOffset = static_cast<float>(g.offset);
         provisional.gainDecrease = static_cast<float>(attackMemory(48000, std::strtod(argv[6], nullptr)));
         provisional.gainIncrease = static_cast<float>(timeConstantMemory(48000, std::strtod(argv[7], nullptr)));
+        provisional.detectorWindow = 64;
     }
     if (!p.prepare(48000) || !p.configureWet(provisional)
         || !p.setOutput(std::strtof(argv[1], nullptr), std::strtof(argv[2], nullptr),
