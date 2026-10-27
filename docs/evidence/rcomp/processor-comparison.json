@@ -1,0 +1,55 @@
+{
+ "schema": 1,
+ "thresholds": "docs/evidence/rcomp/thresholds.json",
+ "thresholds_sha256": "6826f4f113a14cac37a6c6aa83d226d3d9fe2e01ee3f0bf7530da4f04ede7016",
+ "latency": 64,
+ "dry_mix0": {
+  "genuine": {
+   "capture": "20261027T142550-9e35f87744684ed0a29de00a0e091520",
+   "output_npy_sha256": "a4ff5e63cc2dd4db4c547651f43f5b5511872f4895c3e6a8b7aec02f29d21c48",
+   "mix": "0.0 "
+  },
+  "metrics": {
+   "samples": 47936,
+   "max_absolute_error": 7.450580596923828e-09,
+   "rms_error": 1.3134296257972976e-09
+  },
+  "pass": true,
+  "grounded": true
+ },
+ "negative_control_no_latency_alignment": {
+  "metrics": {
+   "samples": 48000,
+   "max_absolute_error": 0.1662343218922615,
+   "rms_error": 0.10325497855640557
+  },
+  "rejected": true
+ },
+ "wet_mix100_diagnostic": {
+  "genuine": {
+   "capture": "20261027T142250-01a44e188cad4ac597839bfa92377076",
+   "output_npy_sha256": "89a1ebd71314390b9a5560449550fbda119c0ff482971da4e1543cd40d9c7c95",
+   "mix": null
+  },
+  "metrics": {
+   "samples": 47936,
+   "max_absolute_error": 0.03514504060149193,
+   "rms_error": 0.021307466215009962
+  },
+  "pass": false,
+  "grounded": false,
+  "note": "provisional default wet coefficients; no recovered Threshold/Ratio/Attack/Release mapping"
+ },
+ "candidate_binary_sha256": "d6157c8025388689ff57788cf1f4a96d051a497d9bf3fdb4ffa7f9a6fd4e80ab",
+ "runner_sha256": "d1b4e208980c6f76e4fd70ba4f8718c6ea86a71df6f5aed0287cd2a0ad8c2dc8",
+ "source_sha256": {
+  "plugins/rcomp/MonoProcessor.h": "ac24037be64a468a053bfc7d0f8c975b22448c765172e893bf5fdd89ebedb453",
+  "plugins/rcomp/WetChain.h": "c0991bfe5b959e41a3d4f0a74282229cd540d40625f5b6ff894049d3f3efdda1",
+  "plugins/rcomp/WetPath.h": "68ef11295ec485c678d9f79947d6e9d3525e7c1c4a973026f35938eeea72373c",
+  "plugins/rcomp/GainStage.h": "bd8cbaf67b6705d4f7f0f624278c134b3608c4b457065a3b361950ac6d1ba099",
+  "plugins/rcomp/OutputStage.h": "8300745cade837d9c398a48d1a38eb08c882a966fe08422523b4dcfd22e681c4",
+  "tests/rcomp/render_processor.cpp": "e49ca8f45ece1442de5d0b9404c674920bdaf0ea010f968cab5e19dedb146f1d"
+ },
+ "scope": "Partial MonoProcessor (wet chain running, output mix) vs stored genuine 48 kHz mono captures under Wine9; Mix0 is the only grounded gate. NOT a complete-compression fidelity claim.",
+ "runner": "private analysis/rcomp/processor-comparison/compare_processor.py (sha256 above)"
+}
