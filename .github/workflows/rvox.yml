@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native:
-    name: rvox-native-${{ matrix.os }} (hosted RVox core; generic fallback editor, not product UI)
+    name: rvox-native-${{ matrix.os }} (hosted RVox core; RVox product editor)
     strategy:
       fail-fast: false
       matrix:
