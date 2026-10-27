@@ -1,0 +1,11 @@
+{
+  "scope": "rcomp round-2 task5: release table builder/lookup ported as plugins/rcomp/ReleaseTables.h (tested), NOT wired into MonoProcessor.",
+  "ported": "A_j, B_j (curve switch c=10/3, index switch x_j=j or 256-j, non-native halving) and lookup T[(int)((s11+1)*k+1)]*T[(int)(min(s10,s11)*k)] from r2t4-kernel-findings.json. Index clamp to [0,511] is a memory-safety guard only, not recovered behavior.",
+  "coefficient_writers_read": {
+    "0x18002c500": "string copy into cALGORITHM+0x1538 (name/text setter). Contains no k, no follower coefficients.",
+    "0x18002ccd0": "history geometry writer (H, A, B, shift, normalization at +0x1818..+0x1840; already ported as HistoryGeometry.h). Contains no k (0x34), no follower coefficients (0x2c/0x30)."
+  },
+  "candidate_unconfirmed": "0x18002c8b0 writes coefficient index 5 = 0.367879441^(1/(fs*T*0.001)) = exp(-1/(fs*T*0.001)), T from block +0x7eb0, T*5 when +0x66b0 != 0. Its one-pole form fits a slow follower, but no export maps coef index 5 to kernel slots 0x2c/0x30. Not used.",
+  "missing_for_wiring": ["writer of kernel int slot 0x34 (k)", "s11 follower recurrence and the writers of slots 0x2c/0x30", "mapping of coef index -> kernel control slot offset", "unit of R (+0xb0) and the user controls behind +0x66b0/+0x84b0"],
+  "comparison": "not rerun: MonoProcessor unchanged, so the held-out Mix 100 result from r2t3 stands."
+}
