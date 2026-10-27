@@ -177,6 +177,17 @@ campaign owns full raw/oracle provenance and logs.
   offers stereo and an opt-in 1-in/1-out mono layout (`supports_mono` in
   `parameters.json`, `rvox.adapter` mono checks); Dark/Legacy skins and the WaveSystem
   toolbar are not implemented.
+  Native host mono gate: `.github/workflows/rvox.yml` runs `tests/rvox/mono_host_smoke.py`
+  on Windows and Linux. It hosts the built VST3 in Pedalboard 0.9.26 with 1-channel input:
+  output (1, N), finite, the reviewed release-smoke RVox profile (Comp -18 vs 0 dB) must add
+  >= 3 dB dynamic-range reduction at 44.1/48/96 kHz with latency primed per rate and zero
+  alignment lag, exact control readback, and fresh-instance state/audio recall; stereo is
+  rechecked through the same module afterwards. Pedalboard refuses a mono bus the plugin does
+  not support (locally, stereo-only Tsunami Stereo fails with "does not support 1-channel
+  output"), so a (1, N) result is host-selected layout evidence for VST3 together with the
+  `rvox.adapter` 1-in/1-out layout checks; equality with duplicated stereo alone is not bus
+  proof. `tests/rvox/test_native_workflow.py` fails if that step is removed or platform-gated.
+  CLAP mono advertisement is a separate open item and is not covered by this gate.
   Linked follower faders (Comp+Gain box link) now send their writes inside an
   editor-opened host gesture that spans the leader's drag; `rvox.editor` checks 80-92
   use a real `AudioProcessorListener` (Linux xvfb component events, not native-peer input).

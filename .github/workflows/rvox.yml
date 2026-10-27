@@ -92,6 +92,15 @@ jobs:
           else
             python tests/foundation/host_smoke.py "$plugin" evidence --capture
           fi
+      - name: Native VST3 host-selected mono 1-in/1-out, active compression and fresh-state recall (not CLAP)
+        run: |
+          python tests/rvox/test_native_workflow.py
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami Voice.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 120 xvfb-run -a python tests/rvox/mono_host_smoke.py "$plugin" evidence/mono
+          else
+            python tests/rvox/mono_host_smoke.py "$plugin" evidence/mono
+          fi
       - name: Linux attached RVox editor capture (pluginval 1.0.4, Xvfb; 371 px view)
         if: runner.os == 'Linux'
         env:
