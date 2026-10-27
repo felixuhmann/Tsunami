@@ -42,7 +42,9 @@ def generate(data, plugin_id, product, core, editor=False):
                     or values[1] != len(choices) - 1 or not all(isinstance(c, str) and c and '|' not in c for c in choices)):
                 raise ValueError('choice parameters need labels for indices min=0..max=len(choices)-1')
         step = 1.0 if kind in ('bool', 'boolean', 'int', 'integer', 'enum', 'choice') or choices is not None else 0.0
-        # Optional explicit text-only precision (host display); omitted keeps JUCE's default text.
+        # Optional explicit text-only precision (host display); omitted keeps JUCE's default text. Choose it so
+        # the text survives float32 round trips over the range (e.g. 0 for whole Hz up to 16 kHz); 3+ decimals
+        # on values ~1e4 exceed float resolution and are not stable.
         decimals = p.get('display_decimals') if 'display_decimals' in p else None
         if 'display_decimals' in p and (type(decimals) is not int or not 0 <= decimals <= 6
                                         or kind == 'choice' or choices is not None):

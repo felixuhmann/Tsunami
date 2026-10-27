@@ -80,7 +80,8 @@ int main() {
         CHECK(range.interval == 0.f && range.skew == tsunami::PluginSpec::parameters[0].skew
               && std::abs(range.convertFrom0to1(range.convertTo0to1(5585.65f)) - 5585.65f) < 1e-2f, 32, "Freq physical law unchanged");
         CHECK(freqParam->getText(range.convertTo0to1(5585.65f), 256) == "5586" && freqParam->getText(range.convertTo0to1(2000.f), 256) == "2000"
-              && freqParam->getText(range.convertTo0to1(16000.f), 256) == "16000" && freqParam->getText(range.convertTo0to1(5585.65f), 3) == "558",
+              && freqParam->getText(range.convertTo0to1(16000.f), 256) == "16000"
+              && freqParam->getText(range.convertTo0to1(5585.65f), 3) == "558", // positive length truncates, as JUCE default
               33, "Freq text is whole Hz (requested length respected)");
         for (int hz = 2000; hz <= 16000; ++hz) {
             const auto text = juce::String(hz);
@@ -91,7 +92,8 @@ int main() {
         }
         // Unspecified precision keeps JUCE's default (interval 0: 7 decimals); choices keep labels.
         auto* thresholdParam = dynamic_cast<juce::RangedAudioParameter*>(params[1]);
-        CHECK(thresholdParam->getText(thresholdParam->convertTo0to1(-43.6f), 256) == juce::String(-43.6f, 7)
+        CHECK(thresholdParam->getText(thresholdParam->convertTo0to1(-43.6f), 256)
+              == juce::String(thresholdParam->convertFrom0to1(thresholdParam->convertTo0to1(-43.6f)), 7)
               && params[2]->getText(0.f, 256) == "BandPass", 35, "default formatting and choice labels unchanged");
     }
 
