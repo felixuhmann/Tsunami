@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox
       - name: Select CPython 3.11 for pinned host wheels
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -52,7 +52,7 @@ jobs:
           mkdir -p evidence
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiFixture_artefacts').rglob('Tsunami Infrastructure Fixture.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then
-            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence --capture
+            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' bash tests/foundation/linux_host_smoke.sh "$plugin"
           else
             python tests/foundation/host_smoke.py "$plugin" evidence --capture
           fi

@@ -51,6 +51,8 @@ for rate in (44100, 48000, 96000):
         assert np.allclose(y, z, atol=1e-6), 'fresh instance differs after state restore'
         renders.append(dict(rate=rate, block=block, peak=float(np.max(np.abs(y))), sha256=hashlib.sha256(y.tobytes()).hexdigest()))
 parameter.raw_value = original
+(args.output / 'host-audio.json').write_text(json.dumps(dict(plugin=str(plugin_path), os=platform.platform(), pedalboard=pedalboard.__version__, parameters=list(p.parameters), renders=renders), indent=2)+'\n')
+print('Native audio/state matrix passed; opening editor next' if args.capture else 'Native audio/state matrix passed', flush=True)
 if args.capture:
     close = threading.Event()
     errors = []
