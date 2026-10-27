@@ -22,7 +22,10 @@ public:
   minima_.assign(2*lookahead_,0);
   quantized_.assign(lookahead_+2,0);
   for (auto& d:delay_) d.assign(lookahead_,0);
-  slowDown_=pole(250); slowUp_=pole(500); gateRelease_=pole(100);
+  slowDown_=pole(250); slowUp_=pole(500);
+  // Fresh Windows state stores the hidden gate release in RealWorld slot 2.
+  // It is 130ms; this is not the compressor's level-dependent release.
+  gateRelease_=pole(130);
   generateRelease(); updateControls(); reset();
  }
  void reset() noexcept {

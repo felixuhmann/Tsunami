@@ -1,0 +1,11 @@
+{
+  "id": "rvox",
+  "parameters": [
+    {"index": 0, "id": "compression", "name": "Compression", "min": -36.0, "max": 0.0, "default": 0.0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Dynamics"},
+    {"index": 1, "id": "gate", "name": "Gate", "min": -80.0, "max": 0.0, "default": -80.0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Dynamics", "minimum_semantics": "Finite adapter sentinel for original -Infinity/off; recovered coefficient path disables gate at <= -79 dB."},
+    {"index": 2, "id": "gain", "name": "Gain", "min": -36.0, "max": 0.0, "default": 0.0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Output"}
+  ],
+  "reference_display_step_db": 0.1,
+  "hidden_initialization": {"gate_release_ms": 130.0},
+  "scope": "Portable core physical units. No custom UI or native-host equivalence claim."
+}
