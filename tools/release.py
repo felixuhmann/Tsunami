@@ -35,6 +35,9 @@ LINKER_BYPRODUCTS = ('.pdb', '.ilk', '.exp', '.lib')
 FIXTURE_IDS = {'fixture'}
 NOTICE_NAME = re.compile(r'(LICEN[CS]E|COPYING|NOTICE)(\.[A-Za-z]+)?|.+\.spdx\.json', re.IGNORECASE)
 SOURCE_PREFIX = '${TSUNAMI_PLUGIN_SOURCE_ROOT}/plugins/'
+PLUGIN_DIR = '${TSUNAMI_PLUGIN_DIR}'
+LOCAL_INCLUDE = re.compile(r'(?<![\w(])include\s*\(\s*"\$\{TSUNAMI_PLUGIN_DIR\}/tsunami\.cmake"\s*\)', re.IGNORECASE)
+PLUGIN_ID = re.compile(r'[a-z][a-z0-9_]*')
 EPOCH = (1980, 1, 1, 0, 0, 0)
 STATUS = 'experimental unsigned preview build; not verified as equivalent to any original product'
 
@@ -135,8 +138,90 @@ def _call_args(text, start):
 
 
 def parse_registrations(cmake_text):
+    return [args for args, _ in _registrations_with_guards(cmake_text)]
+
+
+def _mask_literals(text):
+    """Blank quoted and bracket arguments (same length) so keywords inside strings are not parsed as code."""
+    def blank(m):
+        return re.sub(r'[^\n]', ' ', m.group(0))
+    return re.sub(r'"(?:\\.|[^"\\])*"|\[(=*)\[.*?\]\1\]', blank, text, flags=re.DOTALL)
+
+
+def _registrations_with_guards(cmake_text):
+    """tsunami_plugin(...) argument lists, each with the tuple of enclosing if()/elseif() conditions."""
     text = _strip_cmake_comments(cmake_text)
-    return [_call_args(text, m.end()) for m in re.finditer(r'(?<![\w(])tsunami_plugin\s*\(', text)]
+    masked = _mask_literals(text)
+    found, stack, body = [], [], 0
+    for m in re.finditer(r'(?<![\w(])(if|elseif|else|endif|function|macro|endfunction|endmacro|tsunami_plugin)\s*\(',
+                         masked, re.IGNORECASE):
+        word = m.group(1).lower()
+        if word in ('function', 'macro'):
+            body += 1
+            continue
+        if word in ('endfunction', 'endmacro'):
+            body -= 1
+            continue
+        if word == 'tsunami_plugin':
+            if body:
+                fail('tsunami_plugin(...) inside a function()/macro() body is not a direct registration')
+            found.append((_call_args(text, m.end()), tuple(stack)))
+            continue
+        if body:
+            continue
+        depth, i = 1, m.end()
+        while depth and i < len(masked):
+            depth += {'(': 1, ')': -1}.get(masked[i], 0)
+            i += 1
+        if depth:
+            fail(f'unterminated {word}(...)')
+        condition = ' '.join(text[m.end():i - 1].split())
+        if word == 'if':
+            stack.append(condition)
+        elif not stack:
+            fail(f'{word}() without if()')
+        elif word == 'endif':
+            stack.pop()
+        else:
+            stack[-1] = condition if word == 'elseif' else 'else'
+    if stack or body:
+        fail('unterminated if()/function()/macro() block in CMake registration')
+    return found
+
+
+def _root_recipe(pid, source, guards, root_text):
+    """CMake option that makes the root CMakeLists.txt build this registration, or fail."""
+    if source == SOURCE_PREFIX + pid:
+        return f'TSUNAMI_PLUGIN_ID={pid}'
+    if source == PLUGIN_DIR:
+        if (not guards or guards[-1] != f'TSUNAMI_PLUGIN_ID STREQUAL "{pid}"'
+                or any(g != 'TSUNAMI_PLUGIN_ID' for g in guards[:-1])):
+            fail(f'{pid}: root ${{TSUNAMI_PLUGIN_DIR}} registration must be guarded by TSUNAMI_PLUGIN_ID STREQUAL "{pid}"')
+        return f'TSUNAMI_PLUGIN_ID={pid}'
+    option = f'TSUNAMI_BUILD_{pid.upper()}'
+    if source == f'${{CMAKE_CURRENT_SOURCE_DIR}}/plugins/{pid}':
+        # Legacy option-gated root registration (e.g. TSUNAMI_BUILD_RVOX): only buildable through that option.
+        if guards != (option,) or not re.search(rf'(?<![\w(])option\s*\(\s*{option}\s', _strip_cmake_comments(root_text)):
+            fail(f'{pid}: legacy registration must sit inside if({option}) with a declared option({option} ...)')
+        return f'{option}=ON'
+    fail(f'{pid}: source must be {SOURCE_PREFIX}{pid}, {PLUGIN_DIR} or the legacy if({option}) form, got {source!r}')
+
+
+def _local_registration(root, pid):
+    """The single registration in plugins/<id>/tsunami.cmake (included by the root for TSUNAMI_PLUGIN_ID=<id>)."""
+    path = root / 'plugins' / pid / 'tsunami.cmake'
+    calls = _registrations_with_guards(path.read_text(encoding='utf-8'))
+    if len(calls) != 1 or calls[0][1]:
+        fail(f'plugins/{pid}/tsunami.cmake must contain exactly one unconditional tsunami_plugin(...) registration')
+    args = calls[0][0]
+    if len(args) < 6 or args[1] != PLUGIN_DIR or args[2] != pid:
+        fail(f'plugins/{pid}/tsunami.cmake: expected tsunami_plugin(<target> "{PLUGIN_DIR}" {pid} ...), got {args}')
+    for extra in args[6:]:
+        rel = extra[len(PLUGIN_DIR) + 1:] if extra.startswith(PLUGIN_DIR + '/') else ''
+        if (not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_./-]*\.cpp', rel) or '..' in rel.split('/')
+                or (root / 'plugins' / pid / rel).is_symlink() or not (root / 'plugins' / pid / rel).is_file()):
+            fail(f'plugins/{pid}/tsunami.cmake: core source {extra!r} is not an existing {PLUGIN_DIR}/<file>.cpp')
+    return args[:6]
 
 
 def discover(root):
@@ -146,9 +231,25 @@ def discover(root):
     if len(by_id) != len(targets):
         fail('duplicate ids in targets.json')
     included, fixtures, seen = [], [], {k: set() for k in ('id', 'target', 'product', 'code')}
-    for args in parse_registrations((root / 'CMakeLists.txt').read_text(encoding='utf-8')):
+    root_text = (root / 'CMakeLists.txt').read_text(encoding='utf-8')
+    # A plugin-local plugins/<id>/tsunami.cmake only registers anything if the root includes it; it then takes
+    # precedence over the root's ${TSUNAMI_PLUGIN_DIR} fallback for that id (mirrors CMakeLists.txt).
+    local = {}
+    if LOCAL_INCLUDE.search(_strip_cmake_comments(root_text)):
+        for path in sorted((root / 'plugins').glob('*/tsunami.cmake')):
+            pid = path.parent.name
+            if not PLUGIN_ID.fullmatch(pid):
+                fail(f'plugins/{pid}: invalid plugin id for tsunami.cmake registration')
+            local[pid] = _local_registration(root, pid)
+    registrations = []
+    for args, guards in _registrations_with_guards(root_text):
         if len(args) != 6:
             fail(f'malformed tsunami_plugin registration (expected 6 arguments): {args}')
+        if args[2] in local and args[1] == PLUGIN_DIR:
+            continue
+        registrations.append((args, guards))
+    registrations += [(args, ()) for args in local.values()]
+    for args, guards in registrations:
         target, source, pid, product, code, core = args
         if pid in FIXTURE_IDS:
             fixtures.append(pid)
@@ -157,8 +258,7 @@ def discover(root):
             fail(f'registered id {pid!r} is not an exact target in targets.json')
         if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', target):
             fail(f'invalid CMake target name {target!r}')
-        if source != SOURCE_PREFIX + pid:
-            fail(f'{pid}: source must be {SOURCE_PREFIX}{pid}, got {source!r}')
+        option = f'TSUNAMI_PLUGIN_ID={pid}' if pid in local and args is local[pid] else _root_recipe(pid, source, guards, root_text)
         if product != by_id[pid]['product_name'] or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9 -]*', product):
             fail(f'{pid}: product {product!r} does not match targets.json {by_id[pid]["product_name"]!r}')
         if not re.fullmatch(r'[A-Za-z0-9]{4}', code):
@@ -173,7 +273,7 @@ def discover(root):
             if not (root / 'plugins' / pid / name).is_file():
                 fail(f'{pid}: registered but plugins/{pid}/{name} is missing')
         included.append({'id': pid, 'target': target, 'product': product, 'artifact': product.replace(' ', '-'),
-                         'code': code, 'core': core,
+                         'code': code, 'core': core, 'cmake_option': option,
                          'requested_name': by_id[pid]['requested_name']})
     if not included:
         fail('no registered target adapters discovered; refusing to build an empty release')
@@ -308,7 +408,7 @@ this offline rebuild path is documented but not yet exercised by CI.
 
 ```
 cmake -S project -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF \\
-  -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD/project" -DTSUNAMI_PLUGIN_ID=<id> \\
+  -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD/project" -D<cmake_option of <id> in discovery.json, e.g. TSUNAMI_PLUGIN_ID=s1> \\
   -DTSUNAMI_JUCE_SOURCE="$PWD/dependencies/juce-src" -DTSUNAMI_CLAP_SOURCE="$PWD/dependencies/clap_juce-src"
 cmake --build build --config Release --parallel 2
 ```
@@ -645,7 +745,8 @@ def main(argv=None):
             (a.out_dir / 'discovery.json').write_text(json.dumps(result, indent=2) + '\n')
             (a.out_dir / 'unavailable.json').write_text(json.dumps(result['unavailable'], indent=2) + '\n')
             _github_output(matrix=json.dumps(result['included'], separators=(',', ':')),
-                           source_id=result['included'][0]['id'])
+                           source_id=result['included'][0]['id'],
+                           source_option=result['included'][0]['cmake_option'])
             for p in result['included']:
                 print(f'INCLUDED {p["id"]}: {p["product"]} ({p["target"]})')
             for u in result['unavailable']:

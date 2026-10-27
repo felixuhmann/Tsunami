@@ -100,8 +100,9 @@ int main() {
     localParameter->setValueNotifyingHost(.75f);
     local.setStateInformation(localState.getData(), int(localState.getSize()));
     if (std::abs(localParameter->getValue()-.25f)>1e-6) return 12;
-    // Non-finite / out-of-range state values: non-finite -> default, finite -> clamped (host and DSP agree).
-    for (auto [text, expected] : {std::pair{"nan", .5f}, {"inf", .5f}, {"-inf", .5f}, {"5", 1.f}, {"-3", 0.f}}) {
+    // Non-finite state values reject the WHOLE state transaction (current host value and DSP kept);
+    // finite out-of-range values are clamped (host and DSP agree).
+    for (auto [text, expected] : {std::pair{"nan", .25f}, {"inf", .25f}, {"-inf", .25f}, {"5", 1.f}, {"-3", 0.f}}) {
         tsunami::Adapter<tsunami::PluginSpec> q; q.prepareToPlay(48000, 64);
         q.getParameters()[0]->setValueNotifyingHost(.25f);
         auto bad = stateWithGain(q, text);
@@ -112,6 +113,19 @@ int main() {
         if (round.toString().contains("nan") || round.toString().contains("inf")) { std::cerr << "non-finite survived state round trip\n"; return 17; }
         b.clear(); b.setSample(0, 0, 1); q.processBlock(b, midi);
         if (std::abs(b.getSample(0,0)-2.f*expected)>1e-6) { std::cerr << "DSP disagrees with host value for " << text << "\n"; return 18; }
+    }
+    {   // A valid control change in the same transaction as a non-finite value must not be applied.
+        tsunami::Adapter<tsunami::PluginSpec> q; q.prepareToPlay(48000, 64);
+        q.getParameters()[0]->setValueNotifyingHost(.25f);
+        juce::MemoryBlock data; q.getStateInformation(data);
+        auto xml = juce::AudioProcessor::getXmlFromBinary(data.getData(), int(data.getSize()));
+        xml->getChildElement(0)->setAttribute("value", "1.5");
+        auto* extra = xml->createNewChildElement("PARAM"); extra->setAttribute("id", "future"); extra->setAttribute("value", "nan");
+        juce::MemoryBlock mixed; juce::AudioProcessor::copyXmlToBinary(*xml, mixed);
+        q.setStateInformation(mixed.getData(), int(mixed.getSize()));
+        if (std::abs(q.getParameters()[0]->getValue()-.25f)>1e-6) { std::cerr << "partial invalid state applied\n"; return 28; }
+        b.clear(); b.setSample(0, 0, 1); q.processBlock(b, midi);
+        if (std::abs(b.getSample(0,0)-.5f)>1e-6) { std::cerr << "invalid state changed audio\n"; return 29; }
     }
     // Optional core meter hook (compile-time detected).
     if (dynamic_cast<tsunami::CoreMeterSource*>(static_cast<juce::AudioProcessor*>(&p))) { std::cerr << "meterless core must not expose core meters\n"; return 19; }

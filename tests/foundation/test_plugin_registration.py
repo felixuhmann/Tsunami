@@ -31,6 +31,16 @@ class RegistrationTests(unittest.TestCase):
                 # CMake reports paths with forward slashes on every platform.
                 self.assertIn(f'TSUNAMI_PLUGIN_DIR={folder.as_posix()}', result.stderr + result.stdout)
 
+    def test_windows_style_backslash_root_is_normalized_at_registration(self):
+        # Windows hosts pass native roots (C:\\Users\\...); the resolver must emit CMake-style paths.
+        with tempfile.TemporaryDirectory() as root:
+            folder = self.make_plugin(root, 's1')
+            native = pathlib.Path(root).as_posix().replace('/', '\\')
+            result = resolve(native, 's1')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f'TSUNAMI_PLUGIN_DIR={folder.as_posix()}\n', result.stderr + result.stdout)
+            self.assertNotIn('\\', (result.stderr + result.stdout).split('TSUNAMI_PLUGIN_DIR=')[1])
+
     def test_rejects_invalid_ids_and_incomplete_folders(self):
         self.assertTrue(SCRIPT.exists(), 'generic plugin registration module missing')
         with tempfile.TemporaryDirectory() as root:

@@ -55,6 +55,7 @@ if(TSUNAMI_PLUGIN_ID)
   if(NOT TSUNAMI_PLUGIN_SOURCE_ROOT)
     set(TSUNAMI_PLUGIN_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
   endif()
+  file(TO_CMAKE_PATH "${TSUNAMI_PLUGIN_SOURCE_ROOT}" TSUNAMI_PLUGIN_SOURCE_ROOT) # native Windows roots
   tsunami_resolve_plugin("${TSUNAMI_PLUGIN_SOURCE_ROOT}" "${TSUNAMI_PLUGIN_ID}" TSUNAMI_PLUGIN_DIR)
   if(EXISTS "${TSUNAMI_PLUGIN_DIR}/tsunami.cmake")
     # Plugin-local registration: calls tsunami_plugin(...) and adds its own tests.

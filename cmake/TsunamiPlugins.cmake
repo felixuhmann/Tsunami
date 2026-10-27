@@ -6,6 +6,7 @@ function(tsunami_resolve_plugin root id out_dir)
   if(NOT id MATCHES "^[a-z][a-z0-9_]*$")
     message(FATAL_ERROR "Invalid TSUNAMI_PLUGIN_ID '${id}' (expected [a-z][a-z0-9_]*)")
   endif()
+  file(TO_CMAKE_PATH "${root}" root) # native Windows roots (C:\...) -> forward slashes
   set(dir "${root}/plugins/${id}")
   foreach(file IN LISTS TSUNAMI_PLUGIN_REQUIRED_FILES)
     if(NOT EXISTS "${dir}/${file}")

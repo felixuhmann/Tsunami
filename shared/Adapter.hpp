@@ -191,14 +191,16 @@ public:
         if (auto xml=getXmlFromBinary(data, bytes)) {
             auto restored=juce::ValueTree::fromXml(*xml);
             if (restored.hasType("TsunamiState") && restored["plugin"].toString()==Spec::id && int(restored["schema"])==1) {
-                // Non-finite stored values (e.g. "nan") fall back to the default; finite ones are
-                // clamped to range, so the host-visible value and the DSP value always agree.
+                // A non-finite stored value (e.g. "nan") rejects the WHOLE state: nothing is applied, so the
+                // current host controls and DSP stay as they were. Finite values are clamped to range, so the
+                // host-visible value and the DSP value always agree.
+                for (const auto& child : restored)
+                    if (child.hasProperty("value") && !std::isfinite(double(child["value"]))) return;
                 for (const auto& metadata : Spec::parameters) {
                     auto child=restored.getChildWithProperty("id", metadata.id);
                     if (!child.isValid() || !child.hasProperty("value")) continue;
-                    const float v=float(double(child["value"]));
-                    child.setProperty("value", std::isfinite(v) ? juce::jlimit(metadata.minimum, metadata.maximum, v)
-                                                                : metadata.initial, nullptr);
+                    const double v=double(child["value"]);
+                    child.setProperty("value", float(juce::jlimit(double(metadata.minimum), double(metadata.maximum), v)), nullptr);
                 }
                 state.replaceState(restored);
                 // Preset/state loads change values; CLAP must request a VALUES rescan.
