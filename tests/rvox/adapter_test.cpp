@@ -220,7 +220,7 @@ int monoLayout() {
     if (!(levelSpread(out, rate) < levelSpread(x, rate) - 3) || !(meters->coreMeter(1) < .5f)) return fail(68, "mono path not compressing");
     juce::MemoryBlock saved; p.getStateInformation(saved);
     tsunami::Adapter<Spec> fresh;
-    if (!fresh.setBusesLayout(layout(Set::mono(), Set::mono()))) return fail(63, "fresh mono layout");
+    if (!fresh.setBusesLayout(layout(Set::mono(), Set::mono()))) return fail(71, "fresh mono layout");
     fresh.setStateInformation(saved.getData(), int(saved.getSize()));
     const auto& fp = fresh.getParameters();
     if (std::abs(physical(fp[0]) + 24) > 1e-3 || std::abs(physical(fp[1]) + 60) > 1e-3 || std::abs(physical(fp[2]) + 2) > 1e-3)

@@ -73,5 +73,5 @@ open reference-parity boundary.
   the same compiler and requires bit-identical output. This is
   project-regression evidence only, not a new comparison against the original
   plugin.
-- Native CI: `rvox.yml` builds and runs `rvox.adapter`, `rvox.editor`,
+- Native CI (configured; see PR #18 checks for run results): `rvox.yml` builds and runs `rvox.adapter`, `rvox.editor`,
   `rvox.meters` and `rvox.output_regression` on Ubuntu 22.04 and Windows 2022.

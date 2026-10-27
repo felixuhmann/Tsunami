@@ -1,7 +1,7 @@
 # RVox editor UI checklist (hosted capture vs original evidence)
 
 Capture: `hosted-editor-linux-pluginval.png` (371x357), taken from the exact locally
-built module `Tsunami RVox.vst3/Contents/x86_64-linux/Tsunami RVox.so`
+built module `Tsunami RVox.vst3/Contents/x86_64-linux/Tsunami RVox.so` (before the product was renamed to the targets.json identity "Tsunami Voice")
 (sha256 `2d5f17f9f2647ec09e63798c6360764feca9fa83a4e9f8b06de6577e4f3e30f8`), hosted by
 pluginval 1.0.4 in-process under Xvfb. Source commit `acbcae6`; the plugin and shared
 trees are the same as at `ec03b32`, the commit the module was built from. Receipt:
