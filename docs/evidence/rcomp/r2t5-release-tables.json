@@ -15,7 +15,8 @@
     "writer of coef 13 / kernel int slot 0x34 (k): no GetPointerToCoef(...,0xd) among windows-coefficients exports (indices written: 1,4,5,6,0xb,0xc,0x11,0x1d,0x1e); may come via the generic setter 0x18002d6c0 (index is a parameter) or a non-coefficient path",
     "confirmation that kernel slot offset = coef index * 4",
     "user controls behind blocks +0x54a0/+0x54b0, +0x3ca0/+0x3cb0, +0x66b0, +0x84b0, and the else-branch values of coef 11/12",
-    "unit of R (+0xb0)"
+    "unit of R (+0xb0)",
+    "generic setter 0x18002d6c0 (pole=exp(-1/(fs*ms*0.001)) to a caller-given coef index) has no callers in any existing export, so whether it writes index 13 is unknown; and k is an int slot, unlike its pole output"
   ],
   "comparison": "not rerun: MonoProcessor unchanged, so the held-out Mix 100 result from r2t3 stands.",
   "follower_recurrence": "Read from decompiled kernel 0x101100 (lines ~303-324, repeated at ~524/762/987): s11' = (s11 - s10)*c + s10 with c = slot 0x2c (float) when s10 < s11', else slot 0x30; memory = T[(int)((s11'+1)*k+1)] * T[(int)(min(s10,s11')*k)], k = (double)int slot 0x34, T is float in the kernel. Ported as releaseStep() in ReleaseTables.h and tested.",
