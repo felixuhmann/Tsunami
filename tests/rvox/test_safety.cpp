@@ -77,9 +77,30 @@ static void ordinary() {
  check(std::abs(y[0].back()-.99f*8.f)<1e-5f,"+18dBFS signal at unity threshold passes unclipped");
  std::puts("PASS >0dBFS ordinary domain unclipped");
 }
+static void hostRates() {
+ // Hosts (clap-validator process-varying-sample-rates) may prepare at any positive rate;
+ // a throw escaping prepareToPlay aborts the host. Outside 8-384kHz the core designs at the
+ // nearest supported rate; inside the domain nothing changes.
+ for(double rate:{1000.,4000.,768000.,1536000.})for(unsigned channels:{1u,2u}) {
+  Processor p,edge;
+  try {p.prepare(rate,channels,512);} catch(...) {check(false,"positive host rate outside 8-384kHz must not throw");}
+  edge.prepare(rate<8000?8000.:384000.,channels,512);
+  check(p.latencySamples()==edge.latencySamples(),"out-of-domain rate designs at nearest supported rate");
+  controls(p,-18); controls(edge,-18);
+  Buffer x(channels,std::vector<float>(4096));
+  for(unsigned c=0;c<channels;++c)for(unsigned n=0;n<4096;++n)x[c][n]=float(.5*std::sin(.01*(n+1)*(c+1)));
+  const Buffer y=run(p,x), z=run(edge,x);
+  check(finite(y)&&y==z,"out-of-domain rate output finite and equal to edge design");
+ }
+ bool rejected=false;
+ try {Processor p;p.prepare(std::numeric_limits<double>::quiet_NaN(),2,512);} catch(const std::invalid_argument&) {rejected=true;}
+ check(rejected,"nonfinite rate still rejected");
+ std::puts("PASS positive host rates outside 8-384kHz clamp to edge design");
+}
 int main(int argc,char** argv) {
  const char* only=argc>1?argv[1]:"";
  if(!*only||!std::strcmp(only,"makeup"))makeup();
+ if(!*only||!std::strcmp(only,"rates"))hostRates();
  if(!*only||!std::strcmp(only,"overload")) {
   for(unsigned channels:{1u,2u})for(float compression:{0.f,-18.f})overload(channels,compression);
   std::puts("PASS finite-extreme/NaN/+Inf/-Inf continuation, reset, mono/stereo");

@@ -19,12 +19,13 @@ float physical(juce::AudioProcessorParameter* p) {
 void setPhysical(juce::AudioProcessorParameter* p, float value) {
     p->setValueNotifyingHost(static_cast<juce::RangedAudioParameter*>(p)->convertTo0to1(value));
 }
+constexpr double pi = 3.14159265358979323846; // M_PI is not standard (MSVC)
 std::vector<float> program(unsigned frames, double rate, unsigned channel) {
     std::vector<float> x(frames);
     for (unsigned n = 0; n < frames; ++n) {
         const double t = n / rate;
-        const double envelope = .05 + .85 * (0.5 + 0.5 * std::sin(2 * M_PI * 3.0 * t));
-        x[n] = float(envelope * std::sin(2 * M_PI * (220.0 + 110 * channel) * t));
+        const double envelope = .05 + .85 * (0.5 + 0.5 * std::sin(2 * pi * 3.0 * t));
+        x[n] = float(envelope * std::sin(2 * pi * (220.0 + 110 * channel) * t));
     }
     return x;
 }

@@ -16,8 +16,11 @@ namespace tsunami::rvox {
 class Processor {
 public:
  void prepare(double rate, unsigned channels, unsigned) {
-  if (!std::isfinite(rate) || rate < 8000 || rate > 384000 || channels < 1 || channels > 2)
-   throw std::invalid_argument("rvox supports 8-384kHz, mono/stereo");
+  if (!std::isfinite(rate) || rate <= 0 || channels < 1 || channels > 2)
+   throw std::invalid_argument("rvox needs a positive finite rate, mono/stereo");
+  // Hosts may prepare at any positive rate; a throw would abort them. Outside the
+  // recovered 8-384kHz domain the core designs at the nearest supported rate.
+  rate=std::min(std::max(rate,8000.),384000.);
   rate_=rate; channels_=channels; lookahead_=1;
   while (lookahead_<static_cast<unsigned>(rate/1000)) lookahead_*=2;
   widthA_=static_cast<unsigned>(std::floor(lookahead_*.422+.5));
