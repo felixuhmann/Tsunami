@@ -104,4 +104,8 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - hosted editor capture at the exact 380x380 product size, with PID, module and source hashes in the receipt. `tests/deesser/linux_editor_capture.py` and `tests/deesser/windows_editor_capture.py` load the reviewed foundation/S1 capture with a single literal substitution.
 - Local Linux run of the capture: pluginval SUCCESS, window 380x380 owned by the launched PID with the exact module mapped. Atten readout `0.0`, so the bridge is live; Energy reads `--` on pluginval's silent input, because -120 dB is the floor. Known cosmetic issue: the SideChain combo text is truncated ("B...").
 - The release pipeline (`tools/release.py discover`) on this tree includes `deesser` (`TsDE`, `TSUNAMI_PLUGIN_ID=deesser`).
+- Meter limitations (from the independent review):
+  - The editor timer (30 Hz) samples only the latest published block. At 512 samples / 48 kHz that is about 94 blocks/s, so blocks between polls are not seen and the Energy/Atten peak readouts can under-report. The manual uses the Energy peak as the Threshold guide.
+  - The shared Adapter does not republish the meters after `reset()`, during host bypass or when the transport stops, so the bars can freeze at the last value. Fixing that belongs to the shared Adapter owner, and a running max inside the Adapter would change the shared contract.
+  - Windows pluginval has no prior run in this project until the DeEsser CI run reports.
 - Not claimed: genuine meter ballistics, original UI equivalence, release packaging, product acceptance. CI results are recorded in the PR, not here.

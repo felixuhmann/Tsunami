@@ -37,6 +37,7 @@ def main():
     receipt['scope'] = ('actual DeEsser module editor client rectangle (Pedalboard show_editor, native Windows); independently drawn '
                         'manual-figure-style UI, NOT original-host visual equivalence')
     receipt['product_size'] = list(PRODUCT_SIZE)
+    receipt.pop('prior_failure', None)  # S1-specific history, not a DeEsser run
     receipt['editor_source_sha256'] = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest()
                                        for p in ('plugins/deesser/Editor.hpp', 'plugins/deesser/EditorModel.hpp',
                                                  'plugins/deesser/Processor.hpp', 'shared/Adapter.hpp',

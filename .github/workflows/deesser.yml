@@ -79,7 +79,7 @@ jobs:
           fi
       - name: Download hash-locked mature VST3 validator/editor host (pluginval 1.0.4)
         run: |
-          mkdir -p editor-host
+          mkdir -p editor-host evidence
           if [[ "$RUNNER_OS" == Linux ]]; then
             asset=pluginval_Linux.zip; digest=c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352
           else
@@ -88,7 +88,9 @@ jobs:
           curl -fL --retry 2 "https://github.com/Tracktion/pluginval/releases/download/v1.0.4/$asset" -o editor-host/pluginval.zip
           printf '%s  editor-host/pluginval.zip\n' "$digest" | sha256sum -c -
           python -c "import zipfile; zipfile.ZipFile('editor-host/pluginval.zip').extractall('editor-host')"
-          chmod +x editor-host/pluginval* || true
+          if [[ "$RUNNER_OS" == Linux ]]; then host=editor-host/pluginval; chmod +x "$host"; else host=editor-host/pluginval.exe; fi
+          "$host" --version | tee evidence/pluginval-version.txt
+          grep -qx 'pluginval - 1.0.4' evidence/pluginval-version.txt
       - name: Install hash-locked mature host wheels
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
@@ -99,7 +101,7 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             timeout 120 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence
           else
-            python tests/foundation/host_smoke.py "$plugin" evidence
+            timeout 300 python tests/foundation/host_smoke.py "$plugin" evidence
           fi
       - name: Windows pluginval strictness 6 (VST3 validator incl. editor tests)
         if: runner.os == 'Windows'
@@ -113,7 +115,7 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             timeout 120 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/deesser/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
           else
-            python tests/deesser/windows_editor_capture.py "$plugin" evidence/ui
+            timeout 180 python tests/deesser/windows_editor_capture.py "$plugin" evidence/ui
           fi
           python -c "import hashlib,json,pathlib; fs=['plugins/deesser/Editor.hpp','plugins/deesser/EditorModel.hpp','plugins/deesser/Processor.hpp','shared/Adapter.hpp']+[str(p) for p in pathlib.Path('evidence/ui').glob('*.png')]; pathlib.Path('evidence/ui/deesser-ui-hashes.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in fs},indent=2))"
       - name: Matching corresponding source and notices beside experimental binaries

@@ -144,7 +144,7 @@ int main() {
           "Atten bar follows the current value; the editor's own peak readout holds");
     // Paint the product editor: non-uniform image of the expected size.
     auto image = ed->createComponentSnapshot(ed->getLocalBounds());
-    CHECK(image.getWidth() == 380 && image.getHeight() == 380 && image.getPixelAt(5, 5) != image.getPixelAt(158, 200), 19, "editor renders");
+    CHECK(image.getWidth() == 380 && image.getHeight() == 380 && image.getPixelAt(5, 5) != image.getPixelAt(158, 200), 23, "editor renders");
     ed.reset();
     p->releaseResources();
     std::cout << "PASS DeEsser real Adapter: identity, editor bindings, state, render parity, meters\n";
