@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "component": "H-Delay Mono",
+  "status": "partial-not-verified",
+  "source": "Genuine parameter list read back from H-Delay Mono 17.1.42.50 via private oracle (evidence 20261027T100209-d0d093f1942547ad878210ae37017c59). Choice controls are stored as genuine option indices; continuous-but-nonlinear controls without a recovered value map are stored as genuine normalized raw values (unit \"raw\").",
+  "parameters": [
+    {"index": 0, "id": "delay_sec", "name": "Delay Sec", "min": 1, "max": 3500, "default": 375, "unit": "ms", "type": "float", "logarithmic": true, "group": "time", "implemented": true, "note": "rounded to whole samples; genuine raw->ms taper not recovered"},
+    {"index": 1, "id": "delay_bpm", "name": "Delay BPM", "min": 0, "max": 1, "default": 0.579, "unit": "raw", "type": "float", "logarithmic": false, "group": "time", "implemented": false, "note": "20 genuine note values 1/64T..2B; stored only"},
+    {"index": 2, "id": "feedback", "name": "Feedback", "min": 0, "max": 200, "default": 60, "unit": "%", "type": "float", "logarithmic": false, "group": "echo", "implemented": true, "note": "loop gain calibrated at 50; >100 limiter path not implemented"},
+    {"index": 3, "id": "sync", "name": "Sync", "min": 0, "max": 2, "default": 1, "unit": "", "type": "choice", "choices": ["BPM", "Host", "ms"], "logarithmic": false, "group": "time", "implemented": false, "note": "core always runs ms mode"},
+    {"index": 4, "id": "mix", "name": "Mix", "min": 0, "max": 100, "default": 100, "unit": "%", "type": "float", "logarithmic": false, "group": "output", "implemented": true, "note": "linear dry/wet law UNVERIFIED (only 100 measured)"},
+    {"index": 5, "id": "output", "name": "Output", "min": -18, "max": 18, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "output", "implemented": true, "note": "only 0 dB measured"},
+    {"index": 6, "id": "analog", "name": "Analog", "min": 0, "max": 4, "default": 2, "unit": "", "type": "choice", "choices": ["Off", "Mod1", "Mod2", "Mod3", "Mod4"], "logarithmic": false, "group": "character", "implemented": false, "note": "core behaves as Off"},
+    {"index": 7, "id": "lofi", "name": "LoFi", "min": 0, "max": 1, "default": 0, "unit": "", "type": "choice", "choices": ["HiFi", "LoFi"], "logarithmic": false, "group": "character", "implemented": false},
+    {"index": 8, "id": "rate", "name": "Rate", "min": 0, "max": 1, "default": 0, "unit": "raw", "type": "float", "logarithmic": true, "group": "modulation", "implemented": false, "note": "genuine 0.10 Hz..6.00k Hz, 881 steps"},
+    {"index": 9, "id": "depth", "name": "Depth", "min": 0, "max": 100, "default": 0, "unit": "%", "type": "float", "logarithmic": false, "group": "modulation", "implemented": false},
+    {"index": 10, "id": "hipass", "name": "HiPass", "min": 0, "max": 1, "default": 0, "unit": "raw", "type": "float", "logarithmic": true, "group": "filter", "implemented": false, "note": "genuine Off,20Hz..20.1kHz, 819 steps"},
+    {"index": 11, "id": "lopass", "name": "LoPass", "min": 0, "max": 1, "default": 1, "unit": "raw", "type": "float", "logarithmic": true, "group": "filter", "implemented": false, "note": "genuine 19Hz..20.0kHz,Off, 819 steps"},
+    {"index": 12, "id": "phase_l", "name": "Phase L", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "output", "implemented": false},
+    {"index": 13, "id": "bpm", "name": "BPM", "min": 0, "max": 1, "default": 0.3333333, "unit": "raw", "type": "float", "logarithmic": false, "group": "time", "implemented": false, "note": "genuine 30..300 BPM, 271 steps"},
+    {"index": 14, "id": "bypass", "name": "Bypass", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "output", "implemented": true}
+  ]
+}
