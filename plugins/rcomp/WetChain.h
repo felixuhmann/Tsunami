@@ -41,7 +41,11 @@ public:
     }
 
     float tick(float audio) noexcept {
-        return wet_.tickHistory(stage_.tick(audio), audio);
+        return tickAligned(audio).wet;
+    }
+
+    WetPath::Aligned tickAligned(float audio) noexcept {
+        return wet_.tickHistoryAligned(stage_.tick(audio), audio);
     }
 
     unsigned latency() const noexcept { return wet_.latency(); }

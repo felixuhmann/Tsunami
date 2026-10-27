@@ -55,8 +55,15 @@ public:
     // historyGain is already in the kernel history domain (unity = 0.0625), as
     // produced by the soft-gain/ceiling stage.
     float tickHistory(float historyGain, float audio) noexcept {
+        return tickHistoryAligned(historyGain, audio).wet;
+    }
+
+    // Wet output plus the same H-delayed audio, which the kernel's output mix
+    // uses as its aligned dry input.
+    struct Aligned { float wet; float dry; };
+    Aligned tickHistoryAligned(float historyGain, float audio) noexcept {
         const GainHistory::Frame f = history_.tick(historyGain, audio);
-        return (f.gain * makeup_) * f.delayed;
+        return {(f.gain * makeup_) * f.delayed, f.delayed};
     }
 
     float makeupScale() const noexcept { return makeup_; }
