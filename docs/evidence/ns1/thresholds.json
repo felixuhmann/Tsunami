@@ -46,5 +46,10 @@
    "max_abs_error_max": 0.0001
   },
   "rule": "held-out: never used for derivation or tuning; FAIL rows reported as FAIL"
+ },
+ "amendment_round2_task5": {
+  "date": "2026-10-27T16:31Z",
+  "note": "Factory presets (NS1.bundle 1000.xml, read only, not copied) at 1Knob 25/30/50/80 % were used as derivation data for the 0.2-0.8 segment and the 0.8 knot. Therefore 0.25 is NOT an independent comparison point; 0.75 is the held-out point. pass_if values unchanged.",
+  "pcm16_decoding": "oracle renders: input.wav PCM16 is decoded as int/32767 in comparisons (tests/ns1/compare_heldout.py default)."
  }
 }

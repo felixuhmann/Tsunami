@@ -1,6 +1,6 @@
 {
  "schema": 2,
- "status": "continuous NS1 control law recovered for NS1 Mono (round 2 task 3); predeclared 0.25/0.75 gate PASSES",
+ "status": "continuous NS1 control law recovered for NS1 Mono (round 2 task 3); predeclared 0.25/0.75 gate PASSES | round2-task5: chirp@0.1 FAIL, 0.9 degraded; outer segments unconfirmed",
  "law": {
   "form": "piecewise linear in normalized control c with breakpoints 0.2 and 0.8; implemented in plugins/ns1/design.cpp controlParameters()",
   "knots": {
@@ -58,7 +58,7 @@
   "nelder_mead": "6-parameter Nelder-Mead fits (numpy, driving ns1_render_params) stalled at nrmse 8.8e-3 (c=0.375) and 4e-3/2e-2 (c=0.625) because the front-rounding rule was missing; the law values were recovered from the presets, not from the optimizer."
  },
  "derivation_render_check": {
-  "note": "production law vs fresh oracle renders (WAV PCM16 input read as int/32768); residual ~1e-4 max likely from oracle input/readback path vs calibrated captures; not a gate",
+  "note": "production law vs fresh oracle renders. Superseded decoding: these numbers read PCM16 input as int/32768. The oracle decodes int/32767 (scale scan optimum); see derivation-pcm16-32767.json (tests/ns1/compare_heldout.py --pcm16-scale 32767). Same pass_if as thresholds.json.",
   "results": {
    "white_noise@0.1": {
     "nrmse": 3.063087035725168e-05,
@@ -100,6 +100,54 @@
     "max_abs_error": 8.434057235717773e-05,
     "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T161153-03e64a21ebbc41a3ad1c378721d40086"
    }
+  },
+  "pcm16_32767": {
+   "white_noise@0.1": {
+    "nrmse": 1.8219699973956216e-06,
+    "max_abs_error": 4.306435585021973e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.1": {
+    "nrmse": 2.4826964649875044e-05,
+    "max_abs_error": 0.0001620156690478325,
+    "verdict": "FAIL"
+   },
+   "white_noise@0.375": {
+    "nrmse": 9.900130062696265e-07,
+    "max_abs_error": 1.691281795501709e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.375": {
+    "nrmse": 1.2911889913144483e-05,
+    "max_abs_error": 4.86522912979126e-05,
+    "verdict": "PASS"
+   },
+   "white_noise@0.625": {
+    "nrmse": 9.725384251642136e-07,
+    "max_abs_error": 1.8253922462463379e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.625": {
+    "nrmse": 4.3526054952017955e-05,
+    "max_abs_error": 8.056312799453735e-05,
+    "verdict": "PASS"
+   },
+   "white_noise@0.9": {
+    "nrmse": 3.564785983451194e-05,
+    "max_abs_error": 2.272985875606537e-05,
+    "verdict": "PASS"
+   },
+   "chirp@0.9": {
+    "nrmse": 7.763425838638798e-05,
+    "max_abs_error": 7.297098636627197e-05,
+    "verdict": "PASS"
+   }
+  },
+  "verdicts": {
+   "chirp@0.1": "FAIL (max 1.6e-4 > 1e-4 even with int/32767 decoding; residual attributed to the [0,0.2] segment / nominalFloor step just above c=0, not the input path)",
+   "chirp@0.625": "PASS with int/32767 decoding (max 8.1e-5); FAIL with int/32768",
+   "0.9 rows": "DEGRADED: pass thresholds but 30-80x above the ~1e-6 white-noise floor of the interior points; [0.8,1] segment suspect",
+   "white_noise@0.1/0.375/0.625": "PASS, error floor ~1e-6"
   }
  },
  "derivation_renders_previous": {
