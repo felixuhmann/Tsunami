@@ -468,6 +468,45 @@ int main() {
         CHECK(gestures.begins[3] == 2, 84, "partner gesture begun once per group drag");
         setPhysical(3, 0.f); setPhysical(2, 0.f);
     }
+    // Manual p8: "draw a box around contiguous controls to link them together. Offsets are maintained."
+    // Vertical tracer: a box around Gain+Width links that pair; dragging one moves the other by a common
+    // parameter-normalized delta, clamped so neither leaves its range; gestures balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto vlinked = [&] { return bool(editor->getProperties()["s1_linked_vertical"]); };
+        auto boxLeft = [&] { editor->mouseDown(editorEvent(*editor, {30.f, 50.f}, {30.f, 50.f}, false));
+                             editor->mouseUp(editorEvent(*editor, {205.f, 445.f}, {30.f, 50.f}, true)); };
+        auto dragV = [&](const char* id, float dy) {
+            auto* sl = child<juce::Slider>(*editor, id);
+            const juce::Point<float> down(31.f, float(sl->getPositionOfValue(sl->getValue())));
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(0.f, dy), down, true));
+            sl->mouseUp(editorEvent(*sl, down.translated(0.f, dy), down, true));
+        };
+        setPhysical(0, -12.f); setPhysical(1, 1.5f); boxLeft();
+        CHECK(vlinked(), 85, "box around Gain+Width links them");
+        CHECK(!bool(editor->getProperties()["s1_linked"]), 86, "horizontal pair not selected by left box");
+        p.addListener(&gestures);
+        dragV("gain", -28.8f); // up 10 % of the 288 px travel
+        p.removeListener(&gestures);
+        if (std::abs(physical(1) - 1.8f) > .05f) std::cerr << "gain " << physical(0) << " width " << physical(1) << "\n";
+        CHECK(std::abs(physical(0) + 9.6f) < .15f && std::abs(physical(1) - 1.8f) < .05f, 87, "gain drag moves width (normalized offset kept)");
+        CHECK(gestures.begins[0] == 1 && gestures.ends[0] == 1 && gestures.begins[1] == 1 && gestures.ends[1] == 1, 88, "balanced gestures on vertical pair");
+        setPhysical(0, -3.f); setPhysical(1, 0.f);
+        dragV("width", -200.f);
+        if (std::abs(physical(1) - .375f) >= .03f || std::abs(physical(0)) >= .05f) std::cerr << "clamp gain " << physical(0) << " width " << physical(1) << " slider " << child<juce::Slider>(*editor, "width")->getValue() << "\n";
+        CHECK(std::abs(physical(0)) < .05f && std::abs(physical(1) - .375f) < .03f, 89, "clamped common delta keeps offset");
+        editor->mouseDown(editorEvent(*editor, {600.f, 600.f}, {600.f, 600.f}, false));
+        editor->mouseUp(editorEvent(*editor, {600.f, 600.f}, {600.f, 600.f}, false));
+        CHECK(!vlinked(), 90, "click elsewhere unlinks vertical pair");
+        setPhysical(0, 0.f); setPhysical(1, 1.f);
+    }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {
             setPhysical(1, width); setPhysical(2, rotation);

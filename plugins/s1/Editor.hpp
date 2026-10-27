@@ -240,7 +240,7 @@ public:
         addAndMakeVisible(display);
         linkStrip.onLinked=[this] { setLinked(true); };
         addAndMakeVisible(linkStrip);
-        setLinked(false);
+        setLinked(false); setVerticalLinked(false);
         setWantsKeyboardFocus(true);
         refreshPolarity();
         // Uniform resizing 50..125 %: children keep logical 1048x665 bounds and receive one
@@ -292,19 +292,21 @@ public:
     juce::Rectangle<int> channelLabelBounds(int k) const { return {(k ? 988 : 886)-10, 38, 20, 14}; }
     void setLinked(bool on) { getProperties().set("s1_linked", on); repaint(); }
     bool isLinked() const { return bool(getProperties()["s1_linked"]); }
+    // Vertical contiguous pair (Gain+Width), linked by a selection box (manual p8).
+    void setVerticalLinked(bool on) { getProperties().set("s1_linked_vertical", on); repaint(); }
+    bool isVerticalLinked() const { return bool(getProperties()["s1_linked_vertical"]); }
     // Background press: unlinks (click elsewhere) and starts a selection rectangle (manual p8-9).
     void mouseDown(const juce::MouseEvent& e) override {
         if(e.eventComponent!=this) { // child press (via childPresses): outside the selected group unlinks
-            if(!inSelectedGroup(e.eventComponent)) setLinked(false);
+            if(!inGroup(e.eventComponent, {&asymmetry, &rotation, &linkStrip})) setLinked(false);
+            if(!inGroup(e.eventComponent, {&gain, &width})) setVerticalLinked(false);
             return;
         }
-        setLinked(false);
+        setLinked(false); setVerticalLinked(false);
         lassoStart=lassoEnd=toLogical(e.position); lassoActive=true;
     }
-    bool inSelectedGroup(juce::Component* c) const {
-        for(const juce::Component* g : {static_cast<const juce::Component*>(&asymmetry), static_cast<const juce::Component*>(&rotation),
-                                        static_cast<const juce::Component*>(&linkStrip)})
-            if(c==g || g->isParentOf(c)) return true;
+    static bool inGroup(juce::Component* c, std::initializer_list<const juce::Component*> group) {
+        for(auto* g : group) if(c==g || g->isParentOf(c)) return true;
         return false;
     }
     void mouseDrag(const juce::MouseEvent& e) override {
@@ -317,14 +319,19 @@ public:
         lassoActive=false; lassoEnd=toLogical(e.position);
         const auto r=juce::Rectangle<float>(lassoStart, lassoEnd).toNearestInt();
         setLinked(r.contains(asymmetry.getBounds()) && r.contains(rotation.getBounds()));
+        setVerticalLinked(r.contains(gain.getBounds()) && r.contains(width.getBounds()));
     }
     juce::Point<float> toLogical(juce::Point<float> p) const { return p/scale(); }
     // Selected-pair drag (manual p8-9 replacement policy): the dragged fader's normalized delta is
     // applied to its partner; the common delta is clamped so neither leaves its range (offset kept).
     void sliderDragStarted(juce::Slider* s) override {
         draggingSliders.insert(s);
-        if((s!=&asymmetry && s!=&rotation) || !isLinked() || groupDragged) return;
-        groupDragged=s; groupPartner=(s==&asymmetry ? &rotation : &asymmetry);
+        if(groupDragged) return;
+        juce::Slider* partner=nullptr;
+        if((s==&asymmetry || s==&rotation) && isLinked()) partner=(s==&asymmetry ? &rotation : &asymmetry);
+        if((s==&gain || s==&width) && isVerticalLinked()) partner=(s==&gain ? &width : &gain);
+        if(!partner) return;
+        groupDragged=s; groupPartner=partner;
         groupStart={param(*groupDragged)->getValue(), param(*groupPartner)->getValue()};
         param(*groupPartner)->beginChangeGesture();
     }
@@ -336,6 +343,7 @@ public:
         delta=juce::jlimit(-groupStart[1], 1.f-groupStart[1], delta);
         const juce::ScopedValueSetter<bool> guard(groupApplying, true);
         s->setValue(dragged->convertFrom0to1(groupStart[0]+delta), juce::sendNotificationSync);
+        dragged->setValueNotifyingHost(groupStart[0]+delta); // attachment may already have written the unclamped value
         partner->setValueNotifyingHost(groupStart[1]+delta);
     }
     void sliderDragEnded(juce::Slider* s) override { draggingSliders.erase(s); if(s==groupDragged) endGroupDrag(); }
@@ -366,6 +374,9 @@ public:
         if(lassoActive) { // live selection rectangle
             g.setColour(juce::Colour(0x556b5fb4)); g.fillRect(juce::Rectangle<float>(lassoStart, lassoEnd));
             g.setColour(juce::Colour(0xff6b5fb4)); g.drawRect(juce::Rectangle<float>(lassoStart, lassoEnd), 1.f);
+        }
+        if(isVerticalLinked()) { // selection outline around the linked Gain/Width pair
+            g.setColour(juce::Colour(0xff6b5fb4)); g.drawRoundedRectangle(juce::Rectangle<float>(24.f, 32.f, 182.f, 414.f), 6.f, 2.f);
         }
         if(isLinked()) { // visible selection outline around the linked pair
             g.setColour(juce::Colour(0xff6b5fb4)); g.drawRoundedRectangle(juce::Rectangle<float>(234.f, 406.f, 548.f, 154.f), 6.f, 2.f);

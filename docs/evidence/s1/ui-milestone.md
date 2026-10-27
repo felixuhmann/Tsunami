@@ -334,3 +334,15 @@ to the 1048x665 logical body, with an 18 px toolbar above).
 - RT re-run: `rt-green-lasso.log` and `rt-green-lasso-final.log`, 0 allocations.
 - DSP, APVTS ranges and Width taper are unchanged. The existing link strip, graph gestures, resize and restore
   tests still pass.
+
+## Vertical contiguous pair slice 11 (manual p8)
+- **Behaviour.** A box drawn around Gain and Width links that pair: an outline appears, and dragging either fader
+  moves the other by a common parameter-normalized delta, clamped so the offset is kept. Host gestures are
+  balanced. A press outside unlinks. The horizontal pair is unaffected.
+- **TDD:**
+  - `vpair-red.log`: FAIL 85.
+  - `vpair-green.log`: FAIL 89 at the clamp. The slider showed the clamped 0.375, but the parameter kept the
+    unclamped 1.68 written by the attachment. `vpair-clamp-diag.log` captured those values.
+  - Fix: after clamping, also write the dragged parameter itself. `vpair-green-2.log`: PASS.
+- RT: `rt-green-vpair.log`, 0 allocations.
+- Checklist: `feature-parity.md`.
