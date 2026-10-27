@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: S1 native DSP milestone (not product acceptance)
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: s1-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: s1-native-${{ matrix.os }} (DSP/state + actual editor capture; UI fidelity pending)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
+      - name: Select CPython 3.11 for pinned host wheels
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
+        run: |
+          cmake -S plugins/s1 -B build-core -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --config Release --parallel 2
+          ctest --test-dir build-core -C Release --output-on-failure
+          python -m unittest discover -s tests/s1 -p test_native_paths.py -v
+          python -m unittest discover -s tests/s1 -p test_windows_capture.py -v
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('s1_render*') if p.is_file() and p.name in ('s1_render','s1_render.exe')).resolve())")"
+          python tests/s1/test_renderer_io.py "$renderer"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=s1
+      - name: Build actual native format modules and adapter test
+        run: cmake --build build --config Release --target TsunamiStereo_VST3 TsunamiStereo_CLAP s1_editor_test s1_editor_rt_test --parallel 2
+      - name: CTest
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a ctest --test-dir build -C Release --output-on-failure
+          else
+            ctest --test-dir build -C Release --output-on-failure
+          fi
+      - name: Native CLAP protocol, audio and state validation (upstream mature validator)
+        run: |
+          mkdir -p evidence validator
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            asset=clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+            digest=49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90
+            executable=validator/clap-validator
+          else
+            asset=clap-validator-0.4.1-127-g152b982-windows.zip
+            digest=d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10
+            executable=validator/clap-validator.exe
+          fi
+          curl -fL --retry 2 "https://github.com/free-audio/clap-validator/releases/download/0.4.1/$asset" -o validator.zip
+          printf '%s  validator.zip\n' "$digest" | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('validator.zip').extractall('validator')"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            tar -xzf validator/*.tar.gz -C validator
+          fi
+          chmod +x "$executable"
+          "$executable" --version | tee evidence/clap-validator-version.txt
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiStereo_artefacts').rglob('*.clap')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
+          else
+            "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
+          fi
+      - name: Download hash-locked mature Linux editor host
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p editor-host
+          curl -fL --retry 2 https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip -o editor-host/pluginval.zip
+          printf '%s  editor-host/pluginval.zip\n' c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352 | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('editor-host/pluginval.zip').extractall('editor-host')"
+          chmod +x editor-host/pluginval
+          editor-host/pluginval --version
+      - name: Install hash-locked mature host wheels
+        run: |
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+      - name: Actual S1 VST3 twenty-case native comparison, state, bypass and silence
+        run: |
+          mkdir -p evidence
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiStereo_artefacts').rglob('Tsunami Stereo.vst3')).resolve())")"
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('s1_render*') if p.is_file() and p.name in ('s1_render','s1_render.exe')).resolve())")"
+          python tests/s1/native_host_smoke.py "$plugin" "$renderer" evidence/s1-native.json
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 90 xvfb-run -a editor-host/pluginval --validate-in-process --strictness-level 6 --random-seed 17 --validate "$plugin" > evidence/s1-pluginval.log 2>&1
+          fi
+      - name: Actual S1 module hosted editor capture (original-style UI, not reference equivalence)
+        run: |
+          mkdir -p evidence/ui
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiStereo_artefacts').rglob('Tsunami Stereo.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/s1/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
+          else
+            python tests/foundation/host_smoke.py "$plugin" evidence/ui
+            python tests/s1/windows_editor_capture.py "$plugin" evidence/ui
+          fi
+          python -c "import hashlib,json,pathlib; fs=['plugins/s1/Editor.hpp','plugins/s1/EditorModel.hpp','shared/Adapter.hpp']+[str(p) for p in pathlib.Path('evidence/ui').glob('*.png')]; pathlib.Path('evidence/ui/s1-ui-hashes.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in fs},indent=2))"
+      - name: Matching corresponding source and notices beside experimental binaries
+        if: always()
+        run: |
+          mkdir -p evidence
+          git archive --format=tar HEAD -o evidence/project-source.tar
+          if [[ -d build/_deps/juce-src && -d build/_deps/clap_juce-src ]]; then
+            tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          fi
+          cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
+          cp -r LICENSES evidence/
+          git rev-parse HEAD > evidence/checkout-sha.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha }}" > evidence/pr-head-sha.txt
+      - name: Retain exact build bytes and diagnostic evidence (not a release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: s1-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            build/TsunamiStereo_artefacts/Release/VST3/
+            build/TsunamiStereo_artefacts/Release/CLAP/
+            build/Testing/Temporary/
+            evidence/
+            build-core/s1_render
+            build-core/Release/s1_render.exe
+            tests/s1/native_host_smoke.py
+            tests/s1/native_paths.py
+            tests/s1/test_renderer_io.py
+            tools/host-requirements.txt
+          if-no-files-found: error
+          retention-days: 14
+  downloaded-smoke:
+    name: s1-downloaded-${{ matrix.os }} (not a release)
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: s1-${{ matrix.os }}-${{ github.sha }}
+          path: downloaded
+      - name: Load and remeasure actual downloaded S1 without checkout or build
+        run: |
+          cd downloaded
+          python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiStereo_artefacts').rglob('Tsunami Stereo.vst3')).resolve())")"
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('s1_render*') if p.is_file() and p.name in ('s1_render','s1_render.exe')).resolve())")"
+          chmod +x "$renderer"
+          python tests/s1/test_renderer_io.py "$renderer"
+          python tests/s1/native_host_smoke.py "$plugin" "$renderer" evidence/s1-downloaded.json
+          python -c "import json; from pathlib import Path; a=json.loads(Path('evidence/s1-native.json').read_text()); b=json.loads(Path('evidence/s1-downloaded.json').read_text()); assert all(a[k] == b[k] for k in ('module_sha256','renderer_sha256')), 'downloaded module/renderer changed'"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: s1-download-smoke-${{ matrix.os }}-${{ github.sha }}
+          path: downloaded/evidence/s1-downloaded.json
+          if-no-files-found: error
+          retention-days: 14

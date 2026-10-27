@@ -8,9 +8,11 @@ The original source code in this project is distributed under the GNU General Pu
 
 ## Dependencies and distributions
 
-Third-party components keep their own licenses and copyright notices. Before integration, record exact dependency revisions, licenses and transitive obligations. Prefer a small compatible dependency set; public source availability alone does not establish license compatibility. An AGPL-only or commercial-only dependency must not silently change the project's selected license.
+Third-party components keep their own licenses and copyright notices. The user explicitly authorizes the free-software AGPL option. JUCE **9.0.4**, commit `3fb5cbc0340758596dac39f7c8de47d562b4896e`, is selected under **AGPLv3**, not the commercial EULA. Its license text is in `LICENSES/AGPL-3.0.txt`; its original `LICENSE.md`, SPDX inventory and per-file notices remain in the matching dependency source.
 
-Binary distributions must include GPL text, applicable notices, source revision and an adequate corresponding-source distribution mechanism covering the actual shipped build and its dependencies, along with reproducible build instructions. A repository link without ensuring complete corresponding source is not an automatic acceptance shortcut. The release workflow must verify the source/artifact association and include dependency license information.
+GPLv3 section 13 permits combining GPLv3 code with AGPLv3 code. The Tsunami-authored portion remains GPL-3.0-or-later; this is not blanket relicensing of upstream files. Applicable AGPL section 13 network-interaction source requirements apply to the combination. If offering the combined software over a network, provide the required prominent offer of complete Corresponding Source. No paid license, account or subscription is selected.
+
+Binary distributions must include GPL and AGPL texts, applicable notices, source revision and an adequate corresponding-source distribution mechanism covering the actual shipped build and its dependencies, along with reproducible build instructions. A repository link without ensuring complete corresponding source is not an automatic acceptance shortcut. The release workflow must verify the source/artifact association and include dependency license information.
 
 ## Original reference products
 

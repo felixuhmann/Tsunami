@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "project_source_license": "GPL-3.0-or-later",
+  "linked_combination_license": "GPLv3/AGPLv3 combination under GPLv3 section 13; JUCE selected under AGPLv3, Tsunami-authored source remains GPL-3.0-or-later",
+  "dependencies": [
+    {"name":"JUCE","repository":"https://github.com/juce-framework/JUCE.git","commit":"3fb5cbc0340758596dac39f7c8de47d562b4896e","version":"9.0.4","archive_sha256":"2bb7095497a7bb7269dbdf841a7c6aa0939eaeb2a2bc9724ac4758d3ae3565a7","license_choice":"AGPLv3 open-source alternative plus retained per-file permissive notices","source_subdir":"juce-src"},
+    {"name":"clap-juce-extensions","repository":"https://github.com/free-audio/clap-juce-extensions.git","commit":"7adee3a1bd4684d4caa5601100e364abccff4b4d","license":"MIT","source_subdir":"clap_juce-src"},
+    {"name":"clap","repository":"https://github.com/free-audio/clap.git","commit":"29ffcc273be7c7c651f6c9953b99e69700e2387a","license":"MIT","source_subdir":"clap_juce-src/clap-libs/clap"},
+    {"name":"clap-helpers","repository":"https://github.com/free-audio/clap-helpers.git","commit":"a61bcdf0ecc2c8db1e80bfe8bf9cb7e8d9fd2bbc","license":"MIT","source_subdir":"clap_juce-src/clap-libs/clap-helpers"}
+  ],
+  "scope": "Pinned source inventory, not full embedded third-party SBOM or release approval; complete source trees/notices accompany CI binary artifacts. No generic DSP libraries linked."
+}

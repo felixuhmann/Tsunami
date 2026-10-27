@@ -1,0 +1,317 @@
+{
+  "scope": "native Linux S1 VST3 audio/state/control smoke; not native Windows, original automation, original-layout UI or full equivalence",
+  "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35",
+  "pedalboard": "0.9.26",
+  "module_sha256": "805d624fb9887bf37b121ecdc2b6d94d7950cd3473d2ece8024497e07d05ac6c",
+  "renderer_sha256": "3dedd68221797ca10b73876c58aaabc9a23eb556755cdfb4d08fcc18a6808fb9",
+  "parameters": [
+    "gain_db",
+    "width",
+    "rotation_deg",
+    "asymmetry_deg",
+    "input_swap",
+    "invert_left",
+    "invert_right",
+    "m_s_input",
+    "bypass"
+  ],
+  "cases": [
+    {
+      "rate": 44100,
+      "block": 1,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 44100,
+      "block": 17,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 44100,
+      "block": 64,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 44100,
+      "block": 257,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 44100,
+      "block": 1024,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 48000,
+      "block": 1,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 48000,
+      "block": 17,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 48000,
+      "block": 64,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 48000,
+      "block": 257,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 48000,
+      "block": 1024,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 96000,
+      "block": 1,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 96000,
+      "block": 17,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 96000,
+      "block": 64,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 96000,
+      "block": 257,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 96000,
+      "block": 1024,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 192000,
+      "block": 1,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 192000,
+      "block": 17,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 192000,
+      "block": 64,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 192000,
+      "block": 257,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    },
+    {
+      "rate": 192000,
+      "block": 1024,
+      "portable_max_abs": 0.0,
+      "output_sha256": "9ad79c747904d146cfc6bb35edcaed601785e26746440eb148b8aa5c8901c679"
+    }
+  ],
+  "state_restore_all_parameters": true,
+  "fresh_state_exact": true,
+  "bypass_exact": true,
+  "silence_exact": true,
+  "latency_samples": 0,
+  "status": "partial_native_linux_smoke_passed_not_product_acceptance",
+  "created_at": "2026-10-27T12:23:33.718789+00:00",
+  "formats_built": [
+    "VST3",
+    "CLAP"
+  ],
+  "framework": {
+    "name": "JUCE",
+    "version": "9.0.4",
+    "commit": "3fb5cbc0340758596dac39f7c8de47d562b4896e",
+    "license_option": "AGPLv3"
+  },
+  "source_sha256": {
+    "plugins/s1/Processor.hpp": "3eecd86f94f6c4ff5abbe39af74e1668151b05d00f284d5c9f79f725f94658f9",
+    "plugins/s1/parameters.json": "7bd122fab6292ce1c4de485d7a30b37ea4072a8934bd3d629d6bdc99cccd650b",
+    "shared/Adapter.hpp": "015e84a3f67ad606ce15070f12f614b864f3861ee7c256b1e5ae36d28fedbded",
+    "tests/s1/native_host_smoke.py": "ca3a4fb5ed44b68b3fecd39579f18941222d5eb1a08f4326d53689bd1a8f2bbb"
+  },
+  "build_log_sha256": {
+    "native-0.log": "3fbfa1b78fdbafde6e06c7b1a67dd11423479888676da752ffeb1c9c0940ff7c",
+    "native-1.log": "98a09eb1754fa2d788626f087b8df10c61aaa11322456b5df6c1f9033d560c98",
+    "native-host.log": "09ff6c710c460ce3df50beb0358b7a7db0dfb1da4fe5ac2d3b7a5349a5a2b775",
+    "clap-validator.log": "2e4c009bc8b81e8458cd34ea03b26392486c6f22224fa6c17585d3d4f21cc4a2",
+    "vst3-validator.log": "b0127f998f54c1759b56df2578ec317a6744efd221d100f3537ad92caac6423c"
+  },
+  "compiler": "c++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+  "limitations": [
+    "Linux host smoke only, not Windows native target evidence",
+    "Shared generic editor remains; no product UI/screenshot acceptance",
+    "Native build used current worktree contents; source hashes identify exact compiled core/metadata; test/docs commit follows build",
+    "Local experimental modules were not publicly packaged or released"
+  ],
+  "clap_module_sha256": "db1e6a982ef5dba2eb6bb1e798cd83fcb1dd2337e720644c1054ab46d04355e8",
+  "validators": {
+    "clap": {
+      "exit": 0,
+      "counts": {
+        "success": 31,
+        "skipped": 11,
+        "warning": 2
+      },
+      "non_success": [
+        {
+          "test": "preset-discovery-crawl",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'clap.preset-discovery-factory/2' factory."
+          }
+        },
+        {
+          "test": "preset-discovery-descriptor-consistency",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'clap.preset-discovery-factory/2' factory."
+          }
+        },
+        {
+          "test": "preset-discovery-load",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'clap.preset-discovery-factory/2' factory."
+          }
+        },
+        {
+          "test": "process-audio-double-out-of-place",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not support 64-bit floating point audio."
+          }
+        },
+        {
+          "test": "process-audio-double-in-place",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not support 64-bit floating point audio."
+          }
+        },
+        {
+          "test": "process-audio-denormals",
+          "status": {
+            "code": "warning",
+            "details": "The plugin took 3.71x longer to process denormals, you should set flush-to-zero flags or avoid denormals in some other way."
+          }
+        },
+        {
+          "test": "process-note-out-of-place-basic",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin implements the 'note-ports' extension but it does not have any input note ports."
+          }
+        },
+        {
+          "test": "process-note-inconsistent",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin implements the 'note-ports' extension but it does not have any input note ports."
+          }
+        },
+        {
+          "test": "process-note-wildcard",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin implements the 'note-ports' extension but it does not have any input note ports."
+          }
+        },
+        {
+          "test": "layout-audio-ports-activation",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'audio-ports-activation' extension."
+          }
+        },
+        {
+          "test": "layout-audio-ports-config",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'audio-ports-config' extension."
+          }
+        },
+        {
+          "test": "layout-configurable-audio-ports",
+          "status": {
+            "code": "skipped",
+            "details": "The plugin does not implement the 'configurable-audio-ports' extension."
+          }
+        },
+        {
+          "test": "state-invalid-random",
+          "status": {
+            "code": "warning",
+            "details": "The plugin loaded random bytes successfully, which is unexpected, but the plugin did not crash."
+          }
+        }
+      ]
+    },
+    "vst3_pluginval": {
+      "exit": 0,
+      "strictness": 5,
+      "overall": "SUCCESS",
+      "completed_tests": [
+        "Scan for plugins located in: /home/felix/work/tsunami-reference/analysis/s1/recovery/resume-20261027T1205/native-build/TsunamiStereo_artefacts/Release/VST3/Tsunami Stereo.vst3",
+        "Open plugin (cold)",
+        "Open plugin (warm)",
+        "Plugin info",
+        "Plugin programs",
+        "Editor",
+        "Open editor whilst processing",
+        "Audio processing",
+        "Plugin state",
+        "Automation",
+        "Editor Automation",
+        "Automatable Parameters",
+        "auval",
+        "vst3 validator",
+        "Basic bus",
+        "Listing available buses",
+        "Enabling all buses",
+        "Disabling non-main busses",
+        "Restoring default layout"
+      ]
+    }
+  },
+  "validator_tools": {
+    "clap": {
+      "sha256": "d9a78bfe781719de450bc5013141496eb13e1d9a538c67de1b8d325628670dbf",
+      "version": "clap-validator 0.4.1"
+    },
+    "pluginval": {
+      "sha256": "d3d342ea92293b0699a5c983937211e3faf2b0f38145b31cb8d78424a25e10ba",
+      "version": "pluginval - 1.0.4"
+    }
+  }
+}
