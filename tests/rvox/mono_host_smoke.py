@@ -51,6 +51,9 @@ def main():
     host_path = bundle
     if platform.system() == 'Windows' and bundle.is_dir():  # Pedalboard needs the PE module in this bundle
         host_path = (bundle / 'Contents' / 'x86_64-win' / bundle.name).resolve(strict=True)
+    # The native module bytes inside the bundle that the host actually loads.
+    module = host_path if host_path.is_file() else next(p for p in (bundle / 'Contents').rglob('*')
+                                                       if p.is_file() and p.parent.name.startswith('x86_64-'))
     load = lambda: load_plugin(str(host_path))  # noqa: E731
     print('Loading native module:', host_path, flush=True)
     host = load()
@@ -139,8 +142,7 @@ def main():
     receipt = {
         'scope': 'RVox VST3 hosted 1-in/1-out in Pedalboard on this OS; active compression smoke, not original '
                  'equivalence; VST3 only, not CLAP mono evidence',
-        'plugin': str(host_path), 'plugin_sha256': hashlib.sha256(Path(host_path).read_bytes()).hexdigest()
-        if Path(host_path).is_file() else None,
+        'plugin': str(host_path), 'module': str(module), 'module_sha256': hashlib.sha256(module.read_bytes()).hexdigest(),
         'os': platform.platform(), 'python': platform.python_version(), 'pedalboard': pedalboard.__version__,
         'source_commit': os.environ.get('GITHUB_SHA'),
         'bus_evidence': 'Pedalboard raises "does not support 1-channel output" for a plugin refusing the mono '

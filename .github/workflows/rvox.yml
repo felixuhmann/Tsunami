@@ -33,6 +33,8 @@ jobs:
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
+      - name: RVox native mono gate is wired on both platforms (workflow regression)
+        run: python tests/rvox/test_native_workflow.py
       - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_ID=rvox
       - name: Build actual RVox native format modules, hosted adapter/editor and core meter/unchanged-audio tests
@@ -94,7 +96,6 @@ jobs:
           fi
       - name: Native VST3 host-selected mono 1-in/1-out, active compression and fresh-state recall (not CLAP)
         run: |
-          python tests/rvox/test_native_workflow.py
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami Voice.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then
             timeout 120 xvfb-run -a python tests/rvox/mono_host_smoke.py "$plugin" evidence/mono
