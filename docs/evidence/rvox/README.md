@@ -1,4 +1,4 @@
-# RVox portable DSP checkpoint — partial, not product-complete
+# RVox — portable core, hosted VST3/CLAP adapter and product editor (draft, not product-complete)
 
 This is an independently written C++17 mono/stereo processor, not a vendor-library
 wrapper and not a generic ratio/knee compressor. No reference binaries, assets,
@@ -140,7 +140,7 @@ cmake --build build-rvox -j1
 ctest --test-dir build-rvox --output-on-failure
 ```
 
-Observed: **5/5 CTest targets passed** (including `rvox.safety`); warning-clean GCC11 C++17 build. Separate
+Observed (historical, before `rvox.ceiling`): **5/5 CTest targets passed** (including `rvox.safety`); warning-clean GCC11 C++17 build. Separate
 AddressSanitizer/UndefinedBehaviorSanitizer execution of the rate/channel/reset/
 block/in-place/linked-chain test also passed. Metadata generation and generated
 `PluginSpec.hpp` syntax compilation passed against the shared parameter contract.
@@ -166,10 +166,22 @@ campaign owns full raw/oracle provenance and logs.
 - Hidden gate-release preset changes are not exposed/restored; only the recovered
   fresh default is implemented. Parameter display quantization/state integration
   require hosted adapter verification.
-- No RVox custom independently drawn original-layout editor, meters or hosted UI
-  screenshots. A generic generated parameter editor would not establish UI fidelity.
-- The forwarding header/metadata are adapter-ready, but RVox is deliberately not
-  registered by editing shared/root build/CI in this scoped branch. No native
-  Windows/Linux VST3/CLAP RVox host, state or release-archive receipts exist yet.
+- RVox is registered in the root build (`TSUNAMI_BUILD_RVOX`) and hosted by the
+  shared adapter as VST3/CLAP with an independently drawn product editor
+  (`plugins/rvox/Editor.hpp`; Linux pluginval screenshot `hosted-editor-linux-pluginval.png`,
+  checklist `ui-checklist.md`). The Energy meter and Total Compression display have
+  no data yet (needs a shared adapter tap owned by integration); mono layout,
+  Dark/Legacy skins and the WaveSystem toolbar are not implemented.
+- Output ceiling (round-2 task3): Gain is a ceiling only for <=0 dBFS input. A
+  +20 dBFS sine at Comp -6 / Gain -28.7 peaks at -23.58 dBFS in the genuine
+  original and identically in the core and hosted adapter (max_abs 1.49e-8,
+  `thresholds.json` `hot_input_ceiling_vs_genuine`, test `rvox.ceiling` and
+  `rvox.adapter`). The +14.7/+13.7 dB readouts in the pluginval screenshot are
+  peak holds (reset only by click, per the guide) accumulated across pluginval's
+  Automation/Fuzz tests, where Gain and Compression were randomized; -28.7 is
+  only the final fuzzed Gain. The meter tap equals the true output buffer peak.
+  A Compression decrease raises makeup immediately, so a 0 -> -36 dB step
+  overshoots the ceiling by up to ~36 dB for a few ms; whether the original
+  does the same is NOT verified (the oracle renders static controls only).
 - Parent review, native real-time/automation/overload and full acceptance remain.
   Keep the target PR draft; do not mark verified, merge or publish a release.

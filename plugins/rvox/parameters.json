@@ -7,5 +7,5 @@
   ],
   "reference_display_step_db": 0.1,
   "hidden_initialization": {"gate_release_ms": 130.0},
-  "scope": "Portable core physical units. No custom UI or native-host equivalence claim."
+  "scope": "Physical units shared by the portable core and the hosted VST3/CLAP adapter; the hosted product editor (plugins/rvox/Editor.hpp) binds these three controls. No native-host or original-UI equivalence claim."
 }

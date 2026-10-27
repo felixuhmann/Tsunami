@@ -147,6 +147,43 @@ int hiddenStateMatrix() {
     std::cout << "rvox.adapter hidden-state matrix PASS: block-boundary automation, preset recall, hostile preset values\n";
     return 0;
 }
+// Round-2 task3: +20 dBFS sine at Comp -6 / Gain -28.7 through the hosted
+// adapter. Output must equal the core, its peak must equal the genuine-confirmed
+// 0.06624011 (5.1 dB above the Gain value, as the original does), and the meter
+// tap the editor reads must report exactly the per-channel output buffer peak.
+int hotInputMeter() {
+    tsunami::Adapter<Spec> p; const auto& ps = p.getParameters();
+    setPhysical(ps[0], -6.f); setPhysical(ps[1], -80.f); setPhysical(ps[2], -28.7f);
+    Spec::Core direct;
+    for (int i = 0; i < 3; ++i) direct.setParameter(unsigned(i), physical(ps[i]));
+    p.prepareToPlay(48000, 512); direct.prepare(48000, 2, 512); direct.reset();
+    juce::MidiBuffer midi; float hostedPeak = 0, held[2]{};
+    for (unsigned at = 0; at < 24000; at += 512) {
+        const int n = int(std::min(512u, 24000 - at));
+        juce::AudioBuffer<float> b(2, n);
+        std::vector<float> x[2]{std::vector<float>(size_t(n)), std::vector<float>(size_t(n))}, y[2]{x[0], x[1]};
+        for (int i = 0; i < n; ++i) {
+            x[0][size_t(i)] = float(10 * std::sin(2 * pi * 997 * (at + unsigned(i)) / 48000));
+            x[1][size_t(i)] = float(5 * std::sin(2 * pi * 997 * (at + unsigned(i)) / 48000 + 1.0));
+        }
+        for (int c = 0; c < 2; ++c) b.copyFrom(c, 0, x[c].data(), n);
+        p.processBlock(b, midi);
+        const float* ins[]{x[0].data(), x[1].data()}; float* outs[]{y[0].data(), y[1].data()};
+        direct.process(ins, outs, unsigned(n));
+        const auto taken = p.takeOutputPeaks();
+        for (int c = 0; c < 2; ++c) {
+            if (std::memcmp(b.getReadPointer(c), y[c].data(), size_t(n) * sizeof(float)) != 0)
+                return fail(40, "hosted hot-input output differs from core");
+            const float actual = b.getMagnitude(c, 0, n);
+            if (taken[size_t(c)] != actual) return fail(41, "meter tap differs from actual output peak");
+            held[c] = std::max(held[c], taken[size_t(c)]); hostedPeak = std::max(hostedPeak, actual);
+        }
+    }
+    if (std::abs(hostedPeak - 0.0662401095f) > 1e-6f) return fail(42, "hosted hot-input peak differs from genuine");
+    std::cout << "hot input: hosted peak " << juce::Decibels::gainToDecibels(hostedPeak) << " dBFS, meter hold L/R "
+              << juce::Decibels::gainToDecibels(held[0]) << '/' << juce::Decibels::gainToDecibels(held[1]) << " dBFS\n";
+    return 0;
+}
 // Genuine-comparison mode: recall a preset through saved state into a fresh
 // hosted instance, render interleaved stereo float32 at the original block size.
 int presetRender(char** a) {
@@ -212,6 +249,7 @@ int main(int argc, char** argv) {
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (!editor) return fail(9, "no editor");
     if (int r = hiddenStateMatrix()) return r;
+    if (int r = hotInputMeter()) return r;
     std::cout << "rvox.adapter PASS: hosted RVox core bit-identical across 3 rates x 3 blocks, state restore exact\n";
     return 0;
 }

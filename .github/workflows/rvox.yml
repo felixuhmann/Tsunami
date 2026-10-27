@@ -87,11 +87,19 @@ jobs:
           mkdir -p evidence
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami RVox.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then
-            # Shared linux_editor_capture.py is bound to the fixture window title; audio/state only here.
+            # Audio/state only here; the attached editor is captured by the next step.
             timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence
           else
             python tests/foundation/host_smoke.py "$plugin" evidence --capture
           fi
+      - name: Linux attached RVox editor capture (pluginval 1.0.4, Xvfb; 371 px view)
+        if: runner.os == 'Linux'
+        env:
+          RVOX_EDITOR_MIN_WIDTH: '360'
+        run: |
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami RVox.vst3')).resolve())")"
+          timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/rvox/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
+          python -c "from PIL import Image; im=Image.open('evidence/ui/host-editor.png'); print('editor', im.size); assert im.size[0] >= 360"
       - name: Matching corresponding source and notices beside experimental binaries
         if: always()
         run: |
