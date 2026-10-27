@@ -12,3 +12,4 @@ target_include_directories(deesser_clap_abi_test PRIVATE "${TSUNAMI_PLUGIN_DIR}"
 target_link_libraries(deesser_clap_abi_test PRIVATE clap-core ${CMAKE_DL_LIBS})
 add_dependencies(deesser_clap_abi_test TsunamiDeEsser_CLAP)
 add_test(NAME deesser.clap_abi COMMAND deesser_clap_abi_test "$<TARGET_FILE:TsunamiDeEsser_CLAP>")
+set_tests_properties(deesser.clap_abi PROPERTIES TIMEOUT 120)

@@ -104,6 +104,19 @@ double clapValue(unsigned i, float physical) {
     const auto& q = params[i];
     return q.lo + double(physical - q.min) / double(q.max - q.min) * (q.hi - q.lo);
 }
+// Skewed Freq: the product's own text_to_value path, cross-checked against the generated JUCE skew
+// (Generated.hpp: NormalisableRange 2000..16000, skew 0.516328) so a wrong taper cannot hide.
+double freqValue(const clap_plugin* p, float hz) {
+    const auto& q = params[freq];
+    char text[32];
+    std::snprintf(text, sizeof text, "%d", int(hz));
+    double v = -1;
+    REQUIRE(ext<clap_plugin_params>(p, CLAP_EXT_PARAMS)->text_to_value(p, q.id, text, &v));
+    const double skewed = std::pow((double(hz) - q.min) / (double(q.max) - q.min), 0.516328);
+    CHECK(std::abs(v - (q.lo + skewed * (q.hi - q.lo))) < 1e-4);
+    return v;
+}
+double toClap(const clap_plugin* p, unsigned i, float physical) { return i == freq ? freqValue(p, physical) : clapValue(i, physical); }
 double readValue(const clap_plugin* p, unsigned i) {
     double v = -1;
     REQUIRE(ext<clap_plugin_params>(p, CLAP_EXT_PARAMS)->get_value(p, params[i].id, &v));
@@ -118,13 +131,17 @@ const clap_event_header* eventsGet(const clap_input_events* l, uint32_t i) {
 }
 bool dropEvent(const clap_output_events*, const clap_event_header*) { return true; }
 
-// Named active settings, all physical (Freq stays at its exact whole-Hz default 5506).
-struct Setting { const char* name; float threshold, sidechain, audio, monitor, bypass; bool reduces, neutral; };
+// Named active settings, all six controls physical in core index order (Freq whole Hz; default 5506).
+struct Setting { const char* name; float v[6]; bool reduces, neutral; };
 const Setting settings[] = {
-    {"split-highpass-th-40", -40.f, 1.f, 0.f, 0.f, 0.f, true, false},
-    {"wideband-bandpass-th-30", -30.f, 0.f, 1.f, 0.f, 0.f, true, false},
-    {"bypass-neutral", -40.f, 1.f, 0.f, 0.f, 1.f, false, true},
+    {"split-highpass-th-40", {5506.f, -40.f, 1.f, 0.f, 0.f, 0.f}, true, false},
+    {"wideband-bandpass-th-30", {5506.f, -30.f, 0.f, 1.f, 0.f, 0.f}, true, false},
+    {"split-highpass-f8000-th-40", {8000.f, -40.f, 1.f, 0.f, 0.f, 0.f}, true, false},
+    {"monitor-sidechain-f8000", {8000.f, -40.f, 0.f, 0.f, 1.f, 0.f}, false, false},
+    {"bypass-neutral", {5506.f, -40.f, 1.f, 0.f, 0.f, 1.f}, false, true},
 };
+// Every control away from its default (Freq 5506, Th 0, SideChain 1, Audio 0, Monitor 0, Bypass 0) for the state roundtrip.
+const Setting allNonDefault{"all-non-default-bypass", {8000.f, -30.f, 0.f, 1.f, 1.f, 1.f}, false, true};
 
 float signal(uint32_t c, uint64_t n) {
     // Sibilant 7 kHz band plus channel-distinct low content; channel 1 differs in phase and level.
@@ -137,8 +154,8 @@ float signal(uint32_t c, uint64_t n) {
 void processCompare(const clap_plugin* p, uint32_t channels, const Setting& s) {
     tsunami::deesser::Processor reference;
     reference.prepare(rate, channels, maxFrames);
-    reference.setParameter(threshold, s.threshold); reference.setParameter(sidechain, s.sidechain);
-    reference.setParameter(audio, s.audio); reference.setParameter(monitor, s.monitor); reference.setParameter(bypass, s.bypass);
+    double expected[6];
+    for (unsigned i = 0; i < 6; ++i) { reference.setParameter(i, s.v[i]); expected[i] = toClap(p, i, s.v[i]); }
     reference.reset();
     REQUIRE(p->activate(p, rate, 1, maxFrames));
     REQUIRE(p->start_processing(p));
@@ -161,14 +178,12 @@ void processCompare(const clap_plugin* p, uint32_t channels, const Setting& s) {
         }
         Events events{};
         events.list = {&events, eventsSize, eventsGet};
-        if (b == 0) { // automate every non-default control at sample 0 of the first block
-            const std::pair<unsigned, float> values[] = {{threshold, s.threshold}, {sidechain, s.sidechain},
-                                                         {audio, s.audio}, {monitor, s.monitor}, {bypass, s.bypass}};
-            for (const auto& [i, v] : values) {
+        if (b == 0) { // automate all six controls at sample 0 of the first block
+            for (unsigned i = 0; i < 6; ++i) {
                 clap_event_param_value e{};
                 e.header = {sizeof(clap_event_param_value), 0, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_PARAM_VALUE, 0};
                 e.param_id = params[i].id; e.note_id = -1; e.port_index = -1; e.channel = -1; e.key = -1;
-                e.value = clapValue(i, v);
+                e.value = expected[i];
                 events.events.push_back(e);
             }
         }
@@ -184,7 +199,7 @@ void processCompare(const clap_plugin* p, uint32_t channels, const Setting& s) {
             }
             for (uint32_t n = 0; n < frames; ++n) {
                 const float y = out[c][guard + n], x = signal(c, t + n);
-                CHECK(std::isfinite(y));
+                CHECK(std::isfinite(y) && std::isfinite(ref[c][n]));
                 maxDiff = std::max(maxDiff, double(std::abs(y - ref[c][n])));
                 inOutDiff = std::max(inOutDiff, double(std::abs(y - x)));
                 if (b > 0) { inEnergy += double(x) * x; outEnergy += double(y) * y; } // skip the attack block
@@ -199,10 +214,9 @@ void processCompare(const clap_plugin* p, uint32_t channels, const Setting& s) {
     CHECK(inEnergy > 10.0 && outEnergy > 1.0);
     if (s.reduces) CHECK(ratio < 0.9);             // meaningful de-essing, not a pass-through
     if (s.neutral) CHECK(inOutDiff <= tolerance);  // neutral control: Bypass returns the input
-    if (channels == 2) CHECK(distinct);
-    CHECK(std::abs(readValue(p, threshold) - clapValue(threshold, s.threshold)) < 1e-6);
-    CHECK(std::abs(readValue(p, audio) - clapValue(audio, s.audio)) < 1e-6);
-    CHECK(std::abs(readValue(p, bypass) - clapValue(bypass, s.bypass)) < 1e-6);
+    // Monitor=SideChain writes the one linked detector signal to every channel; otherwise channels stay distinct.
+    if (channels == 2) CHECK(s.v[monitor] > .5f ? !distinct : distinct);
+    for (unsigned i = 0; i < 6; ++i) CHECK(std::abs(readValue(p, i) - expected[i]) < 1e-6);
     p->stop_processing(p);
 }
 
@@ -222,17 +236,25 @@ int64_t readStream(const clap_istream* s, void* data, uint64_t size) {
     std::memcpy(data, st->bytes.data() + st->at, n); st->at += n;
     return int64_t(n);
 }
-void stateRoundtrip(const Module& module, const clap_plugin* p) {
-    const double th = readValue(p, threshold), au = readValue(p, audio), by = readValue(p, bypass), fr = readValue(p, freq);
+// Saves p (last processed with `saved`, every control non-default) and restores it into a fresh instance.
+void stateRoundtrip(const Module& module, const clap_plugin* p, const Setting& saved) {
+    double expected[6];
+    for (unsigned i = 0; i < 6; ++i) {
+        expected[i] = toClap(p, i, saved.v[i]);
+        CHECK(std::abs(readValue(p, i) - expected[i]) < 1e-6);
+    }
     Stream stream;
     clap_ostream os{&stream, writeStream};
     REQUIRE(ext<clap_plugin_state>(p, CLAP_EXT_STATE)->save(p, &os) && !stream.bytes.empty());
     const clap_plugin* fresh = module.create();
-    CHECK(std::abs(readValue(fresh, threshold) - th) > 1e-3); // fresh default (0 dB) differs from -40 dB
+    for (unsigned i = 0; i < 6; ++i) CHECK(std::abs(readValue(fresh, i) - expected[i]) > 1e-3); // fresh default differs
     clap_istream is{&stream, readStream};
     REQUIRE(ext<clap_plugin_state>(fresh, CLAP_EXT_STATE)->load(fresh, &is));
-    CHECK(std::abs(readValue(fresh, threshold) - th) < 1e-6 && std::abs(readValue(fresh, audio) - au) < 1e-6);
-    CHECK(std::abs(readValue(fresh, bypass) - by) < 1e-6 && std::abs(readValue(fresh, freq) - fr) < 1e-6);
+    for (unsigned i = 0; i < 6; ++i) {
+        const double v = readValue(fresh, i);
+        std::printf("  restored %-9s %.6f (expected %.6f)\n", params[i].name, v, expected[i]);
+        CHECK(std::abs(v - expected[i]) < 1e-6);
+    }
     expectPorts(fresh, 2); // the selected config is not part of plugin state (SDK limitation)
     fresh->destroy(fresh);
 }
@@ -291,10 +313,10 @@ int main(int argc, char** argv) {
     runAll(p, 2);
 
     REQUIRE(configs->select(p, mono.id)); // reselect and re-activate
-    processCompare(p, 1, settings[0]);
+    processCompare(p, 1, allNonDefault);
     p->deactivate(p);
     expectPorts(p, 1);
-    stateRoundtrip(module, p);
+    stateRoundtrip(module, p, allNonDefault);
     p->destroy(p);
     module.entry->deinit();
     std::printf("PASS-GATE %s: %s (%d failures)\n", pluginId, failures == 0 ? "PASS" : "FAIL", failures);

@@ -86,7 +86,7 @@ jobs:
         run: |
           mkdir -p evidence
           ctest --test-dir build -C Release -N -R '^deesser\.clap_abi$' | tee evidence/deesser-clap-abi-list.log
-          grep -q 'Total Tests: 1' evidence/deesser-clap-abi-list.log
+          tr -d '\r' < evidence/deesser-clap-abi-list.log | grep -qx 'Total Tests: 1'
           ctest --test-dir build -C Release -R '^deesser\.clap_abi$' --no-tests=error --output-on-failure -V | tee evidence/deesser-clap-abi-test.log
           grep -q 'PASS-GATE org.tsunami.deesser: PASS' evidence/deesser-clap-abi-test.log
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
