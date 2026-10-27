@@ -25,3 +25,4 @@ add_test(NAME clap.layouts.mono_stereo
   COMMAND clap_layout_test "$<TARGET_FILE:TsunamiMonoFixture_CLAP>" org.tsunami.fixture_mono mono-stereo)
 add_test(NAME clap.layouts.stereo_only
   COMMAND clap_layout_test "$<TARGET_FILE:TsunamiFixture_CLAP>" org.tsunami.fixture stereo-only)
+add_test(NAME clap.layouts.derive_source COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/derive_source_test.py" -v)

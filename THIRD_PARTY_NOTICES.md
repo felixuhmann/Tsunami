@@ -38,10 +38,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 The CLAP module is compiled from a build-local copy of the pinned upstream
-`src/wrapper/clap-juce-wrapper.cpp` modified by the checked, hash-pinned
-`cmake/patches/clap-juce-wrapper-audio-ports-config.patch` (host-selectable
-mono/stereo audio-ports configs). The upstream file stays under the MIT notice
-above; the Tsunami-authored patch is GPL-3.0-or-later. The fetched dependency
+`src/wrapper/clap-juce-wrapper.cpp` derived with the hash-pinned edits in
+`cmake/clap-wrapper-audio-ports-config.json` by `cmake/derive_source.py`
+(host-selectable mono/stereo audio-ports configs; not applied on macOS). The
+upstream file stays under the MIT notice above; the Tsunami-authored edits and
+helper are GPL-3.0-or-later. The fetched dependency
 tree itself is left unmodified.
 
 The MIT CLAP and clap-helpers notices are preserved verbatim in their matching

@@ -32,11 +32,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
-      - name: Configure pinned JUCE 9.0.4 and clap-juce-extensions with the checked wrapper patch
+      - name: Configure pinned JUCE 9.0.4 and clap-juce-extensions with the hash-bound derived wrapper
         run: |
           mkdir -p evidence
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tee evidence/configure.log
-          grep -F 'patched clap-juce-wrapper.cpp: source 82fb7862a2a40c718dcf53560ce69f3af4244b068c25ea7a25bfe5d16c963cc6' evidence/configure.log
+          grep -F 'derived clap-juce-wrapper.cpp: source 82fb7862a2a40c718dcf53560ce69f3af4244b068c25ea7a25bfe5d16c963cc6' evidence/configure.log
       - name: Fetched dependency source stays pristine (no tracked, ignored or index-flag drift)
         run: |
           for dep in build/_deps/clap_juce-src build/_deps/clap_juce-src/clap-libs/clap build/_deps/clap_juce-src/clap-libs/clap-helpers; do
@@ -49,7 +49,7 @@ jobs:
           grep -qx 7adee3a1bd4684d4caa5601100e364abccff4b4d evidence/clap-juce-extensions-commit.txt
           python - <<'EOF' | tee evidence/wrapper-hashes.txt
           import hashlib, pathlib
-          for p in ('build/_deps/clap_juce-src/src/wrapper/clap-juce-wrapper.cpp', 'cmake/patches/clap-juce-wrapper-audio-ports-config.patch', 'build/tsunami-clap-wrapper/clap-juce-wrapper.cpp'):
+          for p in ('build/_deps/clap_juce-src/src/wrapper/clap-juce-wrapper.cpp', 'cmake/clap-wrapper-audio-ports-config.json', 'build/tsunami-clap-wrapper/clap-juce-wrapper.cpp'):
               b = pathlib.Path(p).read_bytes().replace(b'\r\n', b'\n')
               print(hashlib.sha256(b).hexdigest(), p)
           EOF
