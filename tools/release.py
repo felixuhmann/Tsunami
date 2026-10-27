@@ -355,6 +355,19 @@ def verify_dependencies(root, deps_dir):
             head = _git(path, 'rev-parse', 'HEAD').strip()
             if head != dep.get('commit'):
                 fail(f'{dep["name"]}: fetched commit {head} != locked {dep.get("commit")}')
+            for entry in _git(path, 'ls-files', '-v', '-z').split('\0'):
+                if entry and (entry[0].islower() or entry[0] == 'S'):
+                    fail(f'{dep["name"]}: index flags can hide dependency source changes: {entry[2:]}')
+            if _git(path, 'status', '--porcelain', '--untracked-files=all', '--ignore-submodules=none').strip():
+                fail(f'{dep["name"]}: fetched dependency tree is dirty; matching HEAD does not bind source bytes')
+            nested = [other['source_subdir'][len(sub) + 1:]
+                      for other in lock['dependencies']
+                      if other.get('source_subdir', '').startswith(sub + '/')]
+            # Nested locked checkouts are verified independently; other ignored bytes would
+            # be archived without being represented by this dependency's pinned commit.
+            for ignored in _git(path, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z').split('\0'):
+                if ignored and not any(ignored == child or ignored.startswith(child + '/') for child in nested):
+                    fail(f'{dep["name"]}: ignored dependency source is not pinned: {ignored}')
             identity[dep['name']] = head
         elif dep['name'] == 'JUCE':
             cmake = (path / 'CMakeLists.txt').read_text(encoding='utf-8', errors='replace')
