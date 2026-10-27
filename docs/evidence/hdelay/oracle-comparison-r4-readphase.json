@@ -1,0 +1,52 @@
+{
+ "thresholds_path": "docs/evidence/hdelay/thresholds.json#round2_task4",
+ "cases": [
+  {
+   "label": "t4_down_bpm7of19",
+   "evidence": "20261027T162857-aac4bc080ba94dfa842d7f6b5032176c",
+   "delay_samples": 6000,
+   "dc": 0.8889587221492548,
+   "prediction": "sinc",
+   "kernel_err": 0.0020756640187850235,
+   "best_free_sinc_frac": 0.03,
+   "best_free_sinc_err": 0.0019930543247747585,
+   "threshold": 0.005,
+   "role": "test",
+   "verdict": "PASS"
+  },
+  {
+   "label": "t4_up_bpm15of19",
+   "evidence": "20261027T162912-e6272e096d53474692daec5b441bceb4",
+   "delay_samples": 31967,
+   "dc": 0.889345170930028,
+   "prediction": "delta",
+   "kernel_err": 0.46876199574546373,
+   "best_free_sinc_frac": 0.36,
+   "best_free_sinc_err": 0.018751002349379743,
+   "threshold": 0.005,
+   "role": "held-out",
+   "verdict": "FAIL"
+  },
+  {
+   "label": "ref_250ms_down",
+   "evidence": "20261027T161055-650277653f4c467aa24abd0470c72940",
+   "delay_samples": 12000,
+   "dc": 0.8889587221492548,
+   "prediction": "sinc",
+   "kernel_err": 0.0020756640187850235,
+   "best_free_sinc_frac": 0.03,
+   "best_free_sinc_err": 0.0019930543247747585
+  },
+  {
+   "label": "ref_500ms_up",
+   "evidence": "20261027T161352-b7e28129e2594759ace2a14f85b92deb",
+   "delay_samples": 24000,
+   "dc": 0.8888888955117243,
+   "prediction": "delta",
+   "kernel_err": 1.5940590403603802e-13,
+   "best_free_sinc_frac": 0.0,
+   "best_free_sinc_err": 1.5936692231771283e-13
+  }
+ ],
+ "pass": false
+}

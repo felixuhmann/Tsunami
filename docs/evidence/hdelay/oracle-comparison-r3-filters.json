@@ -1,0 +1,325 @@
+{
+ "cases": [
+  {
+   "label": "hp588",
+   "evidence": "20261027T161239-e40c66f68b6d4ea4ac501edba9e983da",
+   "role": "fit",
+   "max_abs_err_dB(genuine>-40dB)": 0.015,
+   "rows": {
+    "62.5": {
+     "genuine_dB": -38.919,
+     "core_dB": -38.934,
+     "err_dB": -0.015
+    },
+    "125": {
+     "genuine_dB": -26.821,
+     "core_dB": -26.836,
+     "err_dB": -0.015
+    },
+    "250": {
+     "genuine_dB": -14.65,
+     "core_dB": -14.665,
+     "err_dB": -0.015
+    },
+    "500": {
+     "genuine_dB": -3.627,
+     "core_dB": -3.638,
+     "err_dB": -0.011
+    },
+    "1000": {
+     "genuine_dB": 0.141,
+     "core_dB": 0.14,
+     "err_dB": -0.001
+    },
+    "2000": {
+     "genuine_dB": 0.133,
+     "core_dB": 0.133,
+     "err_dB": 0.0
+    },
+    "4000": {
+     "genuine_dB": 0.038,
+     "core_dB": 0.038,
+     "err_dB": 0.0
+    },
+    "8000": {
+     "genuine_dB": 0.008,
+     "core_dB": 0.008,
+     "err_dB": 0.0
+    },
+    "16000": {
+     "genuine_dB": 0.001,
+     "core_dB": 0.001,
+     "err_dB": 0.0
+    }
+   }
+  },
+  {
+   "label": "hp154",
+   "evidence": "20261027T161917-f3d9fa9195d2448c829dd3f74e0645ba",
+   "role": "fit",
+   "max_abs_err_dB(genuine>-40dB)": 0.039,
+   "rows": {
+    "62.5": {
+     "genuine_dB": -15.466,
+     "core_dB": -15.427,
+     "err_dB": 0.039
+    },
+    "125": {
+     "genuine_dB": -4.215,
+     "core_dB": -4.187,
+     "err_dB": 0.029
+    },
+    "250": {
+     "genuine_dB": 0.097,
+     "core_dB": 0.099,
+     "err_dB": 0.002
+    },
+    "500": {
+     "genuine_dB": 0.143,
+     "core_dB": 0.143,
+     "err_dB": -0.0
+    },
+    "1000": {
+     "genuine_dB": 0.043,
+     "core_dB": 0.043,
+     "err_dB": -0.0
+    },
+    "2000": {
+     "genuine_dB": 0.011,
+     "core_dB": 0.011,
+     "err_dB": -0.0
+    },
+    "4000": {
+     "genuine_dB": 0.003,
+     "core_dB": 0.003,
+     "err_dB": -0.0
+    },
+    "8000": {
+     "genuine_dB": 0.001,
+     "core_dB": 0.001,
+     "err_dB": -0.0
+    },
+    "16000": {
+     "genuine_dB": 0.0,
+     "core_dB": 0.0,
+     "err_dB": -0.0
+    }
+   }
+  },
+  {
+   "label": "hp2490",
+   "evidence": "20261027T161959-6b5dede051b44022a1432d6812d19103",
+   "role": "held-out",
+   "max_abs_err_dB(genuine>-40dB)": 0.187,
+   "rows": {
+    "62.5": {
+     "genuine_dB": -64.012,
+     "core_dB": -64.196,
+     "err_dB": -0.184
+    },
+    "125": {
+     "genuine_dB": -51.967,
+     "core_dB": -52.151,
+     "err_dB": -0.185
+    },
+    "250": {
+     "genuine_dB": -39.91,
+     "core_dB": -40.095,
+     "err_dB": -0.185
+    },
+    "500": {
+     "genuine_dB": -27.813,
+     "core_dB": -27.999,
+     "err_dB": -0.186
+    },
+    "1000": {
+     "genuine_dB": -15.625,
+     "core_dB": -15.812,
+     "err_dB": -0.187
+    },
+    "2000": {
+     "genuine_dB": -4.278,
+     "core_dB": -4.417,
+     "err_dB": -0.14
+    },
+    "4000": {
+     "genuine_dB": 0.11,
+     "core_dB": 0.099,
+     "err_dB": -0.011
+    },
+    "8000": {
+     "genuine_dB": 0.126,
+     "core_dB": 0.128,
+     "err_dB": 0.002
+    },
+    "16000": {
+     "genuine_dB": 0.017,
+     "core_dB": 0.017,
+     "err_dB": 0.0
+    }
+   },
+   "verdict": "PASS"
+  },
+  {
+   "label": "lp588",
+   "evidence": "20261027T161305-66da9cf3e2244716b3fcc343d4c94b85",
+   "role": "fit",
+   "max_abs_err_dB(genuine>-40dB)": 0.015,
+   "rows": {
+    "62.5": {
+     "genuine_dB": 0.043,
+     "core_dB": 0.043,
+     "err_dB": -0.0
+    },
+    "125": {
+     "genuine_dB": 0.169,
+     "core_dB": 0.169,
+     "err_dB": -0.001
+    },
+    "250": {
+     "genuine_dB": 0.598,
+     "core_dB": 0.595,
+     "err_dB": -0.003
+    },
+    "500": {
+     "genuine_dB": 0.564,
+     "core_dB": 0.559,
+     "err_dB": -0.005
+    },
+    "1000": {
+     "genuine_dB": -8.342,
+     "core_dB": -8.33,
+     "err_dB": 0.012
+    },
+    "2000": {
+     "genuine_dB": -21.056,
+     "core_dB": -21.041,
+     "err_dB": 0.015
+    },
+    "4000": {
+     "genuine_dB": -33.632,
+     "core_dB": -33.617,
+     "err_dB": 0.015
+    },
+    "8000": {
+     "genuine_dB": -47.029,
+     "core_dB": -47.014,
+     "err_dB": 0.015
+    },
+    "16000": {
+     "genuine_dB": -66.129,
+     "core_dB": -66.114,
+     "err_dB": 0.015
+    }
+   }
+  },
+  {
+   "label": "lp154",
+   "evidence": "20261027T161945-d951c5667d434249aa34c947cc8f0be1",
+   "role": "fit",
+   "max_abs_err_dB(genuine>-40dB)": 0.045,
+   "rows": {
+    "62.5": {
+     "genuine_dB": 0.553,
+     "core_dB": 0.554,
+     "err_dB": 0.001
+    },
+    "125": {
+     "genuine_dB": 0.724,
+     "core_dB": 0.71,
+     "err_dB": -0.014
+    },
+    "250": {
+     "genuine_dB": -7.479,
+     "core_dB": -7.524,
+     "err_dB": -0.045
+    },
+    "500": {
+     "genuine_dB": -20.123,
+     "core_dB": -20.164,
+     "err_dB": -0.041
+    },
+    "1000": {
+     "genuine_dB": -32.434,
+     "core_dB": -32.473,
+     "err_dB": -0.039
+    },
+    "2000": {
+     "genuine_dB": -44.617,
+     "core_dB": -44.656,
+     "err_dB": -0.039
+    },
+    "4000": {
+     "genuine_dB": -56.979,
+     "core_dB": -57.018,
+     "err_dB": -0.038
+    },
+    "8000": {
+     "genuine_dB": -70.319,
+     "core_dB": -70.358,
+     "err_dB": -0.038
+    },
+    "16000": {
+     "genuine_dB": -89.405,
+     "core_dB": -89.444,
+     "err_dB": -0.039
+    }
+   }
+  },
+  {
+   "label": "lp2490",
+   "evidence": "20261027T162013-5ece81aa08724556bc8343f4d00e0ad4",
+   "role": "held-out",
+   "max_abs_err_dB(genuine>-40dB)": 0.19,
+   "rows": {
+    "62.5": {
+     "genuine_dB": 0.002,
+     "core_dB": 0.002,
+     "err_dB": -0.0
+    },
+    "125": {
+     "genuine_dB": 0.01,
+     "core_dB": 0.01,
+     "err_dB": -0.0
+    },
+    "250": {
+     "genuine_dB": 0.039,
+     "core_dB": 0.038,
+     "err_dB": -0.001
+    },
+    "500": {
+     "genuine_dB": 0.152,
+     "core_dB": 0.148,
+     "err_dB": -0.004
+    },
+    "1000": {
+     "genuine_dB": 0.546,
+     "core_dB": 0.534,
+     "err_dB": -0.011
+    },
+    "2000": {
+     "genuine_dB": 0.738,
+     "core_dB": 0.758,
+     "err_dB": 0.021
+    },
+    "4000": {
+     "genuine_dB": -7.706,
+     "core_dB": -7.52,
+     "err_dB": 0.186
+    },
+    "8000": {
+     "genuine_dB": -21.683,
+     "core_dB": -21.493,
+     "err_dB": 0.19
+    },
+    "16000": {
+     "genuine_dB": -41.024,
+     "core_dB": -40.839,
+     "err_dB": 0.185
+    }
+   },
+   "verdict": "PASS"
+  }
+ ],
+ "pass": true
+}
