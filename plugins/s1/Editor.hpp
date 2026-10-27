@@ -99,7 +99,7 @@ public:
         addAndMakeVisible(display);
         setWantsKeyboardFocus(true);
         refreshPolarity();
-        setSize(780, 470);
+        setSize(1048, 665);
         startTimerHz(30);
     }
     ~Editor() override {
@@ -164,19 +164,19 @@ public:
         g.setColour(juce::Colours::white.withAlpha(.9f)); g.setFont(ui::font(24.f, true));
         g.drawText("Tsunami Stereo", getLocalBounds().removeFromBottom(stripHeight).reduced(24, 0), juce::Justification::centredRight);
     }
-    void resized() override {
+    void resized() override { // fixed 1048x665 body: panels 222 / centre / 222
         auto area=getLocalBounds(); auto strip=area.removeFromBottom(stripHeight);
-        leftPanel=area.removeFromLeft(170); rightPanel=area.removeFromRight(170); centrePanel=area;
-        gain.setBounds(leftPanel.getX()+20, 34, 60, 300); width.setBounds(leftPanel.getX()+92, 34, 60, 300);
-        inputMode.setBounds(leftPanel.getX()+25, 362, 120, 26);
-        invertLeft.setBounds(leftPanel.getX()+20, 394, 40, 24); swap.setBounds(leftPanel.getX()+62, 394, 46, 24);
-        invertRight.setBounds(leftPanel.getX()+110, 394, 40, 24);
-        display.setBounds(centrePanel.getX()+16, 14, centrePanel.getWidth()-32, 286);
-        asymmetry.setBounds(centrePanel.getX()+110, 318, centrePanel.getWidth()-130, 40);
-        rotation.setBounds(centrePanel.getX()+110, 368, centrePanel.getWidth()-130, 40);
-        meterArea=juce::Rectangle<int>(rightPanel.getX()+30, 50, 120, 300);
-        meterMode.setBounds(rightPanel.getX()+25, 394, 120, 24);
-        bypass.setBounds(strip.getX()+16, strip.getY()+10, 80, strip.getHeight()-20);
+        leftPanel=area.removeFromLeft(222); rightPanel=area.removeFromRight(222); centrePanel=area;
+        gain.setBounds(leftPanel.getX()+36, 40, 70, 440); width.setBounds(leftPanel.getX()+120, 40, 70, 440);
+        inputMode.setBounds(leftPanel.getX()+36, 516, 150, 30);
+        invertLeft.setBounds(leftPanel.getX()+36, 556, 44, 28); swap.setBounds(leftPanel.getX()+86, 556, 50, 28);
+        invertRight.setBounds(leftPanel.getX()+142, 556, 44, 28);
+        display.setBounds(244, 32, 560, 321);
+        asymmetry.setBounds(centrePanel.getX()+140, 400, centrePanel.getWidth()-160, 50);
+        rotation.setBounds(centrePanel.getX()+140, 480, centrePanel.getWidth()-160, 50);
+        meterArea=juce::Rectangle<int>(rightPanel.getX()+50, 60, 130, 420);
+        meterMode.setBounds(rightPanel.getX()+36, 556, 150, 28);
+        bypass.setBounds(strip.getX()+16, strip.getY()+14, 90, strip.getHeight()-28);
     }
 private:
     // Message-thread polling only: no parameter listener runs on host/audio threads.
@@ -217,7 +217,7 @@ private:
         addAndMakeVisible(b);
         buttonAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, id, b));
     }
-    static constexpr int stripHeight=46;
+    static constexpr int stripHeight=70;
     juce::AudioProcessorValueTreeState& state;
     MeterSource* meters;
     juce::Slider gain, width, asymmetry, rotation;

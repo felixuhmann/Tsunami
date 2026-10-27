@@ -83,6 +83,7 @@ behaviour that test covers.
    "L-R active"/"M-S active". There was no separate red for these.
 4. The meter bridge has `static_assert(std::atomic<float>::is_always_lock_free)`.
    The CAS max is lock-free, **not wait-free**.
+7. Body geometry: see `geometry-red/green` above.
 5. Candidate in-process renders: `s1-ui-logs/candidates/candidate-{default,width2,rotation20}.png`.
 6. CI (`s1.yml`) now builds `s1_editor_test` and `s1_editor_rt_test` for ctest. It
    also adds actual-module UI capture: on Linux, `tests/s1/linux_editor_capture.py`
@@ -91,8 +92,9 @@ behaviour that test covers.
    `evidence/ui`. The existing native DSP comparison and downloaded smoke are unchanged.
 
 ### Still pending
-- The 1048x665 body ratio (222/600/222 panels, display at x244 y32 w560 h321) is not
-  implemented. The canvas is still 780x470.
+- (Done in slice 7.) Fixed 1048x665 body with 222-wide side panels and the display at
+  244/32/560x321. `geometry-red.log`: FAIL code 18. `geometry-green.log`: PASS.
+  Fixed size only; there is no scaling.
 - Grooved silver fader caps, tick scales, held-peak/clip lamps and Alt-click reset
   are not implemented.
 - There is no test of state restore while the editor is open. Full state/UI

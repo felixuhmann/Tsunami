@@ -22,6 +22,9 @@ int main() {
     CHECK(editor, 1, "editor created");
     auto* s1 = dynamic_cast<tsunami::s1::Editor*>(editor.get());
     CHECK(s1, 2, "actual S1 editor (not fixture fallback)");
+    // Official body ratio from the independent reference spec: 1048x665, display x244 y32 w560 h321.
+    CHECK(editor->getWidth() == 1048 && editor->getHeight() == 665, 18, "1048x665 body");
+    CHECK(editor->findChildWithID("vector_display")->getBounds() == juce::Rectangle<int>(244, 32, 560, 321), 19, "display geometry");
     for (const char* id : {"gain", "width", "rotation", "asymmetry"})
         CHECK(child<juce::Slider>(*editor, id), 3, std::string("slider ") + id);
     for (const char* id : {"swap", "invert_left", "invert_right", "input_mode", "bypass", "meter_mode"})
