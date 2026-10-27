@@ -1,0 +1,295 @@
+{
+  "thresholds": {
+    "schema": 1,
+    "declared_before_comparison": "2026-10-27T15:37Z",
+    "target": "deesser",
+    "metric_definitions": {
+      "max_abs_error": "max |candidate - reference| over all samples and channels",
+      "residual_db": "10*log10(sum(err^2)/sum(ref^2))"
+    },
+    "pass_criteria": {
+      "max_abs_error": 0.001,
+      "residual_db": -60.0
+    },
+    "notes": "Full-plugin fidelity claim per case only if BOTH criteria pass. Kernel unit tests (tests/deesser/test_processor.cpp) are separate and make no fidelity claim. Held-out inputs are not used for tuning."
+  },
+  "cases": [
+    {
+      "evidence": "20261027T100001-58e5330e8be64ef68ab60887630c471a",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/tsunami-reference/analysis/deesser/probes/mono.wav",
+      "oracle_params": {
+        "monitor": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "max_abs_error": 5.960464477539063e-08,
+      "residual_db": -136.18098769560072,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100026-3ecbd56a10214647a05b735eee64c9f5",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/48000/tone_plus_noise-48000.wav",
+      "oracle_params": {},
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.9802322387695312e-08,
+      "residual_db": -156.35601882100536,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100210-ac3ace6ba8544d3f90c6692dd2e7ae4b",
+      "set": "calibrated",
+      "component": "DeEsser Stereo",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/48000/stereo_independent-48000.wav",
+      "oracle_params": {},
+      "physical": [
+        5506.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 1.4901161193847656e-08,
+      "residual_db": -155.29289913207197,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100242-0f32fc9b5fd943b1aca48754b2f1383e",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/tsunami-reference/analysis/deesser/probes/mono.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -30
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        5506.0,
+        -30.0,
+        1.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 9.685754776000977e-08,
+      "residual_db": -133.62390600438036,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T100404-2f49368975464e519312005c3dea3fac",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/tsunami-reference/analysis/deesser/probes/mono.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -30
+        },
+        "audio": {
+          "raw": 0
+        },
+        "sidechain": {
+          "raw": 0
+        }
+      },
+      "physical": [
+        5506.0,
+        -30.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.9802322387695312e-08,
+      "residual_db": -147.42385791880184,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153818-87b97f7b73844bd19f47a3ecf73d8eae",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/44100/chirp-44100.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -45
+        },
+        "freq": {
+          "raw": 0.75
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        9513.65692002177,
+        -45.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 4.798173904418945e-06,
+      "residual_db": -116.47567972835908,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153832-819d16a45d5843aa98de897ef307273d",
+      "set": "calibrated",
+      "component": "DeEsser Stereo",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/48000/stereo_independent-48000.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -40
+        }
+      },
+      "physical": [
+        5506.0,
+        -40.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 4.9602240324020386e-06,
+      "residual_db": -126.41224060113919,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153901-50ced32124314156959c3e358aa003ba",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/96000/white_noise-96000.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -60
+        },
+        "freq": {
+          "raw": 0.2
+        }
+      },
+      "physical": [
+        3031.4331330207965,
+        -60.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 3.3527612686157227e-08,
+      "residual_db": -130.4780936360678,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153915-67afda2d7ddc48e7a444c725288f08bf",
+      "set": "calibrated",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/experiments/inputs/48000/level_ladder-48000.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -20
+        },
+        "freq": {
+          "raw": 0.9
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "monitor": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        12996.03834169977,
+        -20.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "max_abs_error": 7.000835466897115e-09,
+      "residual_db": -85.42730982220283,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153932-87edae3aff1e46b688b9addaf054c18e",
+      "set": "heldout",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/heldout-speech/inputs/6930-75918-0006-snr10-48000.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -35
+        },
+        "freq": {
+          "raw": 0.6
+        }
+      },
+      "physical": [
+        6964.404506368993,
+        -35.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 2.130866050720215e-05,
+      "residual_db": -106.25380398623437,
+      "pass": true
+    },
+    {
+      "evidence": "20261027T153947-78c37d21a13648ef8df0cb5a8d746533",
+      "set": "heldout",
+      "component": "DeEsser Mono",
+      "input": "/home/felix/work/ns1-research/analysis/heldout-speech/inputs/6930-75918-0000-snr10-48000.wav",
+      "oracle_params": {
+        "threshold": {
+          "value": -50
+        },
+        "freq": {
+          "raw": 0.4
+        },
+        "sidechain": {
+          "raw": 0
+        },
+        "audio": {
+          "raw": 1
+        }
+      },
+      "physical": [
+        4594.79341998814,
+        -50.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "max_abs_error": 7.860362529754639e-06,
+      "residual_db": -103.72471713321603,
+      "pass": true
+    }
+  ],
+  "all_pass": true
+}

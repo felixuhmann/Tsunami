@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "declared_before_comparison": "2026-10-27T15:37Z",
+  "target": "deesser",
+  "metric_definitions": {
+    "max_abs_error": "max |candidate - reference| over all samples and channels",
+    "residual_db": "10*log10(sum(err^2)/sum(ref^2))"
+  },
+  "pass_criteria": {"max_abs_error": 1e-3, "residual_db": -60.0},
+  "notes": "Full-plugin fidelity claim per case only if BOTH criteria pass. Kernel unit tests (tests/deesser/test_processor.cpp) are separate and make no fidelity claim. Held-out inputs are not used for tuning."
+}
