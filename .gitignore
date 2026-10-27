@@ -1,0 +1,17 @@
+build*/
+.cache/
+.venv/
+__pycache__/
+*.pyc
+local/
+references/
+vendor-reference/
+*.dll
+*.so
+*.exe
+*.wtar*
+*.npy
+*.wav
+*.flac
+.env*
+!*.env.example

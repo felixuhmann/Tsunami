@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "goal": "Independent functionally matched native audio plugins; no vendor code or assets in shipped products",
+  "platforms": [
+    "windows-x64",
+    "linux-x64"
+  ],
+  "formats": [
+    "VST3",
+    "CLAP"
+  ],
+  "targets": [
+    {
+      "requested_name": "CLA-2A",
+      "id": "cla2a",
+      "reference_bundle": "CLA-2A.bundle",
+      "product_name": "Tsunami Opto",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "DeEsser",
+      "id": "deesser",
+      "reference_bundle": "DeEsser.bundle",
+      "product_name": "Tsunami De-Esser",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "H-Comp",
+      "id": "hcomp",
+      "reference_bundle": "H-Comp.bundle",
+      "product_name": "Tsunami Hybrid Compressor",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "H-Delay",
+      "id": "hdelay",
+      "reference_bundle": "H-Delay.bundle",
+      "product_name": "Tsunami Echo",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "Renaissance-Compressor",
+      "id": "rcomp",
+      "reference_bundle": "RComp.bundle",
+      "product_name": "Tsunami Compressor",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "Renaissance-Reverb",
+      "id": "rverb",
+      "reference_bundle": "RVerb.bundle",
+      "product_name": "Tsunami Reverb",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "Renaissance-Vox",
+      "id": "rvox",
+      "reference_bundle": "RVox.bundle",
+      "product_name": "Tsunami Voice",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "S1-Imager",
+      "id": "s1",
+      "reference_bundle": "S1.bundle",
+      "product_name": "Tsunami Stereo",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "SSL-E-Channel",
+      "id": "sslchannel",
+      "reference_bundle": "SSL E-Channel.bundle",
+      "product_name": "Tsunami Channel",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "WavesTune-RealTime",
+      "id": "tunert",
+      "reference_bundle": "Waves Tune Real-Time.bundle",
+      "product_name": "Tsunami Pitch",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    },
+    {
+      "requested_name": "AphexVintage",
+      "id": "aphex",
+      "reference_bundle": "Aphex AX.bundle",
+      "product_name": "Tsunami Exciter",
+      "status": "pending",
+      "pr": null,
+      "verified": false
+    }
+  ]
+}
