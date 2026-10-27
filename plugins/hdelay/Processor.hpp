@@ -15,7 +15,7 @@ namespace tsunami::hdelay {
 //    calibration data, not vendor code or tables.
 //  * Loop gain/extra loop sample measured from a genuine feedback-50 render.
 // Sync law: BPM/Host note x 60/tempo, Host->ms copy (see effectiveDelayMs).
-// Not implemented: delay-time glide (genuine: ~0.5 s exponential), Analog, LoFi, modulation,
+// Delay glide: exponential smoother (tau 0.5 s, provisional value). Not implemented: Analog, LoFi, modulation,
 // HiPass/LoPass, phase. Fractional delays are rounded to whole samples.
 class Processor {
 public:
@@ -32,10 +32,17 @@ public:
         4.483243451e-03f, -3.374843160e-03f, 2.558876760e-03f, -1.935988199e-03f,
         1.451005461e-03f, -1.070353086e-03f, 7.718644338e-04f, -5.397601053e-04f,
         3.620196949e-04f, -2.289510885e-04f, 1.324012992e-04f }};
-    // Feedback re-injection gain relative to wet tap output, from genuine fb=50 render:
-    // repeat2/repeat1 DC ratio 0.473202 = 0.5 * 0.946403.
-    static constexpr double kLoopDc = 0.946403;
-    static double loopDcGain() noexcept { return kLoopDc; }
+    // Write-path saturation (round-2 task3). HBDelayProcMono adds a soft saturator before the line
+    // write; genuine 500 ms renders show echoes of exactly 1/9 (impulse 0.125) and 1/37 (fb 25:
+    // 0.25 x 1/9 -> 1/37), i.e. line = s(x + fb/100 x v) with s(u) = u/(1+|u|). This also explains
+    // the old "tap DC 0.88892" (= s(0.125)/0.125) and the rising repeat ratios at fb 50/90/150.
+    // It bounds the loop for feedback up to 200 (genuine >100 limiter itself not recovered).
+    // Curve recovered behaviourally from exact rational outputs; Analog Off only.
+    static float saturate(float u) noexcept { return u / (1.f + std::fabs(u)); }
+    // Delay-time glide: one-pole exponential smoother on the delay time (form: H-Delay.dll
+    // FUN_1800348c0, coef = e^(-1/(fs*T))). T = 500 ms fitted to the genuine BPM90 glide render
+    // (PROVISIONAL value; the genuine T is a table entry that was not recovered).
+    static constexpr double kGlideSec = 0.5;
 
     void prepare(double sampleRate, unsigned channels, unsigned) {
         rate_ = std::isfinite(sampleRate) && sampleRate > 0. ? sampleRate : 48000.;
@@ -43,9 +50,11 @@ public:
         size_ = 1; while (size_ < unsigned(rate_ * 3.5) + 2 * kTaps + 4) size_ <<= 1;
         lines_.assign(channels_, std::vector<float>(size_, 0.f));
         state_.assign(channels_, 0.f);
-        reset();
+        clear();
+        glide_ = targetSamples();
     }
-    void reset() noexcept {
+    void reset() noexcept { clear(); glide_ = targetSamples(); }
+    void clear() noexcept {
         for (auto& l : lines_) std::fill(l.begin(), l.end(), 0.f);
         std::fill(state_.begin(), state_.end(), 0.f);
         pos_ = 0;
@@ -63,23 +72,32 @@ public:
     void process(const float* const* in, float* const* out, unsigned frames) noexcept {
         if (lines_.empty()) return;
         const unsigned mask = size_ - 1;
-        const unsigned delay = std::max<unsigned>(kHalf + 1, unsigned(std::lround(effectiveDelayMs() * 1e-3 * rate_)));
-        const float fb = p_[Feedback] * .01f * float(kLoopDc / kDc());
+        const double target = targetSamples(), a = std::exp(-1. / (rate_ * kGlideSec));
+        const float fb = p_[Feedback] * .01f;
         const float wet = p_[Mix] * .01f, dry = 1.f - wet; // linear law: UNVERIFIED
         const float g = std::pow(10.f, p_[Output] / 20.f);
         const bool bypass = p_[Bypass] >= .5f;
+        double d0 = glide_;
         for (unsigned c = 0; c < channels_; ++c) {
-            auto& l = lines_[c]; float s = state_[c]; unsigned w = pos_;
+            auto& l = lines_[c]; float s = state_[c]; unsigned w = pos_; double d = d0;
             for (unsigned n = 0; n < frames; ++n, w = (w + 1) & mask) {
                 const float x = in[c][n];
-                l[w] = x + s;
-                float v = 0.f;
-                const unsigned centre = (w - delay) & mask;
-                for (unsigned k = 0; k < kTaps; ++k) v += kTap[k] * l[(centre + kHalf - k) & mask];
+                l[w] = saturate(x + s);
+                d = target + (d - target) * a;
+                if (std::fabs(d - target) < 1e-6) d = target;
+                const double ds = std::max(double(kHalf + 1), d);
+                const unsigned di = unsigned(ds); const float fr = float(ds - di);
+                // Kernel at integer delay; fractional part (only while gliding) by linear
+                // interpolation between neighbouring integer reads (approximation).
+                float v0 = 0.f, v1 = 0.f;
+                const unsigned c0 = (w - di) & mask, c1 = (c0 - 1) & mask;
+                for (unsigned k = 0; k < kTaps; ++k) v0 += kTap[k] * l[(c0 + kHalf - k) & mask];
+                if (fr != 0.f) for (unsigned k = 0; k < kTaps; ++k) v1 += kTap[k] * l[(c1 + kHalf - k) & mask];
+                const float v = (v0 + fr * (v1 - v0)) * kNorm;
                 s = fb * v;
                 out[c][n] = bypass ? x : g * (dry * x + wet * v);
             }
-            state_[c] = s;
+            state_[c] = s; glide_ = d;
         }
         pos_ = (pos_ + frames) & mask;
     }
@@ -100,7 +118,12 @@ public:
     unsigned latencySamples() const noexcept { return 0; }
     double tailSeconds() const noexcept { return p_[Feedback] > 0.f ? 30. : effectiveDelayMs() * 1e-3 + .01; }
 private:
+    double targetSamples() const noexcept { return std::round(effectiveDelayMs() * 1e-3 * rate_); }
+    double glide_ = 18000.;
     static constexpr double kDc() { double d = 0; for (float t : kTap) d += t; return d; }
+    // Read kernel normalised to unity DC (the 8/9 is the saturator). PROVISIONAL: the side lobes
+    // were observed at 375 and 250 ms (fractional-read artifact?) but NOT at 500 ms (clean tap).
+    static constexpr float kNorm = float(1. / 0.88892);
     static constexpr std::array<float, Count> kLo{{1, 0, 0, 0, 0, -18, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
     static constexpr std::array<float, Count> kHi{{3500, 1, 200, 2, 100, 18, 4, 1, 1, 100, 1, 1, 1, 1, 1}};
     // Genuine fresh-instance defaults (Mono component readback).

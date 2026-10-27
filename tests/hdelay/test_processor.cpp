@@ -29,11 +29,17 @@ int main() {
         check(y[17999] < 0 && y[18001] > 0, "band-limited interpolator side lobes");
         std::cout << "PASS single tap\n";
         p.setParameter(Processor::Feedback, 50); p.reset();
-        y = impulseResponse(p, 48000);
+        y = impulseResponse(p, 60000);
         double r1 = 0, r2 = 0; for (unsigned i = 17985; i <= 18015; ++i) r1 += y[i];
         for (unsigned i = 35970; i <= 36031; ++i) r2 += y[i];
         check(std::fabs(r1) > 0 && std::fabs(r2) > 0, "second repeat present with feedback");
-        check(std::fabs(r2 / r1 - 0.5 * Processor::loopDcGain()) < 1e-3, "repeat ratio = feedback * loop DC gain");
+        // Genuine fb50 @250 ms (fit render 20261027T161809): repeat2/repeat1 = 0.47324, repeat ratios
+        // rise towards 0.5 as the level falls (level-dependent loop saturation).
+        check(std::fabs(r2 / r1 - 0.47324) < 1e-3, "fb50 repeat ratio (level-dependent loop)");
+        {
+            double r3 = 0; for (unsigned i = 53955; i <= 54046; ++i) r3 += y[i];
+            check(r3 / r2 > r2 / r1 + 0.01 && r3 / r2 < 0.5, "repeat ratio rises toward fb/100 as level falls");
+        }
         std::cout << "PASS feedback repeat\n";
         p.setParameter(Processor::Mix, 0); p.setParameter(Processor::Feedback, 0); p.reset();
         y = impulseResponse(p, 1024);
@@ -65,5 +71,27 @@ int main() {
         r.setParameter(Processor::DelayMs, 100); r.reset(); y = impulseResponse(r, 24000);
         check(peakOf(y) == 4800, "ms mode honours DelayMs afterwards");
         std::cout << "PASS sync/delay-time law\n";
+        // Delay-time glide (genuine BPM90 1/8D render 20261027T154836: fresh 375 ms -> 500 ms,
+        // impulse at 0, first echo peak at 21555; exponential smoother, tau 0.5 s fitted).
+        Processor gl; gl.prepare(48000, 1, 512);
+        gl.setParameter(Processor::Mix, 100); gl.setParameter(Processor::Feedback, 0);
+        gl.setParameter(Processor::Sync, 2); gl.setParameter(Processor::DelayMs, 500); // no reset(): glide from fresh 375 ms
+        y = impulseResponse(gl, 30000);
+        std::cerr << "glide peak " << peakOf(y) << "\n";
+        check(std::abs(int(peakOf(y)) - 21555) <= 2, "glide 375->500 ms: first echo at 21555 +-2");
+        gl.reset(); y = impulseResponse(gl, 30000);
+        check(peakOf(y) == 24000, "reset() settles the glide at the target");
+        std::cout << "PASS delay glide\n";
+        // Review finding: fb > ~106 must not explode. Genuine write path saturates (x/(1+|x|)),
+        // which bounds the line; 500 ms genuine echoes are exactly 1/9 and 1/37 (fb 25).
+        Processor fx; fx.prepare(48000, 1, 512);
+        fx.setParameter(Processor::Mix, 100); fx.setParameter(Processor::Feedback, 200);
+        fx.setParameter(Processor::DelayMs, 10); fx.reset();
+        y = impulseResponse(fx, 96000);
+        float mx = 0; for (float v : y) { check(std::isfinite(v), "fb200 finite"); mx = std::max(mx, std::fabs(v)); }
+        check(mx < 1.2f, "fb200 output bounded by write-path saturation");
+        check(std::fabs(Processor::saturate(.125f) - 1.f / 9.f) < 1e-7f && std::fabs(Processor::saturate(1.f / 36.f) - 1.f / 37.f) < 1e-7f,
+              "write saturator reproduces genuine 1/9, 1/37 echoes");
+        std::cout << "PASS feedback bounded/saturator\n";
     } catch (const std::exception& e) { std::cerr << "FAIL " << e.what() << '\n'; return 1; }
 }
