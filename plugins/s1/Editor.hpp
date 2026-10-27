@@ -346,7 +346,7 @@ public:
         auto area=getLocalBounds(); auto strip=area.removeFromBottom(stripHeight);
         leftPanel=area.removeFromLeft(222); rightPanel=area.removeFromRight(222); centrePanel=area;
         gain.setBounds(41, 60, 62, 379); width.setBounds(129, 60, 62, 379);
-        inputMode.setBounds(leftPanel.getX()+36, 497, 150, 30); // original 17.1: shared selector row, centre y512
+        inputMode.setBounds(leftPanel.getX()+36, 497, 150, 30); // original 17.1 static capture: shared selector row, centre y512
         invertLeft.setBounds(leftPanel.getX()+36, 556, 44, 28); swap.setBounds(leftPanel.getX()+86, 556, 50, 28);
         invertRight.setBounds(leftPanel.getX()+142, 556, 44, 28);
         display.setBounds(244, 32, 560, 321);

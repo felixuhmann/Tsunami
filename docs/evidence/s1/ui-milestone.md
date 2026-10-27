@@ -250,3 +250,27 @@ to the 1048x665 logical body, with an 18 px toolbar above).
     no separate red was witnessed for it.
   - RT re-run `rt-green-original-layout.log`: 0 allocations.
 - In-process snapshot (not hosted): `s1-ui-logs/candidates/candidate-default.png`.
+
+## Capture repair and selector-row TDD correction slice 8
+- **Native regression witness.** Run 40519612875 (`8de5a72`): the Linux actual target passed. On Windows, build,
+  tests, CLAP and DSP passed, but `windows_editor_capture.py` failed with `AssertionError('blank window capture')`.
+  The cause was `ImageGrab.grab(window=HWND)` (PrintWindow) on the JUCE peer. The downloaded-smoke jobs were skipped.
+  The best natively verified head remains `76ca0ce` (run 40517143898).
+- **Repair (distinct path, native proof pending).** The helper now:
+  - enumerates display modes (`EnumDisplaySettingsW`, `DEVMODEW` sizeof asserted 220 per wingdi.h);
+  - chooses the smallest supported mode of at least 1280x800 at the current depth (pure policy
+    `choose_display_mode`; the portable tests use synthetic mode records);
+  - runs `ChangeDisplaySettingsExW` with `CDS_TEST`, then a non-persistent apply (flags 0);
+  - reads back both the mode and the `ImageGrab` desktop size;
+  - grabs exactly the editor's client rectangle (`ClientToScreen`) from the screen, requiring 1048x665 and nonblank;
+  - restores the registry mode in `finally`.
+  It fails closed: no resize, stitch or crop. `capture-diagnostics.json` (modes, test/apply codes, readback,
+  HWND/geometry, errors) and any `rejected-editor-capture.png` are always written. Window/PID/module binding is
+  unchanged. Whether the Windows runner exposes a larger mode is **unproven until native CI**.
+  `windows-mode-policy-green.log`: 9 portable tests PASS (synthetic records, written with the code, no red).
+- **Selector-row TDD correction.** In `27f581d` the selector-row alignment was never witnessed red. Here the
+  alignment was removed locally and the geometry test moved to run first.
+  - `selector-row-red.log`: runtime FAIL 58 on the old row (531/571).
+  - The alignment was then re-applied to the shared row centred at y512, from the genuine original static capture.
+  - `selector-row-green.log`: PASS. `rt-green-capture-repair.log`: 0 allocations.
+  - Net source change versus `27f581d`: only the test order. The Width-only taper and the physical DSP are unchanged.

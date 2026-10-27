@@ -35,6 +35,13 @@ int main() {
     CHECK(editor, 1, "editor created");
     auto* s1 = dynamic_cast<tsunami::s1::Editor*>(editor.get());
     CHECK(s1, 2, "actual S1 editor (not fixture fallback)");
+    // Original 17.1 static capture: Input Mode and Meter Mode selectors share one row
+    // (physical y~274 in the 2x-scaled frame => logical body y~512); titles align too.
+    { // runs first so it is witnessed independently
+        auto* in = editor->findChildWithID("input_mode"); auto* meter = editor->findChildWithID("meter_mode");
+        CHECK(std::abs(in->getBounds().getCentreY() - 512) <= 2 && in->getBounds().getCentreY() == meter->getBounds().getCentreY(), 58, "selectors share the original row");
+        CHECK(child<juce::Button>(*editor, "swap")->getBounds().getCentreY() == 570, 59, "polarity/swap row unchanged");
+    }
     // Official body ratio from the independent reference spec: 1048x665, display x244 y32 w560 h321.
     CHECK(editor->getWidth() == 1048 && editor->getHeight() == 665, 18, "1048x665 body");
     CHECK(editor->findChildWithID("vector_display")->getBounds() == juce::Rectangle<int>(244, 32, 560, 321), 19, "display geometry");
@@ -296,13 +303,6 @@ int main() {
         }
         CHECK(gestures.begins[3] == 3 && gestures.begins[0] == 1, 57, "one gesture per drag, no nesting on repeated press");
         for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
-    }
-    // Original 17.1 static capture: Input Mode and Meter Mode selectors share one row
-    // (physical y~274 in the 2x-scaled frame => logical body y~512); titles align too.
-    {
-        auto* in = editor->findChildWithID("input_mode"); auto* meter = editor->findChildWithID("meter_mode");
-        CHECK(std::abs(in->getBounds().getCentreY() - 512) <= 2 && in->getBounds().getCentreY() == meter->getBounds().getCentreY(), 58, "selectors share the original row");
-        CHECK(child<juce::Button>(*editor, "swap")->getBounds().getCentreY() == 570, 59, "polarity/swap row unchanged");
     }
     // Width: anchor-calibrated replacement mapping (0 bottom, 1.00 mid-travel, 3 top) on the slider only;
     // parameter stays physical/continuous. Intermediate curve is NOT the recovered original law.
