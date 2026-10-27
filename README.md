@@ -1,5 +1,9 @@
 # Tsunami
 
+SPDX-License-Identifier: GPL-3.0-or-later
+
+Tsunami's original source is licensed under GNU GPL version 3 or, at your option, any later version. See [LICENSE](LICENSE) and [licensing notes](docs/LICENSING.md). Third-party components retain their own compatible licenses and notices.
+
 Independent audio-plugin reimplementations, developed using direct REA-guided analysis and measured comparison with the originals. No Waves code, binaries, branding assets, or license bypasses belong in shipped artifacts.
 
 **Current status: project bootstrap; no target plugin is verified or release-ready.**

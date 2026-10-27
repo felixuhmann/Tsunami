@@ -1,5 +1,7 @@
 # Tsunami campaign rules
 
+**Project license: GPL-3.0-or-later, explicitly required by the user.** New original source must use the corresponding SPDX identifier. Verify dependency compatibility and retain third-party notices; do not silently replace GPL with AGPL or a commercial license. Release artifacts must include license/notices and reproducible corresponding-source access.
+
 User goal: complete the exact 12 targets in targets.json, including NS1, one PR per target, original UI/screenshots, reference evidence, native Windows/Linux support and verified release mechanisms. Direct REA-guided independent rewrite is authorized; no strict clean-room barrier. Do not copy/ship vendor source, pseudocode snippets, binaries or assets; do not bypass licensing.
 
 Read docs/ACCEPTANCE.md and docs/PLUGIN_CONTRACT.md before coding. Keep one worker per plugin/worktree. Use TDD and actual source-grounded DSP, not generic approximations passed off as equivalents. No completion without native platform evidence and measured comparisons. Do not merge PRs automatically.
