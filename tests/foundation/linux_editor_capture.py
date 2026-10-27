@@ -45,7 +45,11 @@ def main():
     assert version == 'pluginval - 1.0.4', version
     args.output.mkdir(parents=True, exist_ok=True)
     log_path = args.output / 'pluginval-editor.log'
-    command = [str(host), '--validate-in-process', '--strictness-level', '5', '--random-seed', '17', '--validate', str(plugin)]
+    # pluginval 1.0.4 uses 100 x 10ms Editor Automation at level 5,
+    # but 1000 x 10ms above level 5. A real X11 discovery/capture may
+    # outlive the one-second editor; level 6 keeps the same mandatory
+    # tests and adds coverage while giving the attached editor 10 seconds.
+    command = [str(host), '--validate-in-process', '--strictness-level', '6', '--random-seed', '17', '--validate', str(plugin)]
     capture = None
     with log_path.open('w') as log_file:
         process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT)
