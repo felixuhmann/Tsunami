@@ -8,9 +8,9 @@
 // true only at 0, 50 and 100 %, the controls covered by calibrated captures;
 // the law between them is evidenced by derivation renders and the predeclared
 // 25/75 % gate (docs/evidence/ns1).
-// Stereo/linked processing is not implemented and
-// prepare() refuses channels != 1 (the reference stereo kernel shares its
-// detector between channels, so two independent monos would be wrong).
+// Two channels run the linked (NS1 Stereo) kernel: per-channel front and audio
+// sections with one detector driven by the mean of both front outputs.
+// prepare() refuses other channel counts.
 // prepare() also throws std::invalid_argument for sample rates outside
 // 40-100 kHz, the only validated design range.
 #include "design.hpp"
@@ -25,7 +25,8 @@ class Processor {
 public:
     enum Index : unsigned { Amount = 0, Bypass = 1, ParameterCount = 2 };
     void prepare(double sampleRate, unsigned channels, unsigned /*maxBlockSize*/) {
-        if (channels != 1) throw std::invalid_argument("NS1 stereo/linked processing not implemented");
+        if (channels != 1 && channels != 2) throw std::invalid_argument("NS1 supports mono or linked stereo only");
+        channels_ = channels;
         designMono(sampleRate, controlParameters(0.f)); // validates the rate (throws outside 40-100 kHz)
         rate_ = sampleRate;
         mono_ = std::make_unique<Mono>(designMono(rate_, controlParameters(amount_ / 100.f)), initialMonoState());
@@ -45,8 +46,16 @@ public:
     bool controlEstablished() const noexcept { return amount_ == 0.f || amount_ == 50.f || amount_ == 100.f; }
     void process(const float* const* inputs, float* const* outputs, unsigned frames) noexcept {
         if (!mono_) return;
-        if (bypass_) { if (outputs[0] != inputs[0]) std::memmove(outputs[0], inputs[0], frames * sizeof(float)); return; }
-        mono_->process(inputs[0], outputs[0], frames);
+        if (bypass_) {
+            for (unsigned ch = 0; ch < channels_; ++ch)
+                if (outputs[ch] != inputs[ch]) std::memmove(outputs[ch], inputs[ch], frames * sizeof(float));
+            return;
+        }
+        if (channels_ == 1) { mono_->process(inputs[0], outputs[0], frames); return; }
+        for (unsigned i = 0; i < frames; ++i) {
+            const float l = inputs[0][i], r = inputs[1][i];
+            mono_->processLinked(l, r, outputs[0][i], outputs[1][i]);
+        }
     }
     unsigned latencySamples() const noexcept { return 0; }
     double tailSeconds() const noexcept { return 0.5; }
@@ -55,6 +64,7 @@ private:
         if (mono_) mono_->configure(designMono(rate_, controlParameters(amount_ / 100.f)));
     }
     double rate_ = 48000;
+    unsigned channels_ = 1;
     std::unique_ptr<Mono> mono_;
     float amount_ = 0.f;
     bool bypass_ = false;

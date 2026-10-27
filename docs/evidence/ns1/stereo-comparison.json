@@ -1,0 +1,139 @@
+{
+ "thresholds": "docs/evidence/ns1/thresholds.json stereo.pass_if (nrmse<=1e-3, max<=1e-4, per channel; declared before comparison)",
+ "harness": "Processor(48000, 2 ch, block 512) via a local driver; hypothesis: shared detector on mean of channel front outputs",
+ "rows": {
+  "oracle stereo_independent@0.5 (/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T161251-f3622ad01b6c410092ddfe905768baf2)": [
+   {
+    "nrmse": 3.345557996778759e-05,
+    "max_abs_error": 2.826005220413208e-05,
+    "pass": true
+   },
+   {
+    "nrmse": 3.261475581048923e-05,
+    "max_abs_error": 1.4163553714752197e-05,
+    "pass": true
+   }
+  ],
+  "capture stereo_independent-c0": [
+   {
+    "nrmse": 1.7741044656648934e-07,
+    "max_abs_error": 1.9371509552001953e-07,
+    "pass": true
+   },
+   {
+    "nrmse": 1.774495147517289e-07,
+    "max_abs_error": 8.940696716308594e-08,
+    "pass": true
+   }
+  ],
+  "capture stereo_independent-c0.5": [
+   {
+    "nrmse": 2.7585626608607495e-07,
+    "max_abs_error": 3.129243850708008e-07,
+    "pass": true
+   },
+   {
+    "nrmse": 3.02500948932155e-07,
+    "max_abs_error": 1.2665987014770508e-07,
+    "pass": true
+   }
+  ],
+  "capture stereo_independent-c1": [
+   {
+    "nrmse": 7.988456770947148e-06,
+    "max_abs_error": 1.7136335372924805e-06,
+    "pass": true
+   },
+   {
+    "nrmse": 9.398816400474827e-06,
+    "max_abs_error": 3.8743019104003906e-07,
+    "pass": true
+   }
+  ],
+  "capture stereo_left_only-c0": [
+   {
+    "nrmse": 7.593376469048028e-07,
+    "max_abs_error": 1.1771917343139648e-06,
+    "pass": true
+   },
+   {
+    "nrmse": null,
+    "max_abs_error": 0.0,
+    "pass": true
+   }
+  ],
+  "capture stereo_left_only-c0.5": [
+   {
+    "nrmse": 6.426195170020694e-06,
+    "max_abs_error": 3.5194680094718933e-06,
+    "pass": true
+   },
+   {
+    "nrmse": null,
+    "max_abs_error": 0.0,
+    "pass": true
+   }
+  ],
+  "capture stereo_left_only-c1": [
+   {
+    "nrmse": 7.28383690275254e-06,
+    "max_abs_error": 1.8775463104248047e-06,
+    "pass": true
+   },
+   {
+    "nrmse": null,
+    "max_abs_error": 0.0,
+    "pass": true
+   }
+  ],
+  "capture link-left-alone": [
+   {
+    "nrmse": 6.605209377226142e-06,
+    "max_abs_error": 3.7103891372680664e-06,
+    "pass": true
+   },
+   {
+    "nrmse": null,
+    "max_abs_error": 0.0,
+    "pass": true
+   }
+  ],
+  "capture link-right-alone": [
+   {
+    "nrmse": null,
+    "max_abs_error": 0.0,
+    "pass": true
+   },
+   {
+    "nrmse": 3.9206112994064766e-07,
+    "max_abs_error": 1.4901161193847656e-07,
+    "pass": true
+   }
+  ],
+  "capture link-both-identical": [
+   {
+    "nrmse": 5.597517511473998e-06,
+    "max_abs_error": 3.084540367126465e-06,
+    "pass": true
+   },
+   {
+    "nrmse": 5.597517511473998e-06,
+    "max_abs_error": 3.084540367126465e-06,
+    "pass": true
+   }
+  ],
+  "capture link-swap": [
+   {
+    "nrmse": 3.02500948932155e-07,
+    "max_abs_error": 1.2665987014770508e-07,
+    "pass": true
+   },
+   {
+    "nrmse": 2.7585626608607495e-07,
+    "max_abs_error": 3.129243850708008e-07,
+    "pass": true
+   }
+  ]
+ },
+ "all_pass": true
+}

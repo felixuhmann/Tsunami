@@ -21,9 +21,22 @@ int main(){
  p.setParameter(Processor::Amount,250.f);CHECK(p.getParameter(Processor::Amount)==100.f);
  p.setParameter(Processor::Amount,-3.f);CHECK(p.getParameter(Processor::Amount)==0.f);
  p.setParameter(Processor::Amount,std::nanf(""));CHECK(p.getParameter(Processor::Amount)==0.f);
- // Stereo/linked processing is not implemented: refuse instead of running two independent monos.
- bool refused=false;try{Processor q;q.prepare(48000,2,512);}catch(const std::invalid_argument&){refused=true;}
+ // Only mono and linked stereo are supported.
+ bool refused=false;try{Processor q;q.prepare(48000,3,512);}catch(const std::invalid_argument&){refused=true;}
  CHECK(refused);
+ // Linked stereo: one detector driven by the mean of both channels' front outputs.
+ // Identical channels therefore reproduce the mono chain exactly in both outputs;
+ // a silent channel stays silent while the other is processed by the shared detector.
+ {const auto in=noise(4096);
+  Processor a;a.prepare(48000,2,512);a.setParameter(Processor::Amount,62.5f);
+  std::vector<float> l=in,r=in;const float* i2[]={in.data(),in.data()};float* o2[]={l.data(),r.data()};a.process(i2,o2,unsigned(in.size()));
+  Mono m(designMono(48000,controlParameters(.625f)),initialMonoState());
+  for(unsigned i=0;i<in.size();++i){const float e=m.process(in[i]);CHECK(l[i]==e);CHECK(r[i]==e);}
+  Processor b;b.prepare(48000,2,512);b.setParameter(Processor::Amount,50.f);
+  std::vector<float> z(in.size(),0.f),ol(in.size()),orr(in.size());const float* i3[]={in.data(),z.data()};float* o3[]={ol.data(),orr.data()};b.process(i3,o3,unsigned(in.size()));
+  Mono m2(designSampledMono(48000,.5f),initialMonoState());bool differs=false;
+  for(unsigned i=0;i<in.size();++i){CHECK(orr[i]==0.f);differs|=ol[i]!=m2.process(in[i]);}
+  CHECK(differs);}
  // Full chain equals the recovered mono chain (design + initial state) at sampled controls.
  const auto in=noise(4096);
  const float pct[]={0.f,50.f,100.f},norm[]={0.f,.5f,1.f};

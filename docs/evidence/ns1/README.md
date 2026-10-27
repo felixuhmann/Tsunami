@@ -1,4 +1,4 @@
-# NS1 (Tsunami Suppressor) evidence: PARTIAL, mono only
+# NS1 (Tsunami Suppressor) evidence: PARTIAL (mono + linked stereo)
 
 Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads no vendor code. Not verified, and no general equivalence claim is made.
 
@@ -6,14 +6,14 @@ Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads 
 
 - `detector.{hpp,cpp}`: the typed adaptive band gain estimator (interband floor ratio, asymmetric smoothing, fourth-power threshold followed by squared shaping, mixed float/double boundaries).
 - `mono.{hpp,cpp}`: the mono chain. It has a two-stage parallel allpass front, six detector bands, a global activity latch, six three-stage audio sections, and `configure()` to swap coefficients while keeping state.
-- `design.{hpp,cpp}`: independent trigonometric coefficient design plus the initial detector state, for NS1 = 0, 0.5 and 1. The 24 initial-state constants (routine 0x180026950) and the two activity-correction constants in `mono.cpp` (0.000275786, 44.12576; kernel 0x1014b0) were recovered from the vendor binary analysis; they are recovered constants, not semantic values.
+- `design.{hpp,cpp}`: independent trigonometric coefficient design plus the initial detector state, for the full NS1 range via `controlParameters()`. The 24 initial-state constants (routine 0x180026950) and the two activity-correction constants in `mono.cpp` (0.000275786, 44.12576; kernel 0x1014b0) were recovered from the vendor binary analysis; they are recovered constants, not semantic values.
 - `Processor.hpp`: the plugin contract (`prepare/reset/setParameter/getParameter/process/latencySamples/tailSeconds`). Index 0 is `NS1` (0..100 %, default 0). Index 1 is `Bypass` (sample-exact identity).
 - `parameters.json`: taken from the reference parameter readback of a fresh instance (`NS1` 0..100 % step 0.1 default 0.0, `Bypass` bool default Off).
 
 ## Limitations (explicit)
 
 - **Continuous control law (round 2).** `controlParameters()` is piecewise linear with breakpoints 0.2/0.8, with front edge frequencies at 1 Hz resolution (see `control-law-derivation.json`). The predeclared 0.25/0.75 gate passes (16/16 rows, worst nrmse 1.2e-7; `offgrid-comparison.json`). The [0,0.2] and [0.8,1] segments rest on one oracle render each (10 %, 90 %; max error up to 2.3e-4 there). `controlEstablished()` still reports only 0/50/100 %. The 25 % point is not fully independent: a factory preset at 25 % supplied internal values for the slope.
-- **Stereo/linked is not implemented.** `prepare()` throws for channels != 1. The reference stereo kernel shares a detector, so it must not be emulated with two monos.
+- **Linked stereo (round 2).** With 2 channels, `Processor` runs one shared detector driven by the mean of both channels' front outputs, with per-channel front and audio sections. It passes the predeclared stereo thresholds against the fresh oracle `stereo_independent` @ 50 % render (nrmse 3.4e-5) and all 10 calibrated NS1 Stereo captures, including left-only, right-alone, identical and swapped inputs (worst nrmse 9.4e-6). See `stereo-comparison.json`. Other channel counts are refused.
 - `prepare()` throws for sample rates outside 40-100 kHz (the design is only validated in that range).
 - Parameter changes swap coefficients instantly. The reference's control smoothing/transition behaviour is unmeasured.
 - Bypass does not advance DSP state. The reference's behaviour on bypass toggles mid-stream is unmeasured.

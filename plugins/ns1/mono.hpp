@@ -31,10 +31,16 @@ class Mono {
  void configure(const MonoConfiguration& c) noexcept {config_=c;}
  float process(float) noexcept;
  void process(const float* in,float* out,std::size_t frames) noexcept;
+ // Linked stereo (shared detector); mono-only configuration and state otherwise.
+ void processLinked(float left,float right,float& outLeft,float& outRight) noexcept;
  private:
  struct FrontState {AllpassState second{};double previousInput=0,previousOutput=0;};
+ float frontStage(float,std::array<FrontState,2>&) noexcept;
+ void detect(float front,std::array<float,6>& gains) noexcept;
+ float audioStage(float front,const std::array<float,6>& gains,std::array<std::array<AllpassState,3>,6>&) noexcept;
  MonoConfiguration config_;
- std::array<FrontState,2> front_{};
+ std::array<FrontState,2> front_{},frontRight_{};
+ std::array<std::array<AllpassState,3>,6> audioRight_{};
  std::array<std::array<AllpassState,3>,6> audio_{};
  std::array<DetectorState,6> detector_{};
  std::array<float,6> envelope_{};
