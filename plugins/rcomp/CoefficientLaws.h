@@ -34,4 +34,30 @@ inline double ceilingForGainDb(double gainDb) noexcept {
     return (1.0 / (std::pow(10.0, gainDb / 20.0) * 16.0)) * 0.9999996423721313;
 }
 
+// Attack -> attack memory (the kernel's gain-decrease memory). Characterized from
+// genuine tone-burst renders (Threshold -30, Ratio 8, Attack 0.5/16/100 ms,
+// Manual release): measured decay time constants 0.62/15.5/100.0 ms, i.e. the
+// Attack value enters the shared memory law directly (no x5 flag).
+inline double attackMemory(int sampleRate, double attackMs) noexcept {
+    return timeConstantMemory(sampleRate, attackMs);
+}
+
+// Static gain computer of the kernel: q = T/(m*S + T),
+// target = min(1, q + shape*q^2*(1-q)), shape = coefficient + 1.
+// Characterized from genuine stepped-sine renders at Threshold -12/-20/-30 dB
+// (Ratio 2/3/8, Smooth, Manual): T/S = 10^(threshold/20) exactly, shape 1.5.
+// Only the ratio T/S is observable; S = 1 is a normalization choice.
+struct StaticCurve { double thresholdScale; double slope; double shape; };
+inline StaticCurve staticCurveForThresholdDb(double thresholdDb) noexcept {
+    return {std::pow(10.0, thresholdDb / 20.0), 1.0, 1.5};
+}
+
+// Kernel soft gain (history domain): follower*scale + 2*offset, with
+// scale + 2*offset = 1/16 (unity). The renders show a level-independent gain
+// floor b: gain = (1-b)*follower + b, so scale = (1-b)/16, 2*offset = b/16.
+struct SoftGain { double scale; double offset; };
+inline SoftGain softGainForFloor(double floor) noexcept {
+    return {(1.0 - floor) / 16.0, floor / 32.0};
+}
+
 } // namespace tsunami::rcomp

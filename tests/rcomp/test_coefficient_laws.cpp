@@ -24,5 +24,20 @@ int main() {
     check(near(ceilingForGainDb(6.0), 0.9999996423721313 / (16.0 * std::pow(10.0, 0.3)), 1e-15),
           "ceiling follows physical gain");
     check(ceilingForGainDb(-30.0) > ceilingForGainDb(0.0), "lower gain raises ceiling");
+    // Static gain computer, characterized from genuine stepped-sine renders
+    // (thresholds -12/-20/-30 dB): q = T/(m*S + T) with T = 10^(threshold/20),
+    // S = 1, and the kernel shape term (coefficient 0.5, kernel adds 1) = 1.5.
+    const StaticCurve c = staticCurveForThresholdDb(-20.0);
+    check(near(c.thresholdScale, 0.1, 1e-12) && c.slope == 1.0 && c.shape == 1.5,
+          "static curve coefficients");
+    // At m = threshold, q = 0.5 and the target is 0.5 + 1.5*0.25*0.5 = 0.6875.
+    // Soft gain: history gain = follower*scale + 2*offset with scale + 2*offset = 1/16
+    // and floor b = 2*offset*16.
+    const SoftGain g = softGainForFloor(0.25);
+    check(near(g.scale, 0.75 / 16.0, 1e-15) && near(2.0 * g.offset, 0.25 / 16.0, 1e-15),
+          "soft gain from floor");
+    check(near(g.scale + 2.0 * g.offset, 0.0625, 1e-15), "soft gain unity is 1/16");
+    // Attack feeds the memory law directly (b_a05/b_a16/b_a100 renders).
+    check(attackMemory(48000, 16.0) == timeConstantMemory(48000, 16.0), "attack memory law");
     std::cout << "rcomp coefficient laws ok\n";
 }

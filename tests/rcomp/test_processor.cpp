@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "MonoProcessor.h"
+#include "CoefficientLaws.h"
 #include "OutputStage.h"
 #include <cmath>
 #include <cstdlib>
@@ -37,7 +38,9 @@ int main() {
             check(p.prepare(rate) && p.configureWet(compressing())
                   && p.setOutput(6.0f, -3.0f, mix), "prepare/configure/output");
             WetChain chain;
-            check(chain.prepare(rate) && chain.configure(compressing()) && chain.setMakeup(6.0f),
+            GainStage::Coefficients ref = compressing();
+            ref.ceiling = static_cast<float>(ceilingForGainDb(6.0));
+            check(chain.prepare(rate) && chain.configure(ref) && chain.setMakeup(6.0f),
                   "reference chain");
             OutputStage out;
             check(out.setGainTrim(0.0f, -3.0f) && out.setMix(mix), "reference output");
@@ -92,5 +95,23 @@ int main() {
     dry.process(x.data(), w.data(), 1000);
     check(w == y, "rejected updates leave processing unchanged");
     std::cout << "PASS mix0 delayed identity, reset, atomic validation\n";
+    // Review fixes: the Gain ceiling writer (0x18002c790) also depends on Gain, so
+    // setOutput recomputes coefficient 4 with the recovered law; process() before
+    // prepare() is a silent no-op output instead of a division by zero.
+    {
+        MonoProcessor g;
+        check(g.prepare(48000) && g.configureWet(compressing()) && g.setOutput(6.0f, 0.0f, 100.0f),
+              "gain ceiling setup");
+        check(g.wetCoefficients().ceiling == static_cast<float>(ceilingForGainDb(6.0)),
+              "setOutput recomputes ceiling from Gain");
+        check(g.configureWet(compressing())
+              && g.wetCoefficients().ceiling == static_cast<float>(ceilingForGainDb(6.0)),
+              "configureWet keeps the Gain-derived ceiling");
+        MonoProcessor unprepared;
+        std::vector<float> in(64, 0.5f), outv(64, 1.0f);
+        unprepared.process(in.data(), outv.data(), 64);
+        for (float v : outv) check(v == 0.0f, "unprepared process outputs silence");
+    }
+    std::cout << "PASS gain ceiling recompute and unprepared guard\n";
     return 0;
 }
