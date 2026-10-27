@@ -13,9 +13,17 @@
 // prepare() refuses other channel counts.
 // prepare() also throws std::invalid_argument for sample rates outside
 // 40-100 kHz, the only validated design range.
+// Attenuation meter (editor feed): each process() call stores, in a lock-free
+// std::atomic<float>, 10*log10(output energy / input energy) of that block summed
+// over channels, clamped to the genuine AttenVU range -48..0 dB (ParamXML
+// PARAM_ATTN_VU). 0 dB when bypassed or the input block is silent. This block
+// energy-ratio definition follows the manual ("amount of overall energy removed
+// from the input signal"); the original's meter ballistics are not recovered
+// (provisional).
 #include "design.hpp"
 #include "mono.hpp"
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -49,17 +57,34 @@ public:
         if (bypass_) {
             for (unsigned ch = 0; ch < channels_; ++ch)
                 if (outputs[ch] != inputs[ch]) std::memmove(outputs[ch], inputs[ch], frames * sizeof(float));
+            attenuationDb_.store(0.f, std::memory_order_relaxed);
             return;
         }
-        if (channels_ == 1) { mono_->process(inputs[0], outputs[0], frames); return; }
-        for (unsigned i = 0; i < frames; ++i) {
+        const double inEnergy = energy(inputs, frames); // before in-place processing overwrites it
+        if (channels_ == 1) mono_->process(inputs[0], outputs[0], frames);
+        else for (unsigned i = 0; i < frames; ++i) {
             const float l = inputs[0][i], r = inputs[1][i];
             mono_->processLinked(l, r, outputs[0][i], outputs[1][i]);
         }
+        float db = 0.f;
+        if (inEnergy > 1e-20) {
+            const double ratio = energy(outputs, frames) / inEnergy;
+            db = ratio > 0 ? float(10.0 * std::log10(ratio)) : -48.f;
+            db = std::isfinite(db) ? (db < -48.f ? -48.f : (db > 0.f ? 0.f : db)) : 0.f;
+        }
+        attenuationDb_.store(db, std::memory_order_relaxed);
     }
+    // Realtime-safe meter read for the editor thread (dB, -48..0).
+    float attenuationDb() const noexcept { return attenuationDb_.load(std::memory_order_relaxed); }
     unsigned latencySamples() const noexcept { return 0; }
     double tailSeconds() const noexcept { return 0.5; }
 private:
+    double energy(const float* const* x, unsigned frames) const noexcept {
+        double e = 0;
+        for (unsigned ch = 0; ch < channels_; ++ch)
+            for (unsigned i = 0; i < frames; ++i) e += double(x[ch][i]) * double(x[ch][i]);
+        return e;
+    }
     void select() noexcept {
         if (mono_) mono_->configure(designMono(rate_, controlParameters(amount_ / 100.f)));
     }
@@ -68,5 +93,7 @@ private:
     std::unique_ptr<Mono> mono_;
     float amount_ = 0.f;
     bool bypass_ = false;
+    std::atomic<float> attenuationDb_{0.f};
+    static_assert(std::atomic<float>::is_always_lock_free, "meter atomic must be lock-free");
 };
 }
