@@ -1,4 +1,4 @@
-# NS1 (Tsunami Suppressor) evidence: PARTIAL, mono only, established controls only
+# NS1 (Tsunami Suppressor) evidence: PARTIAL, mono only
 
 Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads no vendor code. Not verified, and no general equivalence claim is made.
 
@@ -12,7 +12,7 @@ Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads 
 
 ## Limitations (explicit)
 
-- **Control mapping off-grid is NOT established.** Values other than 0/50/100 % run the nearest established design, and `controlEstablished()` returns false. This is a placeholder, not a recovered mapping. Measured off-grid error (0.25 and 0.75) is large: nrmse 0.04-0.73. See `fidelity-comparison.json`.
+- **Continuous control law (round 2).** `controlParameters()` is piecewise linear with breakpoints 0.2/0.8, with front edge frequencies at 1 Hz resolution (see `control-law-derivation.json`). The predeclared 0.25/0.75 gate passes (16/16 rows, worst nrmse 1.2e-7; `offgrid-comparison.json`). The [0,0.2] and [0.8,1] segments rest on one oracle render each (10 %, 90 %; max error up to 2.3e-4 there). `controlEstablished()` still reports only 0/50/100 %. The 25 % point is not fully independent: a factory preset at 25 % supplied internal values for the slope.
 - **Stereo/linked is not implemented.** `prepare()` throws for channels != 1. The reference stereo kernel shares a detector, so it must not be emulated with two monos.
 - `prepare()` throws for sample rates outside 40-100 kHz (the design is only validated in that range).
 - Parameter changes swap coefficients instantly. The reference's control smoothing/transition behaviour is unmeasured.
