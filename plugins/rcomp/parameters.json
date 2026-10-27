@@ -4,7 +4,7 @@
   "target": "rcomp",
   "implementation_status": "reference metadata only; not wired to the partial coefficient-domain GainStage",
   "component": "RCompressor Mono",
-  "normalization": "Physical units below are not the vendor normalized controls. Coefficient generation is unrecovered.",
+  "normalization": "Physical units below are not vendor normalized controls. OutputStage implements Gain/Trim/Mix on aligned dry/wet signals; full compression coefficient generation and adapter wiring remain incomplete.",
   "parameters": [
     {"index": 0, "id": "bypass", "name": "Bypass", "minimum": 0, "maximum": 1, "default": 0, "unit": "", "type": "boolean", "logarithmic": false, "group": "Global"},
     {"index": 1, "id": "gain", "name": "Gain", "minimum": -30, "maximum": 30, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "Output"},

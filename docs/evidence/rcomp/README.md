@@ -146,14 +146,17 @@ standalone DSP tests, not a hosted VST3/CLAP or native Windows build.
 
 ## Exact remaining blockers / next bounded slice
 
-1. Recover PE wrapper physical control → coefficient generation, lookup-table
-   contents/initialization and sample-rate dependence. Do not infer milliseconds
-   from a generic exponential envelope or reinterpret normalized ratio as linear.
+1. Integrate newly recovered PE physical coefficient writers, sample-rate geometry
+   (`0x18002ccd0`) and ARC generation (`0x18002d7d0`) into the independent wet
+   chain. Exports are private under `windows-coefficients/functions`; they are
+   analysis, not completed source. Resolve initialization/prefill and coefficient
+   packing before treating the real geometry as integrated.
 2. Recover/integrate the kernel's maximum-history tree and ARC gain-increase table
-   update, soft gain scale/offset, wet/dry coefficient smoothing, output gain/trim
-   and metering. Integrate the recovered restricted fixed-point smoother/audio
-   delay with the wrapper's actual geometry and startup/prefill protocol; the new
-   slice does not establish those mappings.
+   update and soft gain scale/offset. Static wet/dry Mix, output Gain and Trim now
+   exist in OutputStage; automation smoothing, overload interaction and metering
+   remain. Integrate the fixed-point smoother/audio delay with actual wrapper
+   geometry and startup/prefill; restricted history evidence does not establish
+   the complete path.
 3. Cover stereo linking, Opto/Electro, Warm/Smooth and expansion ratios below one.
 4. Only then implement the complete `tsunami::rcomp::Processor` portable contract
    (`prepare/reset/setParameter/getParameter/process/latencySamples/tailSeconds`).
