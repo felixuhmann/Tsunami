@@ -183,9 +183,11 @@ public:
     void releaseResources() override { core.reset(); clearDry(); }
     void reset() override { apply(); core.reset(); clearDry(); }
     // Host bypass keeps the reported latency: output is the input delayed by latencySamples().
-    void processBlockBypassed(juce::AudioBuffer<float>& b, juce::MidiBuffer&) override {
+    // Latency-0 (or unprepared) products keep JUCE's default pass-through bypass.
+    void processBlockBypassed(juce::AudioBuffer<float>& b, juce::MidiBuffer& midi) override {
+        if (dry[0].empty()) { AudioProcessor::processBlockBypassed(b, midi); return; }
         juce::ScopedNoDenormals guard;
-        if (unsigned(b.getNumChannels())!=channels || unsigned(b.getNumSamples())>maxBlock || maxBlock==0) { b.clear(); return; }
+        if (unsigned(b.getNumChannels())!=channels) { b.clear(); return; } // the ring itself accepts any block length
         delayDry(b.getArrayOfWritePointers(), unsigned(b.getNumSamples()), true);
     }
     void processBlock(juce::AudioBuffer<float>& b, juce::MidiBuffer&) override {

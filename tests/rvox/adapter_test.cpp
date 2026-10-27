@@ -268,8 +268,9 @@ int bypassLatency() {
         tsunami::Adapter<Spec> p;
         juce::AudioProcessor::BusesLayout l; l.inputBuses.add(chans == 1 ? Set::mono() : Set::stereo()); l.outputBuses.add(l.inputBuses[0]);
         if (!p.setBusesLayout(l)) return fail(80, "bypass layout");
-        const int block = 64; const unsigned frames = 48000, toggle = 24000 - 17; // toggle mid-block stream position
-        for (int round = 0; round < 2; ++round) { // second round: repeated prepare + reset must restart cleanly
+        const unsigned frames = 48000, toggle = 24000 - 17; // toggle mid-block stream position
+        for (int round = 0; round < 2; ++round) { // second round: repeated prepare + reset, block longer than the ring
+            const int block = round == 0 ? 64 : 240;
             p.prepareToPlay(48000, block); p.reset();
             const int latency = p.getLatencySamples();
             if (latency <= 0) return fail(81, "RVox reports no lookahead");
