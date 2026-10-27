@@ -4,11 +4,25 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Adapter.hpp"
 #include "Generated.hpp"
+#include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <new>
 #include <iostream>
 #include <string>
 #include <vector>
+
+// Counts heap allocations while `countAllocations` is set (warm audio callbacks must not allocate).
+static std::atomic<bool> countAllocations{false};
+static std::atomic<long> allocations{0};
+void* operator new(std::size_t n) {
+    if (countAllocations.load(std::memory_order_relaxed)) allocations.fetch_add(1, std::memory_order_relaxed);
+    if (void* p = std::malloc(n ? n : 1)) return p;
+    throw std::bad_alloc();
+}
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
 
 namespace {
 using Spec = tsunami::PluginSpec;
@@ -264,7 +278,7 @@ int bypassLatency() {
             juce::MidiBuffer midi; juce::AudioBuffer<float> b(chans, block);
             for (unsigned at = 0; at < frames; at += unsigned(block)) {
                 for (int c = 0; c < chans; ++c) b.copyFrom(c, 0, in[c].data() + at, block);
-                p.processBlockBypassed(b, midi);
+                countAllocations = true; p.processBlockBypassed(b, midi); countAllocations = false;
                 for (int c = 0; c < chans; ++c) std::memcpy(out[c].data() + at, b.getReadPointer(c), size_t(block) * sizeof(float));
             }
             const int lag = bestLag(in[0], out[0], 4800, 9600, 256);
@@ -279,7 +293,9 @@ int bypassLatency() {
                 const unsigned n = std::min({unsigned(block), frames - at, at < toggle && at + unsigned(block) > toggle ? toggle - at : unsigned(block)});
                 juce::AudioBuffer<float> s(chans, int(n));
                 for (int c = 0; c < chans; ++c) s.copyFrom(c, 0, in[c].data() + at, int(n));
+                countAllocations = true;
                 if (at < toggle) p.processBlock(s, midi); else p.processBlockBypassed(s, midi);
+                countAllocations = false;
                 for (int c = 0; c < chans; ++c) std::memcpy(out[c].data() + at, s.getReadPointer(c), n * sizeof(float));
                 at += n;
             }
@@ -290,6 +306,15 @@ int bypassLatency() {
                 for (unsigned n = toggle; n < frames; ++n)
                     if (out[c][n] != in[c][n - unsigned(latency)]) return fail(84, "bypass after toggle lacks aligned dry history");
         }
+    }
+    if (allocations != 0) return fail(85, "warm audio callbacks allocated");
+    countAllocations = true; ::operator delete(::operator new(4)); countAllocations = false; // counter control
+    if (allocations != 1) return fail(86, "allocation counter is not observing operator new");
+    // Probe only (reported, not asserted here): an invalid host rate reaching prepareToPlay.
+    for (double bad : {0.0, -1.0, std::nan("")}) {
+        tsunami::Adapter<Spec> q;
+        try { q.prepareToPlay(bad, 64); std::cout << "probe prepare rate " << bad << ": no exception\n"; }
+        catch (const std::exception& e) { std::cout << "probe prepare rate " << bad << ": exception escapes prepareToPlay: " << e.what() << '\n'; }
     }
     std::cout << "rvox.adapter bypass PASS: host bypass delayed by reported latency, mono/stereo, toggle aligned, reset/re-prepare\n";
     return 0;
