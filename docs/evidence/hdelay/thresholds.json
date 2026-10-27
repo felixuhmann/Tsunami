@@ -31,5 +31,53 @@
    "at": "2026-10-27T16:13Z",
    "change": "r2 re-rendered with 8 s input (same impulse at 288000) because the 7 s render 20261027T161125-4693eb8b6ad6405c9d4f4c936307ef2c ends at sample 336000, before predicted repeat 2 at 336001. Thresholds unchanged; no r2 metrics were computed before this amendment."
   }
- ]
+ ],
+ "round2_task3": {
+  "declared_at": "2026-10-27T16:18Z UTC, before rendering any task3 case and before computing any new metric",
+  "rule": "Predeclared; never loosened. Held-out renders are not used for tuning.",
+  "input": "/tmp/hdr2/impulse8s_at6s.wav (impulse 0.125 at 288000), Sync raw 1 (ms), delay_bpm 1/8 raw 0.5263157894736842 -> 250 ms, Analog Off, HiFi, mix 100, depth 0, output 0 dB",
+  "feedback_law": {
+   "fit": [
+    "f50_250ms (feedback 50)",
+    "f150_250ms (feedback 150; only repeat2/repeat1 used)"
+   ],
+   "held_out": {
+    "f90_250ms": {
+     "repeat2_over_repeat1_dc_rel_err": 0.005,
+     "repeat3_over_repeat2_dc_rel_err": 0.005,
+     "peak_offsets_exact": [
+      12000,
+      24001,
+      36002
+     ]
+    },
+    "r2_ms_from_1_4_at120_fb25 (existing render 20261027T161352-b7e2...)": {
+     "repeat2_over_repeat1_dc_rel_err": 0.005
+    }
+   }
+  },
+  "filters": {
+   "cutoff_source": "genuine display readback in result.json host.controls (NOTE: raw 0.49266503667 reads back 588 Hz, not 1.00 kHz as labelled in task2)",
+   "fit": [
+    "hp raw 0.49266 (existing r3)",
+    "hp raw 0.3",
+    "lp raw 0.49266 (existing r4)",
+    "lp raw 0.3"
+   ],
+   "held_out": {
+    "hp_raw0.7": {
+     "max_abs_mag_err_dB": 0.5,
+     "evaluated_at": "octave points 62.5 Hz..16 kHz where genuine response > -40 dB"
+    },
+    "lp_raw0.7": {
+     "max_abs_mag_err_dB": 0.5,
+     "evaluated_at": "octave points 62.5 Hz..16 kHz where genuine response > -40 dB"
+    }
+   }
+  },
+  "glide": {
+   "fit": "BPM90 1/8D render (task2)",
+   "verification": "existing render 20261027T160946-1f2a... (375->500 ms, impulse position from its input): first echo peak index within +-3 samples of the glide model prediction (this render was inspected qualitatively in task2, so this is a consistency check, not a strict hold-out)"
+  }
+ }
 }
