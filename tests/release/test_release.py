@@ -108,6 +108,113 @@ class DiscoveryTest(Tmp):
             self.make([])
 
 
+class RegistrationContractTest(Tmp):
+    """Discovery against the real root CMakeLists.txt (generic plugins/<id> + plugin-local tsunami.cmake)."""
+    LOCAL = ('tsunami_plugin(TsunamiDeEsser "${TSUNAMI_PLUGIN_DIR}" deesser "Tsunami De-Esser" TsDE '
+             '"tsunami::deesser::Processor" "${TSUNAMI_PLUGIN_DIR}/Core.cpp")')
+
+    def make(self, root_text=None, local=None, plugins=('s1', 'deesser'), files=('Processor.hpp', 'parameters.json'),
+             prepare=None):
+        root = Path(tempfile.mkdtemp(dir=self.tmp))
+        (root / 'targets.json').write_text((ROOT / 'targets.json').read_text())
+        (root / 'CMakeLists.txt').write_text(root_text or (ROOT / 'CMakeLists.txt').read_text())
+        for plugin in plugins:
+            for name in files:
+                path = root / 'plugins' / plugin / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('x')
+        if local is not None:
+            (root / 'plugins' / 'deesser' / 'tsunami.cmake').write_text(local + '\n')
+            (root / 'plugins' / 'deesser' / 'Core.cpp').write_text('x')
+        if prepare:
+            prepare(root)
+        return release.discover(root)
+
+    def test_actual_root_s1_fallback_and_plugin_local_registration(self):
+        result = self.make(local=self.LOCAL)
+        self.assertEqual([p['id'] for p in result['included']], ['deesser', 's1'])
+        self.assertEqual([p['cmake_option'] for p in result['included']],
+                         ['TSUNAMI_PLUGIN_ID=deesser', 'TSUNAMI_PLUGIN_ID=s1'])
+        self.assertEqual(result['excluded_fixtures'], ['fixture'])
+        self.assertEqual(len(result['included']) + len(result['unavailable']), 12)
+
+    def test_plugin_local_registration_overrides_root_s1_fallback(self):
+        local = self.LOCAL.replace('deesser', 's1').replace('DeEsser', 'Stereo').replace('De-Esser', 'Stereo')
+        root = Path(tempfile.mkdtemp(dir=self.tmp))
+        (root / 'targets.json').write_text((ROOT / 'targets.json').read_text())
+        (root / 'CMakeLists.txt').write_text((ROOT / 'CMakeLists.txt').read_text())
+        for name in ('Processor.hpp', 'parameters.json', 'Core.cpp'):
+            (root / 'plugins' / 's1').mkdir(parents=True, exist_ok=True)
+            (root / 'plugins' / 's1' / name).write_text('x')
+        (root / 'plugins' / 's1' / 'tsunami.cmake').write_text(local.replace('TsDE', 'TsS1') + '\n')
+        result = release.discover(root)
+        self.assertEqual([(p['id'], p['target']) for p in result['included']], [('s1', 'TsunamiStereo')])
+
+    def test_partial_core_without_registration_is_unavailable(self):
+        result = self.make()
+        self.assertEqual([p['id'] for p in result['included']], ['s1'])
+        self.assertIn('not registered', next(u for u in result['unavailable'] if u['id'] == 'deesser')['reason'])
+
+    def test_malformed_or_missing_plugin_local_registration_fails(self):
+        bad = ['', self.LOCAL + '\n' + self.LOCAL,
+               self.LOCAL.replace(' deesser "', ' rvox "'),
+               self.LOCAL.replace('"${TSUNAMI_PLUGIN_DIR}" deesser', '"${TSUNAMI_PLUGIN_SOURCE_ROOT}/plugins/s1" deesser'),
+               self.LOCAL.replace('/Core.cpp', '/Missing.cpp'), self.LOCAL.replace('/Core.cpp', '/../s1/Core.cpp'),
+               self.LOCAL.replace('"Tsunami De-Esser"', '"Wrong"')]
+        for local in bad:
+            with self.subTest(local=local), self.assertRaises(release.ReleaseError):
+                self.make(local=local)
+        with self.assertRaises(release.ReleaseError):
+            self.make(local=self.LOCAL, files=('parameters.json',))
+
+    def test_legacy_root_ignores_plugin_local_file_it_cannot_include(self):
+        result = self.make(root_text='function(tsunami_plugin target source id product code core)\nendfunction()\n'
+                                     + S1_CALL + '\n', local=self.LOCAL)
+        self.assertEqual([p['id'] for p in result['included']], ['s1'])
+        self.assertEqual(result['included'][0]['cmake_option'], 'TSUNAMI_PLUGIN_ID=s1')
+
+    def test_unguarded_plugin_dir_registration_in_root_fails(self):
+        with self.assertRaises(release.ReleaseError):
+            self.make(root_text=S1_CALL.replace('${TSUNAMI_PLUGIN_SOURCE_ROOT}/plugins/s1', '${TSUNAMI_PLUGIN_DIR}') + '\n')
+
+    def test_dead_or_fake_guards_do_not_register(self):
+        dir_call = S1_CALL.replace('${TSUNAMI_PLUGIN_SOURCE_ROOT}/plugins/s1', '${TSUNAMI_PLUGIN_DIR}')
+        for text in ('if(FALSE)\nif(TSUNAMI_PLUGIN_ID STREQUAL "s1")\n' + dir_call + '\nendif()\nendif()\n',
+                     'macro(never)\nif(TSUNAMI_PLUGIN_ID STREQUAL "s1")\n' + dir_call + '\nendif()\nendmacro()\n',
+                     'message([=[ if(TSUNAMI_PLUGIN_ID STREQUAL "s1") ]=])\n' + dir_call + '\n',
+                     'message("if(TSUNAMI_PLUGIN_ID STREQUAL \\"s1\\")")\n' + dir_call + '\n'):
+            with self.subTest(text=text), self.assertRaises(release.ReleaseError):
+                self.make(root_text=text, plugins=('s1',))
+        with self.assertRaises(release.ReleaseError):
+            self.make(local='if(FALSE)\n' + self.LOCAL + '\nendif()')
+
+    def test_symlinked_plugin_local_core_fails(self):
+        def link(root):
+            (root / 'outside.cpp').write_text('x')
+            try:
+                os.symlink(root / 'outside.cpp', root / 'plugins' / 'deesser' / 'Link.cpp')
+            except (OSError, NotImplementedError):
+                self.skipTest('symlinks unavailable')
+        self.make(local=self.LOCAL)  # control: the same registration with a regular file is accepted
+        with self.assertRaises(release.ReleaseError):
+            self.make(local=self.LOCAL.replace('/Core.cpp', '/Link.cpp'), prepare=link)
+
+    def test_legacy_rvox_option_uses_its_native_recipe(self):
+        call = ('tsunami_plugin(TsunamiRVox "${CMAKE_CURRENT_SOURCE_DIR}/plugins/rvox" rvox "Tsunami RVox" TsRV '
+                '"tsunami::rvox::Processor")')
+        legacy = (S1_CALL + '\noption(TSUNAMI_BUILD_RVOX "Build RVox" OFF)\nif(TSUNAMI_BUILD_RVOX)\n  ' + call + '\nendif()\n')
+        targets = json.loads((ROOT / 'targets.json').read_text())
+        product = next(t['product_name'] for t in targets['targets'] if t['id'] == 'rvox')
+        legacy = legacy.replace('"Tsunami RVox"', f'"{product}"')
+        result = self.make(root_text=legacy, plugins=('s1', 'rvox'))
+        self.assertEqual([(p['id'], p['cmake_option']) for p in result['included']],
+                         [('rvox', 'TSUNAMI_BUILD_RVOX=ON'), ('s1', 'TSUNAMI_PLUGIN_ID=s1')])
+        for broken in (legacy.replace('option(TSUNAMI_BUILD_RVOX "Build RVox" OFF)\n', ''),
+                       legacy.replace('if(TSUNAMI_BUILD_RVOX)', 'if(TRUE)')):
+            with self.subTest(broken=broken), self.assertRaises(release.ReleaseError):
+                self.make(root_text=broken, plugins=('s1', 'rvox'))
+
+
 class VersionTest(unittest.TestCase):
     def test_derived_and_validated(self):
         self.assertEqual(release.derive_version('17', 'ABCDEF0123' + '0' * 30), 'preview-17-abcdef0')

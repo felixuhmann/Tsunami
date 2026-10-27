@@ -52,12 +52,31 @@ class MetadataTests(unittest.TestCase):
         text = module.generate({'parameters': [dict(index=0, id='bypass', name='Bypass', min=0, max=1, default=0, type='bool')]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
         self.assertIn('"", 1.0f}', text)
 
-    def test_rejects_unsupported_log_mapping(self):
+    def load(self):
         spec = importlib.util.spec_from_file_location('metadata', ROOT / 'tools' / 'generate_metadata.py')
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        with self.assertRaisesRegex(ValueError, 'logarithmic'):
-            module.generate({'parameters': [dict(index=0, id='frequency', name='Frequency', min=20, max=20000, default=1000, logarithmic=True)]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        return module
+
+    def test_logarithmic_taper_emits_geometric_midpoint_skew(self):
+        text = self.load().generate({'parameters': [dict(index=0, id='frequency', name='Frequency', min=20, max=20000, default=1000, unit='Hz', logarithmic=True)]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        # skew s maps normalised .5 to sqrt(min*max): ((632.456-20)/19980)^s = .5
+        self.assertRegex(text, r'"Hz", 0\.0f, 0\.19889\d*f}')
+
+    def test_explicit_skew_taper_and_rejects_bad_log_ranges(self):
+        module = self.load()
+        text = module.generate({'parameters': [dict(index=0, id='time', name='Time', min=0, max=10, default=1, taper={'skew': 0.3})]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        self.assertIn('"", 0.0f, 0.3f}', text)
+        for bad in (dict(min=0, max=10, default=1, logarithmic=True), dict(min=1, max=10, default=1, taper={'skew': 0})):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                module.generate({'parameters': [dict(index=0, id='x', name='X') | bad]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+
+    def test_choice_parameters_have_unit_steps_and_labels(self):
+        module = self.load()
+        text = module.generate({'parameters': [dict(index=0, id='mode', name='Mode', min=0, max=1, default=0, type='choice', choices=['BandPass', 'HighPass'])]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        self.assertIn('"", 1.0f, 1.0f, "BandPass|HighPass"}', text)
+        with self.assertRaises(ValueError):
+            module.generate({'parameters': [dict(index=0, id='mode', name='Mode', min=0, max=2, default=0, type='choice', choices=['A', 'B'])]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
 
 if __name__ == '__main__':
     unittest.main()

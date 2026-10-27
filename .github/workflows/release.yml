@@ -42,6 +42,7 @@ jobs:
     outputs:
       matrix: ${{ steps.discover.outputs.matrix }}
       source_id: ${{ steps.discover.outputs.source_id }}
+      source_option: ${{ steps.discover.outputs.source_option }}
       version: ${{ steps.version.outputs.version }}
       commit: ${{ steps.version.outputs.commit }}
     steps:
@@ -80,6 +81,7 @@ jobs:
       VERSION: ${{ needs.discover.outputs.version }}
       COMMIT: ${{ needs.discover.outputs.commit }}
       SOURCE_ID: ${{ needs.discover.outputs.source_id }}
+      SOURCE_OPTION: ${{ needs.discover.outputs.source_option }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,7 +94,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Fetch pinned dependencies exactly as the build does
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID="$SOURCE_ID"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -D"$SOURCE_OPTION"
       - name: Stage and verify Corresponding Source
         run: |
           test "$(git rev-parse HEAD)" = "$COMMIT"
@@ -133,6 +135,7 @@ jobs:
       VERSION: ${{ needs.discover.outputs.version }}
       COMMIT: ${{ needs.discover.outputs.commit }}
       PLUGIN_ID: ${{ matrix.plugin.id }}
+      PLUGIN_OPTION: ${{ matrix.plugin.cmake_option }}
       PLATFORM: ${{ matrix.host.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -155,7 +158,7 @@ jobs:
       - name: Configure actual registered target (no fixture)
         run: |
           test "$(git rev-parse HEAD)" = "$COMMIT"
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID="$PLUGIN_ID"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -D"$PLUGIN_OPTION"
       - name: Build VST3, CLAP and registered test targets
         run: cmake --build build --config Release --parallel 2
       - name: CTest (registered metadata/editor tests)
