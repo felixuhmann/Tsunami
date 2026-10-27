@@ -214,8 +214,8 @@ void processCompare(const clap_plugin* p, uint32_t channels, const Setting& s) {
     CHECK(inEnergy > 10.0 && outEnergy > 1.0);
     if (s.reduces) CHECK(ratio < 0.9);             // meaningful de-essing, not a pass-through
     if (s.neutral) CHECK(inOutDiff <= tolerance);  // neutral control: Bypass returns the input
-    // Monitor=SideChain writes the one linked detector signal to every channel; otherwise channels stay distinct.
-    if (channels == 2) CHECK(s.v[monitor] > .5f ? !distinct : distinct);
+    // Monitor=SideChain (not bypassed) writes the one linked detector signal to every channel; otherwise channels stay distinct.
+    if (channels == 2) CHECK(s.v[monitor] > .5f && s.v[bypass] < .5f ? !distinct : distinct);
     for (unsigned i = 0; i < 6; ++i) CHECK(std::abs(readValue(p, i) - expected[i]) < 1e-6);
     p->stop_processing(p);
 }
@@ -313,6 +313,8 @@ int main(int argc, char** argv) {
     runAll(p, 2);
 
     REQUIRE(configs->select(p, mono.id)); // reselect and re-activate
+    processCompare(p, 1, settings[0]);
+    p->deactivate(p);
     processCompare(p, 1, allNonDefault);
     p->deactivate(p);
     expectPorts(p, 1);
