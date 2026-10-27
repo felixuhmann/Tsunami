@@ -9,7 +9,7 @@ concurrency:
   group: deesser-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # Evidence steps after a successful build run even if an earlier gate failed; any failed gate still fails the job.
+  # Evidence steps after a successful build run even if a post-build gate failed; any failed gate still fails the job.
   native:
     name: deesser-native-${{ matrix.os }} (hosted DeEsser core + product editor; fidelity not claimed)
     strategy:

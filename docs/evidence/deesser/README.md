@@ -116,14 +116,14 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - clap-validator 0.4.1 failed. Linux: 30 success / 11 skipped / 1 warning / 1 failed / 1 crashed. Windows: 28 / 12 / 2 / 1 / 1.
   - All later host steps (Pedalboard, pluginval, editor capture) were skipped, so this run has no hosted DeEsser evidence.
 - Crash: `process-varying-sample-rates` (SIGABRT / 0xc0000409). `Processor::prepare` threw `std::invalid_argument` for rates outside 8-384 kHz into the host.
-  - Fix, a host-rate policy and NOT vendor parity: outside the accepted DSP domain the core passes audio through unchanged (as Bypass), reports no gain reduction, and resumes when re-prepared at a supported rate. A bad channel count still throws.
+  - Fix, a host-rate policy and NOT vendor parity: outside the accepted DSP domain the core passes audio through unchanged (as Bypass), reports no gain reduction and an idle detector (-120 dB), and resumes when re-prepared at a supported rate. As with Bypass, non-finite input is passed through raw. A bad channel count still throws.
   - RED: `FAIL prepareToPlay(1000) threw` (exit 24). GREEN: real-Adapter test passes with the in-domain hash unchanged (`c19f9aa561842753`).
   - Local pinned clap-validator on the rebuilt CLAP: `process-varying-sample-rates` success.
-- Remaining failure, `param-conversions` on Freq: the round trip `'5585.6484375' -> 0.49494943 -> '5585.6474609'` is inconsistent. Text conversion for non-choice parameters comes from the shared `Adapter::layout()`: default 7-decimal text, float32 normalisation under the generated log skew. The generator also ignores `parameters.json` `step`.
+- Remaining failure, `param-conversions` on Freq: the round trip `'5585.6484375' -> 0.49494943 -> '5585.6474609'` is inconsistent. Text conversion for non-choice parameters comes from the shared `Adapter::layout()`: default 7-decimal text, float32 normalisation under the generated log skew. `tools/generate_metadata.py` uses step 0 for every non-choice parameter, ignoring both Freq `steps: 1001` and Threshold `step: 0.1`.
   - Not fixable in plugin scope without changing the Freq parameter law, so this is a shared-owner blocker. A suggested shared fix is bounded-precision text (or honouring `step`) for continuous parameters.
-- Workflow: evidence steps after a successful build now run even when an earlier gate fails, so host/UI evidence is collected. Each failed gate still fails the job.
-- Compiler warning `Processor.hpp:102:53: array subscript 1 is outside array bounds of 'const float* [1]'` (GCC 11.4, `-O3 -DNDEBUG -Wall`, caller `test_automation.cpp:19` after `prepare(48000,1,B)`; not emitted at `-O2`). The investigation found no invalid access:
+- Workflow: evidence steps after a successful build now run even when a gate after the build fails, so host/UI evidence is collected. Each failed gate still fails the job.
+- Compiler warning `Processor.hpp:102:53` (line number at e846db9; the read is at line 107 after e012243): array subscript 1 is outside array bounds of 'const float* [1]'` (GCC 11.4, `-O3 -DNDEBUG -Wall`, caller `test_automation.cpp:19` after `prepare(48000,1,B)`; not emitted at `-O2`). The investigation found no invalid access:
   - At runtime `in[1]` is read only when `channels_==2`.
   - ASan+UBSan at `-O3` run clean for a minimal mono repro, `test_automation`, `test_processor`, `test_editor_model` and `splice_validity`.
-  - Negative control: the same one-entry array with `prepare(...,2,...)` is reported by ASan as `stack-buffer-overflow ... Processor.hpp:102`, which is a caller contract violation.
+  - Negative control: the same one-entry array with `prepare(...,2,...)` is reported by ASan as `stack-buffer-overflow ... Processor.hpp:102` (e846db9 numbering), which is a caller contract violation.
   - Conclusion: the warning is a false positive on an inlined path the compiler cannot prove unreachable. No source change, and the warning is not suppressed.

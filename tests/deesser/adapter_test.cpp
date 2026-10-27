@@ -157,7 +157,7 @@ int main() {
         b.makeCopyOf(dry); p->processBlock(b, m);
         for (int i = 0; i < 512; ++i) for (int c = 0; c < 2; ++c)
             CHECK(b.getSample(c, i) == dry.getSample(c, i), 25, "unsupported host rate passes audio through unchanged");
-        CHECK(coreMeters->coreMeter(1) == 0.f, 26, "no gain reduction reported at an unsupported rate");
+        CHECK(coreMeters->coreMeter(1) == 0.f && coreMeters->coreMeter(0) == -120.f, 26, "idle Energy/Atten at an unsupported rate");
     }
     p->prepareToPlay(48000, 512);
     for (int k = 0; k < 8; ++k) {
