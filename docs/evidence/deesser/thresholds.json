@@ -30,5 +30,22 @@
       "gain_reduction_db_rest": "== 0 at prepare/reset and in bypass",
       "gain_reduction_db_active": ">= 3 dB after 4096 samples of the test tone at -40 dB threshold"
     }
+  },
+  "midstream_genuine_automation": {
+    "declared_before_measurement": "2026-10-27T16:06Z",
+    "oracle_support": "none: runtime/RUNNER_CONTRACT.md lines 13 and 44 ('Controls fixed before processing; sampled automation timeline not yet supported'; 'No intra-render automation timelines, persistent-instance chaining'); host.py sets every control once, then calls plugin(x, sr, buffer_size=block, reset=True) on a fresh instance",
+    "splice_model": "output = static render A for n<N, static render B for n>=N. Only a valid stand-in for a genuine mid-stream change if the processor state at N is independent of the changed parameter (otherwise B's state at N is the state of a run that always had B).",
+    "splice_validity_test": "measured on the Tsunami core only (genuine internals are not observable through the oracle): continuous run with change A->B at block boundary N vs splice of two static core runs on the same input",
+    "splice_valid_if": {
+      "max_abs_difference_after_N": 1e-06
+    },
+    "signal": "48 kHz mono 0.5-amplitude 7 kHz sine, 1 s, 512-sample blocks, change at N=24064 (start of block 47)",
+    "cases": [
+      "threshold 0 -> -40 dB (Wideband)",
+      "freq 4000 -> 12000 Hz (threshold -40, Wideband)",
+      "monitor Output -> SideChain (threshold -40)",
+      "audio Split -> Wideband (threshold -40)"
+    ],
+    "consequence": "if invalid for a case, no genuine mid-stream comparison is made for it; if valid only on the Tsunami core, the genuine comparison still requires the unverifiable assumption that the original has no parameter smoothing, so it is NOT run as a parity claim"
   }
 }
