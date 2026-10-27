@@ -31,17 +31,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb
-      - name: Select preinstalled CPython 3.11
-        run: |
-          if [[ "$RUNNER_OS" == Windows ]]; then
-            echo "$PYTHON_3_11_X64" >> "$GITHUB_PATH"
-            echo "$PYTHON_3_11_X64/Scripts" >> "$GITHUB_PATH"
-          else
-            command -v python3.11
-            mkdir -p "$RUNNER_TEMP/python-bin"
-            ln -s "$(command -v python3.11)" "$RUNNER_TEMP/python-bin/python"
-            echo "$RUNNER_TEMP/python-bin" >> "$GITHUB_PATH"
-          fi
+      - name: Select CPython 3.11 for pinned host wheels
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
       - name: Configure pinned GPL JUCE7 and CLAP wrapper
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build actual native format modules and adapter test
@@ -70,7 +63,9 @@ jobs:
         run: |
           mkdir -p evidence
           git archive --format=tar HEAD -o evidence/project-source.tar
-          tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          if [[ -d build/_deps/juce-src && -d build/_deps/clap_juce-src ]]; then
+            tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          fi
           cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
       - name: Retain exact build bytes and diagnostic evidence (not a release)
         if: always()
