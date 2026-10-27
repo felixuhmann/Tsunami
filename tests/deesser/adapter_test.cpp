@@ -3,12 +3,14 @@
 // (generated metadata + Processor.hpp + Editor.hpp), as shipped in the VST3/CLAP targets.
 // Checks identity/metadata, that the product editor (not the fixture fallback) is attached
 // and bound through APVTS, state round trip into DSP and UI, rendering identical to the
-// portable core, and which meters the wrapper actually feeds.
+// portable core, and the meters it feeds (output peaks; Energy/Atten current post-block values).
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Generated.hpp"
 #include "Editor.hpp"
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
 using namespace tsunami::deesser;
@@ -87,6 +89,7 @@ int main() {
     juce::AudioBuffer<float> b(2, 512); juce::MidiBuffer m;
     std::vector<float> rl(512), rr(512);
     double inEnergy = 0, outEnergy = 0, maxDiff = 0;
+    std::uint64_t audioHash = 1469598103934665603ull; // FNV-1a over every output float (complete buffers)
     for (int k = 0; k < 16; ++k) {
         for (int i = 0; i < 512; ++i) {
             const float x = .5f * std::sin(2.f * 3.14159265f * 7000.f * float(k * 512 + i) / 48000.f);
@@ -98,23 +101,47 @@ int main() {
         for (int i = 0; i < 512; ++i) {
             maxDiff = std::max({maxDiff, double(std::abs(b.getSample(0, i) - rl[size_t(i)])), double(std::abs(b.getSample(1, i) - rr[size_t(i)]))});
             outEnergy += double(b.getSample(0, i)) * b.getSample(0, i);
+            for (int c = 0; c < 2; ++c) {
+                const float v = b.getSample(c, i); unsigned char bytes[sizeof v]; std::memcpy(bytes, &v, sizeof v);
+                for (auto byte : bytes) audioHash = (audioHash ^ byte) * 1099511628211ull;
+            }
         }
     }
+    std::cout << "AUDIO_FNV1A64 " << std::hex << audioHash << std::dec << "\n";
     CHECK(maxDiff == 0.0, 14, "Adapter render bit-identical to tsunami::deesser::Processor");
     CHECK(outEnergy < .5 * inEnergy, 15, "7 kHz sibilant attenuated at Threshold -40 dB through the wrapper");
 
-    // Meters: output peaks come from the shared MeterSource; the shared Adapter exposes no
-    // DetectorMeterSource, so Energy/Atten stay drawn without data ("--") rather than faked.
+    // Meters: output peaks from the shared MeterSource; Energy/Atten from the core's current
+    // post-block meter(0/1) published through the shared CoreMeterSource (observation only).
+    auto* coreMeters = dynamic_cast<tsunami::CoreMeterSource*>(p.get());
+    CHECK(coreMeters && coreMeters->coreMeterCount() == 2, 16, "core Energy/Atten meters exposed through the shared Adapter");
+    CHECK(coreMeters->coreMeter(0) == reference.meter(0) && coreMeters->coreMeter(1) == reference.meter(1)
+          && coreMeters->coreMeter(1) >= 3.f && coreMeters->coreMeter(2) == 0.f, 17, "published values equal the core's post-block meters");
     editor->pollMetersForTest();
     CHECK(editor->meterModel().outputPeakDb[0] > -20.f && editor->meterModel().outputPeakDb[1] > editor->meterModel().outputPeakDb[0] - 7.f,
-          16, "Output meters fed by the Adapter's MeterSource");
-    CHECK(dynamic_cast<DetectorMeterSource*>(p.get()) == nullptr && dynamic_cast<tsunami::CoreMeterSource*>(p.get()) == nullptr,
-          17, "no detector meter tap in the shared Adapter (core declares no meterCount/meter())");
+          18, "Output meters fed by the Adapter's MeterSource");
+    CHECK(editor->meterModel().energyDb == coreMeters->coreMeter(0) && editor->meterModel().attenDb == coreMeters->coreMeter(1), 19,
+          "Energy/Atten bars fed from the Adapter's CoreMeterSource");
     for (const char* id : {"energy", "atten"}) {
         auto* readout = dynamic_cast<Readout*>(ed->findChildWithID(juce::String(id) + "_readout"));
         auto* bar = dynamic_cast<BarMeter*>(ed->findChildWithID(juce::String(id) + "_meter"));
-        CHECK(readout && readout->text == "--" && bar && !bar->available, 18, "no faked Energy/Atten data");
+        CHECK(readout && readout->text != "--" && bar && bar->available, 20, "Energy/Atten readouts and bars show data");
     }
+    // Current post-block values, not a lifetime maximum: after 2 s of silence the published meters
+    // fall while the core's held take*() peaks (separate contract) still report the loud passage.
+    const float heldReduction = reference.gainReductionDb(), heldDetector = reference.detectorLevelDb();
+    for (int k = 0; k < 188; ++k) {
+        b.clear(); std::fill(rl.begin(), rl.end(), 0.f); std::fill(rr.begin(), rr.end(), 0.f);
+        const float* in[]{rl.data(), rr.data()}; float* out[]{rl.data(), rr.data()};
+        { juce::ScopedNoDenormals sameFloatModeAsAdapter; reference.process(in, out, 512); }
+        p->processBlock(b, m);
+    }
+    CHECK(coreMeters->coreMeter(0) == reference.meter(0) && coreMeters->coreMeter(1) == reference.meter(1)
+          && coreMeters->coreMeter(1) < heldReduction - 1.f && coreMeters->coreMeter(0) < heldDetector - 10.f
+          && reference.gainReductionDb() == heldReduction, 21, "published meters are current, not held maxima");
+    editor->pollMetersForTest();
+    CHECK(editor->meterModel().attenDb == coreMeters->coreMeter(1) && editor->meterModel().attenPeakDb >= 3.f, 22,
+          "Atten bar follows the current value; the editor's own peak readout holds");
     // Paint the product editor: non-uniform image of the expected size.
     auto image = ed->createComponentSnapshot(ed->getLocalBounds());
     CHECK(image.getWidth() == 380 && image.getHeight() == 380 && image.getPixelAt(5, 5) != image.getPixelAt(158, 200), 19, "editor renders");

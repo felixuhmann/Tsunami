@@ -29,6 +29,11 @@ public:
  float detectorLevelDb() const noexcept {return detectorLevelDb_.load(std::memory_order_relaxed);}
  float takeGainReductionDb() noexcept {return gainReductionDb_.exchange(0.f,std::memory_order_relaxed);}
  float takeDetectorLevelDb() noexcept {return detectorLevelDb_.exchange(-120.f,std::memory_order_relaxed);}
+ // Current post-block meters for the shared Adapter's CoreMeterSource (observation only; audio is
+ // unchanged): meter(0) = detector level and meter(1) = gain reduction, on the same scales as above but
+ // for the most recent non-empty process() block only (not held). Read on the processing thread.
+ static constexpr unsigned meterCount=2;
+ float meter(unsigned index) const noexcept {return index==0?blockDetectorLevelDb_:index==1?blockGainReductionDb_:0.f;}
 private:
  std::array<float,6> params_{{5506,0,1,0,0,0}};
  unsigned channels_=1;
@@ -45,6 +50,7 @@ private:
  void updateThreshold() noexcept;
  static void foldMax(std::atomic<float>& a,float v) noexcept {float cur=a.load(std::memory_order_relaxed);while(v>cur&&!a.compare_exchange_weak(cur,v,std::memory_order_relaxed)){}}
  std::atomic<float> gainReductionDb_{0.f},detectorLevelDb_{-120.f};
+ float blockGainReductionDb_=0.f,blockDetectorLevelDb_=-120.f;
 };
 namespace detail {constexpr double pi=3.14159265358979323846; inline float clip(float x) noexcept{return std::clamp(x,-1.0f,0.999999f);}}
 inline double Processor::Section::tick(double x) noexcept {
@@ -82,7 +88,7 @@ inline void Processor::updateThreshold() noexcept {
  thresholdBin_=unsigned(std::ceil(1023*std::pow(10.0,t/20)));
  detectorScale_=unsigned(1023/std::sqrt(.5)*std::pow(10.0,(t-params_[1])/20)+.5);
 }
-inline void Processor::reset() noexcept {for(auto& s:detector_)s.x1=s.x2=s.y1=s.y2=0;envelope_=0;gainFast_=gainSlow_=1;splitState_={0,0};gainReductionDb_.store(0.f,std::memory_order_relaxed);detectorLevelDb_.store(-120.f,std::memory_order_relaxed);}
+inline void Processor::reset() noexcept {for(auto& s:detector_)s.x1=s.x2=s.y1=s.y2=0;envelope_=0;gainFast_=gainSlow_=1;splitState_={0,0};gainReductionDb_.store(0.f,std::memory_order_relaxed);detectorLevelDb_.store(-120.f,std::memory_order_relaxed);blockGainReductionDb_=0.f;blockDetectorLevelDb_=-120.f;}
 inline void Processor::setParameter(unsigned i,float v) noexcept {
  if(i>=6||!std::isfinite(v))return;
  params_[i]=i==0?std::round(std::clamp(v,2000.0f,16000.0f)):i==1?std::clamp(v,-80.0f,0.0f):(v>=.5f?1.0f:0.0f);
@@ -117,7 +123,9 @@ inline void Processor::process(const float* const* in,float* const* out,unsigned
   }
  }
  if(n==0)return;
- foldMax(gainReductionDb_,minGain<1?float(-20*std::log10(std::max(minGain,1e-6))):0.f);
- foldMax(detectorLevelDb_,peakEnvelope>1e-6f?float(20*std::log10(double(peakEnvelope)/std::sqrt(.5))):-120.f);
+ blockGainReductionDb_=minGain<1?float(-20*std::log10(std::max(minGain,1e-6))):0.f;
+ blockDetectorLevelDb_=peakEnvelope>1e-6f?float(20*std::log10(double(peakEnvelope)/std::sqrt(.5))):-120.f;
+ foldMax(gainReductionDb_,blockGainReductionDb_);
+ foldMax(detectorLevelDb_,blockDetectorLevelDb_);
 }
 }

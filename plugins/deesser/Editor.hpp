@@ -5,7 +5,8 @@
 // stereo Output meters 0..-30 dBFS with readouts). Everything is painted here; no vendor
 // images or fonts. Controls use APVTS attachments (foundation EDITOR_FACTORY contract).
 // Output meters read the shared adapter's lock-free MeterSource. Energy/Atten read the
-// plugin-local DetectorMeterSource when the host wrapper provides it; otherwise they are
+// shared adapter's CoreMeterSource (core meter(0) detector level, meter(1) gain reduction:
+// latest post-block values) or a plugin-local DetectorMeterSource; without either they are
 // drawn without data rather than faked.
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
@@ -51,7 +52,8 @@ class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
         : AudioProcessorEditor(p), state(s), outputMeters(dynamic_cast<MeterSource*>(&p)),
-          detectorMeters(dynamic_cast<DetectorMeterSource*>(&p)) {
+          detectorMeters(dynamic_cast<DetectorMeterSource*>(&p)), coreMeters(dynamic_cast<CoreMeterSource*>(&p)) {
+        if (coreMeters != nullptr && coreMeters->coreMeterCount() < 2) coreMeters = nullptr;
         // Audio: single button showing the current mode (Split/Wideband).
         audio.setClickingTogglesState(true); audio.setComponentID("audio");
         audioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, "audio", audio);
@@ -84,7 +86,7 @@ public:
 
         energy.fill = colour::energy; energy.fraction = [](float db) { return ui::thresholdFraction(db); }; energy.setComponentID("energy_meter");
         atten.fill = colour::atten; atten.fromTop = true; atten.fraction = [](float db) { return ui::attenFraction(db); }; atten.setComponentID("atten_meter");
-        energy.available = atten.available = detectorMeters != nullptr;
+        energy.available = atten.available = hasDetectorMeters();
         for (int k = 0; k < 2; ++k) {
             out[k].fill = colour::output; out[k].fraction = [](float db) { return ui::outputFraction(db); };
             out[k].setComponentID(k ? "output_right" : "output_left"); out[k].available = outputMeters != nullptr;
@@ -140,6 +142,8 @@ private:
     juce::AudioProcessorValueTreeState& state;
     MeterSource* outputMeters;
     DetectorMeterSource* detectorMeters;
+    CoreMeterSource* coreMeters;
+    bool hasDetectorMeters() const noexcept { return detectorMeters != nullptr || coreMeters != nullptr; }
     ui::MeterModel meters;
     juce::TextButton audio, monitorAudio{"Audio"}, monitorSideChain{"S Chain"};
     juce::Slider freq, threshold;
@@ -163,13 +167,14 @@ private:
     }
     void refreshReadouts() {
         auto db = [](float v) { return v <= -120.f ? juce::String("--") : juce::String(v, 1); };
-        energyReadout.text = detectorMeters ? db(meters.energyPeakDb) : "--";
-        attenReadout.text = detectorMeters ? juce::String(ui::attenReadout(meters.attenPeakDb)) : "--";
+        energyReadout.text = hasDetectorMeters() ? db(meters.energyPeakDb) : "--";
+        attenReadout.text = hasDetectorMeters() ? juce::String(ui::attenReadout(meters.attenPeakDb)) : "--";
         for (int k = 0; k < 2; ++k) outReadout[k].text = outputMeters ? db(meters.outputPeakDb[size_t(k)]) : "--";
         for (juce::Component* c : std::initializer_list<juce::Component*>{&energyReadout, &attenReadout, &outReadout[0], &outReadout[1]}) c->repaint();
     }
     void timerCallback() override {
         if (detectorMeters) meters.poll(*detectorMeters);
+        else if (coreMeters) meters.pollDetector(coreMeters->coreMeter(0), coreMeters->coreMeter(1));
         if (outputMeters) { const auto peaks = outputMeters->takeOutputPeaks(); meters.pollOutput(peaks[0], peaks[1]); }
         energy.value = meters.energyDb; atten.value = meters.attenDb;
         out[0].value = meters.outputDb[0]; out[1].value = meters.outputDb[1];

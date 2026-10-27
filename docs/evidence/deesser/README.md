@@ -40,7 +40,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
 ## Remaining limitations
 - Parameter changes mid-stream not compared to the genuine plugin (oracle has no automation path); intra-block (sample-accurate) changes not modelled.
 - Sample rates outside 44.1/48/96 kHz, and Freq near 16 kHz at 44.1 kHz (Nyquist clamp path), not compared.
-- Native product wrapper: see "Native wrapper integration" at the end. Energy/Atten have no data in the product build (drawn empty, readouts `--`): the core's meters are max-since-`take*()`, while the shared Adapter's `meterCount`/`meter()` hook (PR23) publishes a const peek after every block, which would hold the maximum until the next `reset()`. Hooking them needs either a take-on-publish meter contract in the shared Adapter or a core accessor change; neither is done here.
+- Native product wrapper: see "Native wrapper integration" and "Native product workflow and Energy/Atten bridge" at the end. Energy/Atten in the product build show the core's current post-block detector level / gain reduction (source-grounded on the core's own detector and gain computations; NOT genuine-original meter ballistics evidence). The UI timer samples only the most recent block, so the editor's peak readouts hold the maximum of the sampled values, not of every block.
 
 ## Round 2: editor and mid-stream automation
 - `tests/deesser/test_editor_model.cpp` (ctest `deesser_editor_model`, no JUCE): every control maps to a genuine parameter, and no control is invented. Covers clamp/quantise, the Freq taper, display text, all-or-nothing state restore, Energy/Atten fed from the core's realtime-safe meters, and infinite peak hold with click reset.
@@ -62,7 +62,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
 - Atten readout shows "0.0" when idle instead of "-0.0" (`ui::attenReadout`, test 6d).
 - `thresholds.json` `ordering_note`: values unchanged; the self-reported declaration stamps are not provable from git.
 
-## Native wrapper integration (Linux local build only; PR23 dependency)
+## Native wrapper integration (first slice, 890d808; PR23 since merged at 094ec6d)
 - `plugins/deesser/tsunami.cmake`: plugin-local registration `tsunami_plugin(TsunamiDeEsser "${TSUNAMI_PLUGIN_DIR}" deesser "Tsunami De-Esser" TsDE "tsunami::deesser::Processor")` plus ctest `deesser.adapter`. `TsDE` is not used by any other registration (TsFx, TsS1, TsRV). It takes effect only with the shared root from PR23 (`integration/shared-foundation` @ 3b64a12): `include("${TSUNAMI_PLUGIN_DIR}/tsunami.cmake")` and generic `TSUNAMI_PLUGIN_ID`. On main (7781f52), `tools/release.py` does not discover it yet; it discovers only s1.
 - The generator picks up `Editor.hpp` and emits `PluginSpec::createEditor` -> `tsunami::createPluginEditor`, so hosts get this editor, not the fixture fallback. Parameter ranges, choice labels and the log taper come from PR23's metadata generator; DSP and parameter mapping are unchanged in this slice.
 - `tests/deesser/adapter_test.cpp` (real `Adapter<PluginSpec>` via `createPluginFilter()`) checks:
@@ -87,3 +87,21 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - acceptance
 
   Generic S1/foundation CI results are not DeEsser evidence. Sidechain input and mono buses are not exposed: the wrapper is stereo in/out only, and the internal SideChain filter and Monitor modes are the existing parameters.
+
+## Native product workflow and Energy/Atten bridge (after merging main 094ec6d)
+- Core accessor: `Processor::meterCount = 2` and `meter(0|1)`. It returns the detector level / gain reduction of the most recent non-empty `process()` block, on the same scales as the held `take*()` meters (unchanged). It is observation only.
+  - Audio witness: the real-Adapter render hash `AUDIO_FNV1A64 c19f9aa561842753` over all 16x512 stereo output samples is identical before (140b09f) and after the change.
+  - The portable `deesser_processor`/`metadata`/`automation`/`editor_model` ctests pass.
+- Editor bridge: `Editor.hpp` reads the shared `CoreMeterSource` (`coreMeter(0/1)`) when no plugin-local `DetectorMeterSource` exists.
+  - RED: `adapter_test.cpp` failed to compile with `'class tsunami::deesser::Processor' has no member named 'meter'`.
+  - GREEN: published values equal the core's, the Energy/Atten bars and readouts carry data, and after 2 s of silence the published values fall while the held core peak does not (current, not lifetime max).
+- `.github/workflows/deesser.yml` runs on Windows/Linux, with pinned actions and tool hashes:
+  - portable core ctests;
+  - root build with `TSUNAMI_PLUGIN_ID=deesser`, then VST3, CLAP and `deesser.adapter`;
+  - clap-validator 0.4.1;
+  - pluginval 1.0.4: Linux at strictness 6 inside the editor capture; Windows at strictness 6, sha256 `c08e61ce...` of the release asset, fetched the same way as the project's Linux pin;
+  - Pedalboard rate/block/state matrix (`tests/foundation/host_smoke.py`);
+  - hosted editor capture at the exact 380x380 product size, with PID, module and source hashes in the receipt. `tests/deesser/linux_editor_capture.py` and `tests/deesser/windows_editor_capture.py` load the reviewed foundation/S1 capture with a single literal substitution.
+- Local Linux run of the capture: pluginval SUCCESS, window 380x380 owned by the launched PID with the exact module mapped. Atten readout `0.0`, so the bridge is live; Energy reads `--` on pluginval's silent input, because -120 dB is the floor. Known cosmetic issue: the SideChain combo text is truncated ("B...").
+- The release pipeline (`tools/release.py discover`) on this tree includes `deesser` (`TsDE`, `TSUNAMI_PLUGIN_ID=deesser`).
+- Not claimed: genuine meter ballistics, original UI equivalence, release packaging, product acceptance. CI results are recorded in the PR, not here.
