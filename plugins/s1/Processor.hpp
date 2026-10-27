@@ -30,6 +30,8 @@ public:
         parameters_[index]=index>=Swap ? float(value>=.5f) : value;
         updateMatrix();
     }
+    // Target matrix {a,b,c,d}: L'=a*L+b*R, R'=d*L+c*R (for message-thread display models on a private instance).
+    std::array<float,4> matrix() const noexcept { return target_; }
     float getParameter(unsigned index) const noexcept { return index<Count ? parameters_[index] : 0.f; }
     void process(const float* const* inputs, float* const* outputs, unsigned frames) noexcept {
         if (!frames) return;
