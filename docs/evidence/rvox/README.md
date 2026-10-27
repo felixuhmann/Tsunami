@@ -183,6 +183,8 @@ campaign owns full raw/oracle provenance and logs.
   The leader's own arrow-key step and edited value label now also write inside one
   host gesture (JUCE sends these outside a drag); checks 93-96, same scope. Sliders do
   not take keyboard focus by default, so the key path is defensive (tested by direct calls).
+  A value box entry that parses non-finite ("nan", "1e999") is rejected before any write
+  and the readout is restored; before the fix it published NaN to the parameter (check 98).
 - Output ceiling (round-2 task3): Gain is a ceiling only for <=0 dBFS input. A
   +20 dBFS sine at Comp -6 / Gain -28.7 peaks at -23.58 dBFS in the genuine
   original and identically in the core and hosted adapter (max_abs 1.49e-8,

@@ -412,6 +412,68 @@ int main() {
         CHECK(approx(physical(0), -12.f) && approx(physical(2), -3.f), 90, "state recall exact while linked");
         CHECK(host.begins == before.begins && host.ends == before.ends && !host.invalid, 91, "no gestures from automation/recall");
     }
+    {
+        // Malformed value entry. JUCE's String::getDoubleValue parses "nan"/"-NaN" to NaN and
+        // an overflowing exponent ("1e999") to +/-inf; text containing "inf" is mapped to the
+        // fader minimum before parsing (gate -Infinity = off). A non-finite parse must not
+        // write, gesture or move anything, and the readout returns to its canonical text.
+        std::vector<std::string> entryFailures;
+        auto home = [&] { p.removeListener(&host); setPhysical(0, -20.f); setPhysical(1, -30.f); setPhysical(2, -10.f); p.addListener(&host); };
+        for (int linkedCase = 0; linkedCase < 2; ++linkedCase) {
+            home();
+            std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+            if (linkedCase) CHECK(linkCompGain(*ed), 97, "entry test links comp+gain");
+            const std::string tag = linkedCase ? "linked " : "unlinked ";
+            for (const char* label : {"gate_value", "comp_value", "gain_value"}) {
+                for (const char* text : {"nan", "-NaN", "1e999", "-1e999"}) {
+                    auto* l = child<juce::Label>(*ed, label);
+                    const juce::String shown = l->getText();
+                    const auto before = host.c;
+                    std::array<float, 3> norm{};
+                    for (int i = 0; i < 3; ++i) norm[size_t(i)] = params[i]->getValue();
+                    const auto pill = rect(*ed, "comp_value");
+                    l->setText(text, juce::sendNotificationSync);
+                    bool ok = !host.invalid && host.changes == before.changes && host.begins == before.begins &&
+                              (host.open == std::array<int, 3>{}) && l->getText() == shown && rect(*ed, "comp_value") == pill;
+                    for (int i = 0; i < 3; ++i) ok = ok && std::isfinite(params[i]->getValue()) && params[i]->getValue() == norm[size_t(i)];
+                    for (const char* id : {"gate", "compression", "gain"}) ok = ok && std::isfinite(child<juce::Slider>(*ed, id)->getValue());
+                    std::cout << "ENTRY " << tag << label << " '" << text << "' host_changes=" << host.changes[0] - before.changes[0] << ","
+                              << host.changes[1] - before.changes[1] << "," << host.changes[2] - before.changes[2]
+                              << " begins=" << host.begins[0] - before.begins[0] << "," << host.begins[1] - before.begins[1] << ","
+                              << host.begins[2] - before.begins[2] << " physical=" << physical(0) << "," << physical(1) << "," << physical(2)
+                              << " readout='" << l->getText() << "' was='" << shown << "'\n";
+                    if (!ok) { entryFailures.push_back(tag + label + " '" + text + "'"); home(); }
+                }
+            }
+            // Finite non-integral entry still works, inside one gesture; linked Comp follows.
+            {
+                const auto before = host.c;
+                child<juce::Label>(*ed, "gain_value")->setText("-7.25", juce::sendNotificationSync);
+                const bool ok = approx(physical(2), -7.25f) && approx(physical(0), linkedCase ? -17.25f : -20.f) && approx(physical(1), -30.f) &&
+                                host.begins[2] == before.begins[2] + 1 && host.loose[2] == before.loose[2] &&
+                                host.changes[1] == before.changes[1] && (host.open == std::array<int, 3>{}) && !host.invalid;
+                std::cout << "ENTRY " << tag << "gain_value '-7.25' physical=" << physical(0) << "," << physical(1) << "," << physical(2) << "\n";
+                if (!ok) entryFailures.push_back(tag + "finite -7.25");
+            }
+            if (!linkedCase) {
+                child<juce::Label>(*ed, "gate_value")->setText("-35.5", juce::sendNotificationSync);
+                if (!approx(physical(1), -35.5f) || child<juce::Label>(*ed, "gate_value")->getText() != "-35.5") entryFailures.push_back("gate finite -35.5");
+                child<juce::Label>(*ed, "gate_value")->setText("-Infinity", juce::sendNotificationSync);
+                if (physical(1) != -80.f || child<juce::Label>(*ed, "gate_value")->getText() != "-inf") entryFailures.push_back("gate -Infinity is off");
+            } else {
+                // Host automation and state recall after malformed entry: no follower write, no gesture.
+                juce::MemoryBlock saved; p.getStateInformation(saved);
+                const auto before = host.c;
+                const float g = physical(2);
+                setPhysical(0, -14.f);
+                p.setStateInformation(saved.getData(), int(saved.getSize()));
+                if (!approx(physical(2), g) || !approx(physical(0), -17.25f) || host.begins != before.begins || host.changes[2] != before.changes[2])
+                    entryFailures.push_back("linked automation/recall after malformed entry");
+            }
+        }
+        for (const auto& what : entryFailures) std::cerr << "ENTRY FAILED " << what << "\n";
+        CHECK(entryFailures.empty(), 98, "malformed value entry leaves parameters, gestures and readout unchanged");
+    }
     p.removeListener(&host);
     std::cout << "PASS rvox editor\n";
     return 0;

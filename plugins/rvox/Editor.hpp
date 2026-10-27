@@ -312,10 +312,17 @@ private:
         f.value.setBounds(readout);
         f.last = f.slider.getValue();
         f.value.setText(formatDb(f.last, juce::String(id) == "gate" ? minimum : -1e9), juce::dontSendNotification);
-        f.value.onTextChange = [&f, minimum] {
+        f.value.onTextChange = [&f, minimum, floor = juce::String(id) == "gate" ? minimum : -1e9] {
             const juce::ScopedValueSetter<bool> origin(f.slider.userChange, true);
             const auto text = f.value.getText();
-            const double target = juce::jlimit(minimum, f.slider.getMaximum(), text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue());
+            const double parsed = text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue();
+            // JUCE parses "nan" to NaN and an overflowing exponent to +/-inf; reject those
+            // before any clamp, gesture or write and show the current value again.
+            if (!std::isfinite(parsed)) {
+                f.value.setText(formatDb(f.slider.getValue(), floor), juce::dontSendNotification);
+                return;
+            }
+            const double target = juce::jlimit(minimum, f.slider.getMaximum(), parsed);
             // An edited value is a gesture only if the attachment will write it (it
             // skips equal normalised values), so the same value typed differently opens none.
             std::optional<juce::Slider::ScopedDragNotification> gesture;
