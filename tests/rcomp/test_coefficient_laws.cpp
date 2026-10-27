@@ -39,5 +39,11 @@ int main() {
     check(near(g.scale + 2.0 * g.offset, 0.0625, 1e-15), "soft gain unity is 1/16");
     // Attack feeds the memory law directly (b_a05/b_a16/b_a100 renders).
     check(attackMemory(48000, 16.0) == timeConstantMemory(48000, 16.0), "attack memory law");
+    // Ratio -> soft-gain floor, measured (threshold-independent) at displayed
+    // ratios 1.50/2.00/3.01/4.01/7.99; exact at the measured points.
+    check(near(ratioFloor(2.0), 0.148735, 2e-5) && near(ratioFloor(4.01), 0.029841, 2e-5)
+          && near(ratioFloor(7.99), 0.006655, 2e-5), "measured ratio floors");
+    check(ratioFloor(3.5) < ratioFloor(3.01) && ratioFloor(3.5) > ratioFloor(4.01),
+          "floor interpolation monotone");
     std::cout << "rcomp coefficient laws ok\n";
 }

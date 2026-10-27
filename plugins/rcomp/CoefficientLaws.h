@@ -60,4 +60,20 @@ inline SoftGain softGainForFloor(double floor) noexcept {
     return {(1.0 - floor) / 16.0, floor / 32.0};
 }
 
+// Ratio -> soft-gain floor b. MEASURED, not a recovered formula: the floor was
+// extracted from genuine stepped-sine renders and is independent of Threshold
+// (identical b at -12/-20/-30 dB for Ratio 2 and 8). Exact at the measured
+// displayed ratios; log-log interpolation between them and b(1) = 1 below 1.5
+// are PROVISIONAL. Ratios above 7.99 clamp (unmeasured).
+inline double ratioFloor(double ratio) noexcept {
+    static constexpr double r[] = {1.0, 1.5, 2.0, 3.01, 4.01, 7.99};
+    static constexpr double b[] = {1.0, 0.313986, 0.148735, 0.056305, 0.029841, 0.006655};
+    if (!(ratio > r[0])) return 1.0;
+    if (ratio >= r[5]) return b[5];
+    unsigned i = 1;
+    while (ratio > r[i]) ++i;
+    const double t = std::log(ratio / r[i - 1]) / std::log(r[i] / r[i - 1]);
+    return std::exp(std::log(b[i - 1]) + t * (std::log(b[i]) - std::log(b[i - 1])));
+}
+
 } // namespace tsunami::rcomp
