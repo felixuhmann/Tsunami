@@ -1,6 +1,7 @@
 {
   "schema": 1,
   "component": "Tsunami De-Esser",
+  "supports_mono": true,
   "source": "Genuine reference parameter enumeration (names, ranges, defaults, choice order); physical values passed to Processor::setParameter",
   "parameters": [
     {"index": 0, "id": "freq", "name": "Freq", "min": 2000, "max": 16000, "default": 5506, "unit": "Hz", "type": "float", "logarithmic": true, "steps": 1001, "taper": "2000*8^normalized", "display_decimals": 0, "group": "detector"},

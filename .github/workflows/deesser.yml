@@ -110,6 +110,16 @@ jobs:
           else
             timeout 300 python tests/foundation/host_smoke.py "$plugin" evidence
           fi
+      - name: Native mono 1-in/1-out VST3 smoke vs 1-channel core (Pedalboard; not a downmix)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
+          renderer="$(python -c "from pathlib import Path; print(next(p for p in Path('build-core').rglob('deesser_render*') if p.is_file() and p.name in ('deesser_render','deesser_render.exe')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 120 xvfb-run -a python tests/deesser/mono_host_smoke.py "$plugin" "$renderer" evidence/mono
+          else
+            timeout 120 python tests/deesser/mono_host_smoke.py "$plugin" "$renderer" evidence/mono
+          fi
       - name: Windows pluginval strictness 6 (VST3 validator incl. editor tests)
         if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Windows' }}
         run: |

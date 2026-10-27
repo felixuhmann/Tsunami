@@ -166,3 +166,21 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
 
   Logs are under the campaign state `deesser-native/editor-readouts/`.
 - Still pending: a native Windows capture at a new head (the initial-text fix is the Windows-visible one), original-UI equivalence, and the SideChain filter-shape icon.
+
+## Mono 1-in/1-out product layout (local; depends on PR18's generator hunk)
+- Gap: the core supports `prepare(rate, 1, block)`, but the product wrapper advertised only stereo (the original has mono and stereo components). The shared Adapter's reviewed opt-in (`Spec::supportsMono`, `detail::SupportsMono`) is on main. The generator that emits it from `supports_mono` exists only on the unmerged RVox PR18 (`origin/plugin/rvox` df1a8e2); it is not on main cb25f1e or on this branch.
+- `plugins/deesser/parameters.json` now declares `"supports_mono": true`. No DSP, editor, shared or generator change.
+- RED, real generated DeEsser Adapter (`tests/deesser/adapter_test.cpp`):
+  - The Adapter refuses mono 1-in/1-out (code 43); asymmetric layouts are already rejected (42).
+  - With the metadata added, this branch's own generator still emits no `supportsMono`, so the test still fails (43). The branch is therefore dependency-gated, not GREEN on its own tree.
+- GREEN, in a scratch preview only: this branch's generator plus PR18's exact generator hunk (`pr18-generator.diff`, applied with offsets; S1 bytes unchanged), outside the repo.
+  - mono render bit-identical to the 1-channel core and finite (44);
+  - active de-essing with Energy/Atten equal to the core (45);
+  - mono control readback and state round trip (46);
+  - stereo restored and bit-identical to the 2-channel core (47-48);
+  - all earlier tests pass, and the stereo render hash is unchanged (`c19f9aa561842753`).
+- Native host smoke, `tests/deesser/mono_host_smoke.py` (Pedalboard 0.9.26 from the hash-pinned `tools/host-requirements.txt` in a private CPython 3.11 venv). Run locally on Linux only:
+  - Negative control: the stereo-only CI module from 764825e is refused, `does not support 1-channel output`, so Pedalboard does not downmix.
+  - Mono-capable module: output (1, 8192), max diff vs the 1-channel core `0.0`, 12.27 dB of de-essing at -40 dB, transparent at 0 dB, state restore reproducible, stereo diff `0.0`.
+  - The workflow step was added after the pinned Pedalboard install. No Windows/Linux CI readback exists for it yet; it will fail on this branch until the generator support is merged.
+- CLAP: clap-validator 0.4.1 on the mono-capable CLAP exits 0 (31 success / 11 skipped / 2 warnings: denormal timing, random state). The plugin implements none of `audio-ports-config`, `configurable-audio-ports` or `audio-ports-activation`, so CLAP hosts are **not** offered a mono configuration. CLAP mono advertisement is unresolved, not waived.

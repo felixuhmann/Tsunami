@@ -270,6 +270,58 @@ int main() {
         p->processBlock(b, m);
     }
     CHECK(coreMeters->coreMeter(1) >= 3.f, 27, "de-essing resumes after re-prepare at a supported rate");
+    // Mono 1-in/1-out product layout (opt-in supports_mono; the core supports prepare(rate, 1, block)).
+    // Host-visible buses are mono and the core processes one channel: not a downmix of a stereo plugin.
+    {
+        using Layout = juce::AudioProcessor::BusesLayout;
+        const auto mono = juce::AudioChannelSet::mono(), stereo = juce::AudioChannelSet::stereo();
+        auto layout = [](juce::AudioChannelSet in, juce::AudioChannelSet out) { Layout l; l.inputBuses.add(in); l.outputBuses.add(out); return l; };
+        CHECK(!p->checkBusesLayoutSupported(layout(mono, stereo)) && !p->checkBusesLayoutSupported(layout(stereo, mono)), 42,
+              "asymmetric mono/stereo layouts rejected");
+        p->releaseResources();
+        CHECK(p->checkBusesLayoutSupported(layout(mono, mono)) && p->setBusesLayout(layout(mono, mono))
+              && p->getTotalNumInputChannels() == 1 && p->getTotalNumOutputChannels() == 1, 43, "mono 1-in/1-out layout accepted");
+        setPhysical(*p, "threshold", -40.f); setPhysical(*p, "audio", 0.f); setPhysical(*p, "sidechain", 1.f); setPhysical(*p, "bypass", 0.f);
+        p->prepareToPlay(48000, 512);
+        Processor monoCore;
+        for (unsigned i = 0; i < ui::parameterCount; ++i) monoCore.setParameter(i, physical(*p, ui::parameterIds[i]));
+        monoCore.prepare(48000, 1, 512);
+        juce::AudioBuffer<float> mb(1, 512); std::vector<float> mr(512);
+        double inE = 0, outE = 0, diff = 0; bool finite = true;
+        for (int k = 0; k < 16; ++k) {
+            for (int i = 0; i < 512; ++i) { const float x = .5f * std::sin(2.f * 3.14159265f * 7000.f * float(k * 512 + i) / 48000.f);
+                                             mb.setSample(0, i, x); mr[size_t(i)] = x; inE += double(x) * x; }
+            const float* in[]{mr.data()}; float* out[]{mr.data()};
+            { juce::ScopedNoDenormals sameFloatModeAsAdapter; monoCore.process(in, out, 512); }
+            p->processBlock(mb, m);
+            for (int i = 0; i < 512; ++i) { const float y = mb.getSample(0, i); finite = finite && std::isfinite(y);
+                                             diff = std::max(diff, double(std::abs(y - mr[size_t(i)]))); outE += double(y) * y; }
+        }
+        CHECK(finite && diff == 0.0, 44, "mono render bit-identical to the 1-channel core, finite");
+        CHECK(outE < .5 * inE && coreMeters->coreMeter(1) >= 3.f && coreMeters->coreMeter(1) == monoCore.meter(1)
+              && coreMeters->coreMeter(0) == monoCore.meter(0), 45, "active de-essing and Energy/Atten meters in mono");
+        juce::MemoryBlock monoState; p->getStateInformation(monoState);
+        setPhysical(*p, "threshold", -10.f);
+        p->setStateInformation(monoState.getData(), int(monoState.getSize()));
+        CHECK(std::abs(physical(*p, "threshold") + 40.f) < .06f && p->getTotalNumOutputChannels() == 1, 46, "mono control readback and state round trip");
+        // Back to stereo: full stereo function restored.
+        p->releaseResources();
+        CHECK(p->setBusesLayout(layout(stereo, stereo)) && p->getTotalNumOutputChannels() == 2, 47, "stereo layout restored");
+        p->prepareToPlay(48000, 512);
+        Processor stereoCore;
+        for (unsigned i = 0; i < ui::parameterCount; ++i) stereoCore.setParameter(i, physical(*p, ui::parameterIds[i]));
+        stereoCore.prepare(48000, 2, 512);
+        diff = 0;
+        for (int k = 0; k < 8; ++k) {
+            for (int i = 0; i < 512; ++i) { const float x = .5f * std::sin(2.f * 3.14159265f * 7000.f * float(k * 512 + i) / 48000.f);
+                                             b.setSample(0, i, x); b.setSample(1, i, .5f * x); rl[size_t(i)] = x; rr[size_t(i)] = .5f * x; }
+            const float* in[]{rl.data(), rr.data()}; float* out[]{rl.data(), rr.data()};
+            { juce::ScopedNoDenormals sameFloatModeAsAdapter; stereoCore.process(in, out, 512); }
+            p->processBlock(b, m);
+            for (int i = 0; i < 512; ++i) diff = std::max({diff, double(std::abs(b.getSample(0, i) - rl[size_t(i)])), double(std::abs(b.getSample(1, i) - rr[size_t(i)]))});
+        }
+        CHECK(diff == 0.0 && coreMeters->coreMeter(1) >= 3.f, 48, "stereo render and de-essing after returning from mono");
+    }
     ed.reset();
     p->releaseResources();
     std::cout << "PASS DeEsser real Adapter: identity, editor bindings, state, render parity, meters\n";
