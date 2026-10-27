@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-name: Foundation native spike
+name: JUCE9 foundation native spike
 on:
   pull_request:
   workflow_dispatch:
@@ -28,12 +28,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb openbox x11-utils
       - name: Select CPython 3.11 for pinned host wheels
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
-      - name: Configure pinned GPL JUCE7 and CLAP wrapper
+      - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build actual native format modules and adapter test
         run: cmake --build build --config Release --target adapter_test TsunamiFixture_VST3 TsunamiFixture_CLAP --parallel 2
@@ -65,6 +65,9 @@ jobs:
             tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
           fi
           cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
+          cp -r LICENSES evidence/
+          git rev-parse HEAD > evidence/checkout-sha.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha }}" > evidence/pr-head-sha.txt
       - name: Retain exact build bytes and diagnostic evidence (not a release)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -6,10 +6,15 @@ The explicitly named `Tsunami Infrastructure Fixture` lives under
 
 ## Selected stack and scope
 
-- JUCE **7.0.13-security**, `db7028f413b909ec9fd35f73c98b025c361a1c27`,
-  selecting its GPLv3 alternative; no JUCE 9/AGPL substitution.
+- JUCE **9.0.4**, `3fb5cbc0340758596dac39f7c8de47d562b4896e`,
+  selecting its AGPLv3 open-source alternative, explicitly authorized by the user.
+  Archive SHA256: `2bb7095497a7bb7269dbdf841a7c6aa0939eaeb2a2bc9724ac4758d3ae3565a7`.
 - CLAP JUCE extension `7adee3a1bd4684d4caa5601100e364abccff4b4d`,
-  pinned CLAP/CLAP-helpers submodules; see `dependencies.lock.json`.
+  still upstream main HEAD at migration audit (2026-10-27), newer than its
+  0.26.0 tag. Retained because it is already the newest upstream revision;
+  its README claims only JUCE 6/7/8, so JUCE9 compatibility requires actual
+  build and validator evidence, not assumed vendor support. Pinned
+  CLAP/CLAP-helpers submodules: see `dependencies.lock.json`.
 - No generic DSP algorithms or unnecessary primitive dependencies.
 - Stereo float32 adapter for the portable core contract. Physical parameter
   ranges/defaults, stable string IDs/version hints, block-boundary atomics,
@@ -22,7 +27,7 @@ The explicitly named `Tsunami Infrastructure Fixture` lives under
 
 ## Build and tests
 
-Linux requires CMake >=3.22, C++17, X11 family/FreeType headers, ALSA for
+Linux requires CMake >=3.22, C++17, X11 family/FreeType/fontconfig headers, ALSA for
 standalone. No WebKit/curl/OpenGL runtime is requested. Windows uses native
 MSVC x64 on `windows-2022`; Linux uses `ubuntu-22.04`.
 

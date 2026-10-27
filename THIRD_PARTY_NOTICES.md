@@ -1,15 +1,18 @@
 # Foundation dependency notices
 
 Tsunami-owned source: SPDX **GPL-3.0-or-later**, see `LICENSE`.
-This milestone selects **JUCE 7's GPLv3 alternative**, not its commercial terms,
-not JUCE 9/AGPL. The linked combination exercises GPLv3; this does not grant
-later-version permission for GPLv3-only dependency material.
+This milestone selects **JUCE 9.0.4's AGPLv3 open-source alternative**, not its
+commercial terms. Tsunami-authored source remains GPL-3.0-or-later. GPLv3 and
+AGPLv3 section 13 permit the combination; AGPL network-interaction requirements
+apply to the combination when applicable. See `LICENSES/AGPL-3.0.txt` and
+`docs/LICENSING.md`; do not describe the linked distribution as GPL-only.
 
 Exact sources and pins: `dependencies.lock.json`. Retain the **entire matching
 source trees**, including embedded copyright/license notices. JUCE's selected
-modules include its bundled VST3 SDK (GPLv3 alternative), image/font/codecs and
+modules include its bundled VST3 SDK, image/font/codecs and
 permissively licensed utilities. A top-level license is not a replacement for
-those per-file notices; a complete component-level SBOM remains a release gate.
+those per-file notices. Preserve JUCE 9's upstream `JUCE.spdx.json` inventory;
+a reviewed project-level component SBOM remains a release gate.
 No external fonts, images, DSP libraries or reference-vendor assets are added.
 
 CLAP JUCE extension (MIT):

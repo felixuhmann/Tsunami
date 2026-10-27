@@ -6,13 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CTest)
 include(FetchContent)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+include(cmake/VerifyJuce.cmake)
 set(TSUNAMI_JUCE_SOURCE "" CACHE PATH "Optional local JUCE source at the pinned revision")
 if(TSUNAMI_JUCE_SOURCE)
+  tsunami_verify_juce("${TSUNAMI_JUCE_SOURCE}")
   add_subdirectory("${TSUNAMI_JUCE_SOURCE}" "${CMAKE_BINARY_DIR}/JUCE")
 else()
   FetchContent_Declare(JUCE
-    URL https://codeload.github.com/juce-framework/JUCE/tar.gz/db7028f413b909ec9fd35f73c98b025c361a1c27
-    URL_HASH SHA256=e324e34f6660e76f883b274383ec69d14cfbd184bdedac2a1779635ff86dab58)
+    URL https://codeload.github.com/juce-framework/JUCE/tar.gz/3fb5cbc0340758596dac39f7c8de47d562b4896e
+    URL_HASH SHA256=2bb7095497a7bb7269dbdf841a7c6aa0939eaeb2a2bc9724ac4758d3ae3565a7)
   FetchContent_MakeAvailable(JUCE)
 endif()
 set(TSUNAMI_CLAP_SOURCE "" CACHE PATH "Optional local pinned clap-juce-extensions")
