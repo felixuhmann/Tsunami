@@ -40,15 +40,21 @@ Readout and label fixes at 948e848, regressions in `tests/deesser/adapter_test.c
 - Readouts never show `-0.0` (40).
 - Before the first poll, meters are idle: empty Energy/Output bars and Atten `0.0` (41).
 
-Frequency/SideChain controls at 35b870a, regressions 49-56 in `tests/deesser/adapter_test.cpp`
-(RED witnessed for 49, 52, 54 and 56; 50/51/53/55 are behaviour guards):
+Frequency/SideChain controls at 35b870a, regressions 49-58 in `tests/deesser/adapter_test.cpp`
+(RED witnessed for 49, 52, 54, 56, 57 and 58; 50/51/53/55 are behaviour guards):
 - 49: the bar-style slider drew a value-proportional fill behind the number (overlap seen in the hosted capture); now only a framed window.
-- 52: typing `nan` into the Frequency box set the host `freq` parameter to NaN (state corruption). Typed entry keeps the host's
-  text parsing; a NaN result keeps the current value (Frequency and Threshold). `inf`/`1e999` clamp to the range end and
-  garbage text parses as the range start (host parser behaviour; test 52 checks finite and in range only). Known gaps: an
-  accessibility numeric `setValue(NaN)` is not guarded, and tooltips are not shown because no TooltipWindow exists (titles
-  still reach accessibility).
+- 52: typing `nan` into the Frequency box set the host `freq` parameter to NaN (state corruption).
+- 57 (bcc5c09): typed `inf` still moved Frequency 5586 -> 16000 with a host gesture (the host parser clamps before the
+  old guard). Text whose raw leading number is nonfinite (`nan`, `-NaN`, `inf`, `-inf`, `1e999`, `-1e999`) now keeps the
+  exact current value before the host parser runs: parameters, serialised state, slider value, canonical text and gesture
+  counts unchanged (Frequency and Threshold, non-boundary nonintegral starting values). Other text keeps the host parser's
+  loose behaviour; this is not a full grammar validation.
+- 58 (bcc5c09): an accessibility-style value set (`ScopedDragNotification` + `setValue`, which is exactly what JUCE's slider
+  accessibility value interface does) with NaN set host `freq` to NaN. The slider ranges are wrapped (law, snap and
+  interval unchanged) so NaN/+-Inf keep the current value; finite entry still works. The real handler needs a native peer,
+  which the headless xvfb run (no window manager) cannot create, so the test calls the same public API directly.
 - 54/55: SideChain filter-shape pictogram.
+- Known gap: tooltips are not displayed (no TooltipWindow); titles still reach accessibility.
 - 56 (02ca890): closing the editor during a Frequency drag left the host gesture open (begins 1, ends 0); the destructor
   now releases a dragging slider while its attachment still listens.
 Hosted Linux capture of the 02ca890 module (pluginval 1.0.4 strictness 6 SUCCESS, Xvfb, 380x380, Frequency "2428" in the
