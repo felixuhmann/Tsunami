@@ -100,3 +100,40 @@ behaviour that test covers.
 - There is no test of state restore while the editor is open. Full state/UI
   acceptance is pending.
 - The root full CMake build has not been run locally. CI is the first full build.
+
+## Style/completeness slice 3
+Logs are in `s1-ui-logs`. Each item says whether it had a genuine red run.
+- **Live state restore and whole-buffer meter-mode bit identity** (`state-meter-coverage.log`): passed on first
+  run. This is coverage of existing behaviour, not new production TDD. The test calls `setStateInformation` with
+  the editor open and checks all four sliders and five toggles through the real attachments. It also uses `memcmp`
+  to compare 2x64 samples rendered before and after the meter-mode switch.
+- **Peak hold and clip lamps.** `peak-red.log`: compile red, `clipped`/`heldPeakDb` missing. `peak-green.log`:
+  PASS. The first green attempt failed (exit 24) because of a test bug: peaks from earlier unpolled renders had not
+  been drained. That was fixed in the test only. Replacement policy, **not the measured original**:
+  - The bar falls 1.5 dB per 30 Hz tick.
+  - The numeric held peak is an infinite hold.
+  - The clip lamp latches when the displayed LR or MS signal reaches |x|>=1. In MS mode the lamps reflect M/S,
+    not channel clipping.
+  - Clicking a lamp or readout resets that channel. A meter-mode change resets both channels.
+  - Silence shows `-Inf` and no bar.
+- **Alt-click fader reset** (`altclick-coverage.log`): passed on first run. JUCE's
+  `Slider::setDoubleClickReturnValue` default Alt single-click modifier provides it, and the test uses real
+  `mouseDown`/`mouseUp` events with Alt held. This is coverage, not new TDD. Double-click still works, and the
+  display's Alt-drag is on a separate component.
+- **Fader caps, scales and anchors.** `fader-red.log`: FAIL code 34, stock dot thumb. `fader-green.log`: PASS. The
+  test checks that the runtime snapshot has a broad dark cap with a pale index line at gain y82, at width-1 y274 and
+  on the rotation centre. `FaderLook` is an independently drawn `LookAndFeel`:
+  - grooves, bevel and drop shadow;
+  - travel y82–370 with value boxes at y414;
+  - horizontal tracks x365–682 at y427/y512 with readouts at x713;
+  - output bars x872–900 / x974–1002, y74–399, with a central shared scale, lamps above and readouts at y414.
+  Its lifetime is safe: it is declared before the sliders, and the destructor calls `setLookAndFeel(nullptr)`.
+- Re-run: `rt-green-style.log` (0 allocations), `meter-green-style.log` (adapter PASS), `core-ctest-style.log` (3/3).
+- Candidate in-process snapshots: `s1-ui-logs/candidates/candidate-{default,width2,rotation20}.png`. These are not
+  hosted captures and not pixel parity with the original.
+
+Remaining:
+- Hosted Linux/Windows screenshots from CI.
+- Root full build validation, plus artifact and release gates.
+- Exact original ballistics, projection and gesture sensitivity.
+- The genuine original GUI, which still renders black.
