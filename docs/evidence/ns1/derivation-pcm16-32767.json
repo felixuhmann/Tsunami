@@ -1,0 +1,103 @@
+{
+ "scope": "evaluation only (not used for tuning)",
+ "thresholds": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "thresholds_source": [
+  "docs/evidence/ns1/thresholds.json",
+  "heldout_round2_task5"
+ ],
+ "pcm16_scale": 32767.0,
+ "all_pass": false,
+ "rows": [
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.10000000149011612,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.8219699973956216e-06,
+   "max_abs_error": 4.306435585021973e-06,
+   "pass": true,
+   "evidence": "20261027T160539-921ee152bcc24fbfae03e7ab944fb03f"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.10000000149011612,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 2.4826964649875044e-05,
+   "max_abs_error": 0.0001620156690478325,
+   "pass": false,
+   "evidence": "20261027T160553-f16a3fc3aebb4b7cbeb94a670ab72137"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.375,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.900130062696265e-07,
+   "max_abs_error": 1.691281795501709e-06,
+   "pass": true,
+   "evidence": "20261027T160608-1ed39f028c3e42cca60726b28fcabc94"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.375,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.2911889913144483e-05,
+   "max_abs_error": 4.86522912979126e-05,
+   "pass": true,
+   "evidence": "20261027T160625-b1799a0cb7204ee484828283a608ca7a"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.625,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.725384251642136e-07,
+   "max_abs_error": 1.8253922462463379e-06,
+   "pass": true,
+   "evidence": "20261027T160958-b8b4892fa63b4f40a9f7371d120a44da"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.625,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 4.3526054952017955e-05,
+   "max_abs_error": 8.056312799453735e-05,
+   "pass": true,
+   "evidence": "20261027T161042-371de9337a9b4bf69407aeef1bfe20db"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.8999999761581421,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 3.564785983451194e-05,
+   "max_abs_error": 2.272985875606537e-05,
+   "pass": true,
+   "evidence": "20261027T161111-5a975f4a70904b97b956b2a567b53491"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.8999999761581421,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 7.763425838638798e-05,
+   "max_abs_error": 7.297098636627197e-05,
+   "pass": true,
+   "evidence": "20261027T161153-03e64a21ebbc41a3ad1c378721d40086"
+  }
+ ]
+}

@@ -1,0 +1,73 @@
+{
+ "schema": 1,
+ "declared_before_comparison": "2026-10-27T17:14+01:00 (round 2, before any continuous-law candidate was compared at 0.25/0.75)",
+ "scope": "NS1 Mono full Processor at predeclared comparison controls 0.25 and 0.75 vs stored genuine original captures (characterization/capture, fresh instance, no warmup)",
+ "source": "reuses tests/ns1/fidelity_thresholds.json pass_if unchanged",
+ "pass_if": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "comparison_controls": [
+  0.25,
+  0.75
+ ],
+ "derivation_controls": [
+  0.0,
+  0.1,
+  0.375,
+  0.5,
+  0.625,
+  0.9,
+  1.0
+ ],
+ "rule": "0.25/0.75 captures are never used for derivation or tuning; only fresh oracle renders at derivation_controls and the existing 0/0.5/1 captures may be used to derive the law.",
+ "stereo": {
+  "pass_if": {
+   "nrmse_max": 0.001,
+   "max_abs_error_max": 0.0001
+  },
+  "per_channel": true,
+  "input": "stereo_independent-48000.wav @ NS1 Stereo 50 %"
+ },
+ "heldout_round2_task5": {
+  "declared_before_comparison": "2026-10-27T16:30Z (before any 0.05/0.95 render was compared)",
+  "controls": [
+   0.05,
+   0.95
+  ],
+  "inputs": [
+   "white_noise-48000.wav",
+   "chirp-48000.wav"
+  ],
+  "component": "NS1 Mono",
+  "reference": "fresh oracle renders (oracle.py render, rate 48000, block 512)",
+  "pass_if": {
+   "nrmse_max": 0.001,
+   "max_abs_error_max": 0.0001
+  },
+  "rule": "held-out: never used for derivation or tuning; FAIL rows reported as FAIL"
+ },
+ "amendment_round2_task5": {
+  "date": "2026-10-27T16:31Z",
+  "note": "Factory presets (NS1.bundle 1000.xml, read only, not copied) at 1Knob 25/30/50/80 % were used as derivation data for the 0.2-0.8 segment and the 0.8 knot. Therefore 0.25 is NOT an independent comparison point; 0.75 is the held-out point. pass_if values unchanged.",
+  "pcm16_decoding": "oracle renders: input.wav PCM16 is decoded as int/32767 in comparisons (tests/ns1/compare_heldout.py default)."
+ },
+ "heldout_round2_task6": {
+  "declared_before_comparison": "2026-10-27T16:33Z (before any 0.07/0.93 render exists)",
+  "controls": [
+   0.07,
+   0.93
+  ],
+  "inputs": [
+   "white_noise-48000.wav",
+   "chirp-48000.wav"
+  ],
+  "component": "NS1 Mono",
+  "reference": "fresh oracle renders (oracle.py render, rate 48000, block 512), rendered only after the law is frozen",
+  "pass_if": {
+   "nrmse_max": 0.001,
+   "max_abs_error_max": 0.0001
+  },
+  "rule": "held-out: never used for derivation or tuning; FAIL rows reported as FAIL. 0.05/0.95 (task5) are now diagnostic, not held out."
+ }
+}

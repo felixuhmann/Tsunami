@@ -1,0 +1,235 @@
+{
+ "scope": "evaluation only (not used for tuning)",
+ "thresholds": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "thresholds_source": [
+  "docs/evidence/ns1/thresholds.json",
+  "heldout_round2_task6"
+ ],
+ "pcm16_scale": 32767.0,
+ "all_pass": false,
+ "rows": [
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.019999999552965164,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 0.00022163975752874498,
+   "max_abs_error": 0.0006462186574935913,
+   "pass": false,
+   "evidence": "20261027T163348-72ef2a87fe4a4ee090ac784a300b93cc"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.15000000596046448,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 8.121798590088911e-06,
+   "max_abs_error": 1.778826117515564e-05,
+   "pass": true,
+   "evidence": "20261027T163418-d7bc00650b7e4f1fb37a22ce8b2c8f15"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.8500000238418579,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 4.306506656763775e-05,
+   "max_abs_error": 4.356354475021362e-05,
+   "pass": true,
+   "evidence": "20261027T163248-055feaf3a00e4a6183e3e15c94bb6a93"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.9750000238418579,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.820341710977647e-05,
+   "max_abs_error": 0.00010328739881515503,
+   "pass": false,
+   "evidence": "20261027T163318-8b3ff0e2a224482d93f431d9a9dd5612"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.019999999552965164,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 8.004109298442711e-07,
+   "max_abs_error": 1.5720725059509277e-06,
+   "pass": true,
+   "evidence": "20261027T163333-cc8364170ce443f187f02f6cb449708e"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.15000000596046448,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.374984655622649e-06,
+   "max_abs_error": 3.6507844924926758e-06,
+   "pass": true,
+   "evidence": "20261027T163403-9f5fed4d31fd46bcb378323ef3d4fbef"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.8500000238418579,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.022047657067706e-06,
+   "max_abs_error": 3.0994415283203125e-06,
+   "pass": true,
+   "evidence": "20261027T163233-a615c3fcb6cc4e979a6baadc3e5659ce"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.9750000238418579,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 5.7273438406198545e-06,
+   "max_abs_error": 1.8998980522155762e-06,
+   "pass": true,
+   "evidence": "20261027T163304-6755dd96bd234f88947fcd7d4074b8e8"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.10000000149011612,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 2.4826964649875044e-05,
+   "max_abs_error": 0.0001620156690478325,
+   "pass": false,
+   "evidence": "20261027T160553-f16a3fc3aebb4b7cbeb94a670ab72137"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.10000000149011612,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.8219699973956216e-06,
+   "max_abs_error": 4.306435585021973e-06,
+   "pass": true,
+   "evidence": "20261027T160539-921ee152bcc24fbfae03e7ab944fb03f"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.8999999761581421,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 7.76332053743938e-05,
+   "max_abs_error": 7.29486346244812e-05,
+   "pass": true,
+   "evidence": "20261027T161153-03e64a21ebbc41a3ad1c378721d40086"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.8999999761581421,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 3.5697906424217186e-05,
+   "max_abs_error": 2.279318869113922e-05,
+   "pass": true,
+   "evidence": "20261027T161111-5a975f4a70904b97b956b2a567b53491"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.375,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.2911905550551235e-05,
+   "max_abs_error": 4.86522912979126e-05,
+   "pass": true,
+   "evidence": "20261027T160625-b1799a0cb7204ee484828283a608ca7a"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.375,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.900250415997494e-07,
+   "max_abs_error": 1.691281795501709e-06,
+   "pass": true,
+   "evidence": "20261027T160608-1ed39f028c3e42cca60726b28fcabc94"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.625,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 4.3526054952017955e-05,
+   "max_abs_error": 8.056312799453735e-05,
+   "pass": true,
+   "evidence": "20261027T161042-371de9337a9b4bf69407aeef1bfe20db"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.625,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.725384251642136e-07,
+   "max_abs_error": 1.8253922462463379e-06,
+   "pass": true,
+   "evidence": "20261027T160958-b8b4892fa63b4f40a9f7371d120a44da"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.05000000074505806,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.1283907261765415e-06,
+   "max_abs_error": 2.954155206680298e-06,
+   "pass": true,
+   "evidence": "20261027T162938-f6b1d6a812a34337aeebfb773511835a"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.05000000074505806,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 9.005284501976424e-05,
+   "max_abs_error": 0.0002565532922744751,
+   "pass": false,
+   "evidence": "20261027T162952-106c143b2bd14f8fa3a44a99aabb552a"
+  },
+  {
+   "input": "white_noise-48000.wav",
+   "control": 0.949999988079071,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.4969931279284893e-05,
+   "max_abs_error": 7.1087852120399475e-06,
+   "pass": true,
+   "evidence": "20261027T163007-7673d6bf2d5f4bab94435e49f46b4476"
+  },
+  {
+   "input": "chirp-48000.wav",
+   "control": 0.949999988079071,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 7.518032027134416e-05,
+   "max_abs_error": 8.125603199005127e-05,
+   "pass": true,
+   "evidence": "20261027T163021-0b0c422a173b4986a6f8531022c2d1df"
+  }
+ ]
+}

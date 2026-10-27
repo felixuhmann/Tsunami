@@ -1,0 +1,183 @@
+{
+ "schema": 2,
+ "status": "continuous NS1 control law recovered for NS1 Mono (round 2 task 3); predeclared 0.25/0.75 gate PASSES | round2-task5: chirp@0.1 FAIL, 0.9 degraded; outer segments unconfirmed",
+ "law": {
+  "form": "piecewise linear in normalized control c with breakpoints 0.2 and 0.8; implemented in plugins/ns1/design.cpp controlParameters()",
+  "knots": {
+   "columns": [
+    "c",
+    "lowerHz",
+    "upperHz",
+    "attenuationDb",
+    "relativeThreshold",
+    "floorCapDb"
+   ],
+   "rows": [
+    [
+     0,
+     60,
+     16000,
+     0,
+     0,
+     0
+    ],
+    [
+     0.2,
+     60,
+     14000,
+     -10,
+     0.02,
+     -6
+    ],
+    [
+     0.8,
+     80,
+     12000,
+     -70,
+     0.07,
+     -6
+    ],
+    [
+     1,
+     110,
+     8000,
+     -70,
+     0.8,
+     -6
+    ]
+   ]
+  },
+  "nominalFloor": "1 at c=0 (anchor), else gain(-18.6*17.9/32 dB) for all c>0 (-17.9 = per-band EXPNDR_MAX_ATTEN in every factory preset; -18.6/32 scaling as in helper 0x18002aee0)",
+  "floorCap": "linear in dB from 0 dB (c=0) to -6 dB (c=0.2), then -6 dB (dB-linear chosen by data: at c=0.1 dB-linear chirp nrmse 5.6e-5 vs gain-linear 1.2e-2)",
+  "front_rounding": "front edge allpasses (and the 14000-17000 Hz Q shape) use round(lowerHz)/round(upperHz): the design routine 0x18002e200 calls WCParam_Base::LimitRealWorld on the edge frequency, and ParamXML gives MIN_FC/MAX_FC Resolution 1 Hz; band layout (spacing/extent) uses the unrounded values. Evidence: at c=0.375 rounding everything gives chirp nrmse 8e-4, rounding nothing 5e-4, front-only rounding 4e-5."
+ },
+ "grounding": {
+  "factory_presets": "bundle Resources/Presets/1000.xml (read-only, not copied): four presets store NS1 (1Knob, PARAM_WET_DRY_CNTRL) = 25/30/50/80 % together with derived internals MIN_FC 61.667/63.333/70/80, MAX_FC 13833.3/13666.7/13000/12000, LP/HP gain -15/-20/-40/-70 dB, threshold 0.0241667/0.0283333/0.045/0.07. All collinear (slopes 100/3 Hz, -10000/3 Hz, -100 dB, 1/12 per unit) and extrapolate to (60,14000,-10,0.02) at c=0.2; the 80 % preset fixes the 0.8 knot.",
+  "outer_segments": "[0,0.2] and [0.8,1] are linear between knots by assumption, supported by one oracle render each (c=0.1, c=0.9); not otherwise grounded.",
+  "caveat_0.25": "The 25 % factory preset contributed internal values to the 0.2-0.8 slope, so the 0.25 gate point is not fully independent of the static derivation data (the 0.25 captures themselves were never used). 0.75 coincides with no preset and was never used.",
+  "nelder_mead": "6-parameter Nelder-Mead fits (numpy, driving ns1_render_params) stalled at nrmse 8.8e-3 (c=0.375) and 4e-3/2e-2 (c=0.625) because the front-rounding rule was missing; the law values were recovered from the presets, not from the optimizer."
+ },
+ "derivation_render_check": {
+  "note": "production law vs fresh oracle renders. Superseded decoding: these numbers read PCM16 input as int/32768. The oracle decodes int/32767 (scale scan optimum); see derivation-pcm16-32767.json (tests/ns1/compare_heldout.py --pcm16-scale 32767). Same pass_if as thresholds.json.",
+  "results": {
+   "white_noise@0.1": {
+    "nrmse": 3.063087035725168e-05,
+    "max_abs_error": 8.016824722290039e-06,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160539-921ee152bcc24fbfae03e7ab944fb03f"
+   },
+   "chirp@0.1": {
+    "nrmse": 5.5818597668835755e-05,
+    "max_abs_error": 0.00022777728736400604,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160553-f16a3fc3aebb4b7cbeb94a670ab72137"
+   },
+   "white_noise@0.375": {
+    "nrmse": 3.055392111838765e-05,
+    "max_abs_error": 5.4836273193359375e-06,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160608-1ed39f028c3e42cca60726b28fcabc94"
+   },
+   "chirp@0.375": {
+    "nrmse": 4.0382934580910315e-05,
+    "max_abs_error": 5.363672971725464e-05,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160625-b1799a0cb7204ee484828283a608ca7a"
+   },
+   "white_noise@0.625": {
+    "nrmse": 3.116341589601384e-05,
+    "max_abs_error": 6.243586540222168e-06,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160958-b8b4892fa63b4f40a9f7371d120a44da"
+   },
+   "chirp@0.625": {
+    "nrmse": 0.00010820920984396048,
+    "max_abs_error": 0.00018861517310142517,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T161042-371de9337a9b4bf69407aeef1bfe20db"
+   },
+   "white_noise@0.9": {
+    "nrmse": 8.968102258011181e-05,
+    "max_abs_error": 3.0133873224258423e-05,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T161111-5a975f4a70904b97b956b2a567b53491"
+   },
+   "chirp@0.9": {
+    "nrmse": 9.938571168274862e-05,
+    "max_abs_error": 8.434057235717773e-05,
+    "evidence": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T161153-03e64a21ebbc41a3ad1c378721d40086"
+   }
+  },
+  "pcm16_32767": {
+   "white_noise@0.1": {
+    "nrmse": 1.8219699973956216e-06,
+    "max_abs_error": 4.306435585021973e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.1": {
+    "nrmse": 2.4826964649875044e-05,
+    "max_abs_error": 0.0001620156690478325,
+    "verdict": "FAIL"
+   },
+   "white_noise@0.375": {
+    "nrmse": 9.900130062696265e-07,
+    "max_abs_error": 1.691281795501709e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.375": {
+    "nrmse": 1.2911889913144483e-05,
+    "max_abs_error": 4.86522912979126e-05,
+    "verdict": "PASS"
+   },
+   "white_noise@0.625": {
+    "nrmse": 9.725384251642136e-07,
+    "max_abs_error": 1.8253922462463379e-06,
+    "verdict": "PASS"
+   },
+   "chirp@0.625": {
+    "nrmse": 4.3526054952017955e-05,
+    "max_abs_error": 8.056312799453735e-05,
+    "verdict": "PASS"
+   },
+   "white_noise@0.9": {
+    "nrmse": 3.564785983451194e-05,
+    "max_abs_error": 2.272985875606537e-05,
+    "verdict": "PASS"
+   },
+   "chirp@0.9": {
+    "nrmse": 7.763425838638798e-05,
+    "max_abs_error": 7.297098636627197e-05,
+    "verdict": "PASS"
+   }
+  },
+  "verdicts": {
+   "chirp@0.1": "FAIL (max 1.6e-4 > 1e-4 even with int/32767 decoding; residual attributed to the [0,0.2] segment / nominalFloor step just above c=0, not the input path)",
+   "chirp@0.625": "PASS with int/32767 decoding (max 8.1e-5); FAIL with int/32768",
+   "0.9 rows": "DEGRADED: pass thresholds but 30-80x above the ~1e-6 white-noise floor of the interior points; [0.8,1] segment suspect",
+   "white_noise@0.1/0.375/0.625": "PASS, error floor ~1e-6"
+  }
+ },
+ "derivation_renders_previous": {
+  "white_noise@0.1": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160539-921ee152bcc24fbfae03e7ab944fb03f",
+  "chirp@0.1": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160553-f16a3fc3aebb4b7cbeb94a670ab72137",
+  "white_noise@0.375": "/home/felix/work/tsunami-reference/runtime/evidence/ns1/20261027T160608-1ed39f028c3e42cca60726b28fcabc94"
+ },
+ "hypotheses_falsified_on_derivation_points": [
+  {
+   "name": "piecewise-linear interpolation of (lowerHz, upperHz, attenuationDb, relativeThreshold, nominalFloor, floorCap) between anchors 0/0.5/1",
+   "nrmse": {
+    "white_noise@0.1": 0.2029,
+    "chirp@0.1": 0.0854,
+    "white_noise@0.375": 0.0532
+   },
+   "verdict": "FAIL (threshold 1e-3)"
+  },
+  {
+   "name": "same, but nominalFloor/floorCap stepping to their 0.5 values for any control>0",
+   "nrmse": {
+    "white_noise@0.1": 0.2034,
+    "chirp@0.1": 0.2018,
+    "white_noise@0.375": 0.0535
+   },
+   "verdict": "FAIL"
+  }
+ ],
+ "gate": {
+  "command": "python3 tests/ns1/compare_captures.py --require-offgrid --capture <ns1-research capture> --render ns1_render --report docs/evidence/ns1/offgrid-comparison.json",
+  "thresholds": "docs/evidence/ns1/thresholds.json (unchanged)",
+  "result": "exit 0, ALL ESTABLISHED PASS: 58/58 rows incl. 16/16 at 0.25/0.75 (worst nrmse 1.24e-7, worst max 5.4e-7); 14 rows reported not_compared (stereo/link/bypass/reset-sequence-b/state-carry)"
+ }
+}

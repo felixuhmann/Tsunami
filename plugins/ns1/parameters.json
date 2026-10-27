@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "component": "Tsunami Suppressor (NS1 target)",
+  "source": "Genuine reference parameter readback (fresh instance: 'NS1' 0..100 % step 0.1 default 0.0; 'Bypass' boolean default Off) cross-checked against the shipped NS1.bundle ParamXML (PARAM_WET_DRY_CNTRL, Label 1Knob: 0..100 %, Resolution 0.1, linear, initial 0.0, DisplayFloat1) and the manual ch.3 (single FADER, ATTENUATION METER). Physical values are passed to Processor::setParameter.",
+  "parameters": [
+    {"index": 0, "id": "ns1", "name": "NS1", "min": 0, "max": 100, "default": 0, "step": 0.1, "unit": "%", "type": "float", "logarithmic": false, "group": "main",
+     "display": "%.1f (DisplayFloat1)", "reference": "PARAM_WET_DRY_CNTRL",
+     "established_values": [0, 50, 100], "note": "Every value runs the continuous control law; calibrated captures cover 0/50/100 %, and the 25/75 % gate passed (docs/evidence/ns1)."},
+    {"index": 1, "id": "bypass", "name": "Bypass", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "main",
+     "display": "Off/On", "note": "Host/WaveShell bypass; no panel control in the original."}
+  ],
+  "meters": [
+    {"id": "attenuation", "name": "Atten", "min": -48, "max": 0, "resolution": 0.1, "unit": "dB", "display": "%.1f (DisplayFloat1)", "reference": "PARAM_ATTN_VU",
+     "source": "Processor::attenuationDb() (lock-free atomic)", "note": "Block energy ratio out/in; the original meter ballistics are not recovered (provisional)."}
+  ],
+  "channels": {"mono": "supported", "stereo": "supported (linked: one detector on the mean of both channel fronts)"}
+}

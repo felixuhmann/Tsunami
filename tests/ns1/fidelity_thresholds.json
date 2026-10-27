@@ -1,0 +1,36 @@
+{
+ "schema": 1,
+ "declared_before_comparison": "2026-10-27T16:38+01:00 (committed together with first comparison; values not tuned after measurement)",
+ "scope": "full-plugin mono fidelity: Processor (design + initial state + mono chain) vs genuine original NS1 Mono renders, fresh instance, no warmup",
+ "metric_definitions": {
+  "nrmse": "rms(candidate - reference) / rms(reference) over the whole buffer (all 8 s are before the observed demo interruption region)",
+  "max_abs_error": "max |candidate - reference|"
+ },
+ "pass_if": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "established_controls": [
+  0,
+  0.5,
+  1
+ ],
+ "note": "Rows at off-grid controls (0.25, 0.75) are reported but EXPECTED to fail: no mapping is established. Silence rows use max_abs_error only (reference rms 0).",
+ "demo_policy": {
+  "pre_demo_window_seconds": 19,
+  "rule": "Buffers longer than 19 s are gated on the first 19 s only; the whole-buffer raw result is always reported. The unmodified unlicensed reference inserts demo interruptions starting ~19.88 s which must not be reproduced.",
+  "provenance": "pre-19s window policy previously declared in /home/felix/work/ns1-clean-room/tools/compare.py (prior worker, before this comparison). Applied after the first run showed long-offline/paced rows diverging at frame 954368 (19.88 s); recorded here honestly as an amendment adopting that prior policy, thresholds unchanged."
+ },
+ "heldout_speech": {
+  "declared": "2026-10-27T16:41+01:00, before comparison (the held-out original renders had returned at 16:40:24 and 16:40:38 but were not compared until after this declaration); pass_if equals the main thresholds",
+  "pass_if": {
+   "nrmse_max": 0.001,
+   "max_abs_error_max": 0.0001
+  },
+  "use": "evaluation only, never tuning",
+  "inputs": [
+   "6930-75918-0000-snr0-48000.wav @ NS1 50 %",
+   "6930-75918-0006-snr10-48000.wav @ NS1 100 %"
+  ]
+ }
+}
