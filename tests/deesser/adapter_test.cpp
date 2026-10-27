@@ -165,6 +165,75 @@ int main() {
     CHECK(physical(*p, "audio") == 1.f && std::abs(physical(*p, "freq") - 4500.f) < 1.f && audio->getButtonText() == "Wideband"
           && std::abs(freq->getValue() - 4500.0) < 1.0, 13, "state restore reaches parameters and UI");
 
+    // Frequency numeric window, SideChain filter-shape pictogram and typed entry (49-55).
+    {
+        struct Gestures final : juce::AudioProcessorListener {
+            int begins = 0, ends = 0;
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) override { ++begins; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override { ++ends; }
+        } gestures;
+        p->addListener(&gestures);
+        auto others = [&](const char* except) { std::vector<float> v; for (auto* q : params)
+            if (auto* r = dynamic_cast<juce::RangedAudioParameter*>(q); r->getParameterID() != except) v.push_back(r->getValue()); return v; };
+        // 49: one value window; no value-proportional fill bar behind the number (hosted capture showed overlap).
+        auto snap = [&](double hz) { freq->setValue(hz, juce::sendNotificationSync); return freq->createComponentSnapshot(freq->getLocalBounds()); };
+        const auto lo = snap(2000), hi = snap(16000);
+        bool sameWindow = true;
+        for (int y = 3; y < freq->getHeight() - 3; ++y) for (int x : {3, 4, freq->getWidth() - 5, freq->getWidth() - 4})
+            sameWindow = sameWindow && lo.getPixelAt(x, y) == hi.getPixelAt(x, y);
+        juce::Label* box = nullptr; for (auto* c : freq->getChildren()) if (auto* l = dynamic_cast<juce::Label*>(c)) box = l;
+        CHECK(sameWindow && box && box->getBounds() == freq->getLocalBounds() && box->getText() == "16000", 49, "Frequency value window without fill bar");
+        // 50: vertical drag on the window moves Freq along the taper, one balanced gesture, nonintegral host value kept.
+        setPhysical(*p, "freq", 5585.65f);
+        const auto before = others("freq"); const int b0 = gestures.begins, e0 = gestures.ends;
+        CHECK(std::abs(physical(*p, "freq") - 5585.65f) < .01f && box->getText() == "5586", 50, "nonintegral host Freq kept, whole-Hz display");
+        auto src = juce::Desktop::getInstance().getMainMouseSource();
+        const auto now = juce::Time::getCurrentTime(); const juce::Point<float> down(30.f, 12.f);
+        auto ev = [&](juce::Point<float> at, bool dragged) { return juce::MouseEvent(src, at, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier),
+            1.f, 0.f, 0.f, 0.f, 0.f, freq, freq, now, down, now, 1, dragged); };
+        freq->mouseDown(ev(down, false)); freq->mouseDrag(ev(down.translated(0.f, -40.f), true)); freq->mouseUp(ev(down.translated(0.f, -40.f), true));
+        CHECK(physical(*p, "freq") > 5700.f && physical(*p, "freq") <= 16000.f && gestures.begins == b0 + 1 && gestures.ends == e0 + 1
+              && others("freq") == before, 51, "Frequency drag: up raises, one gesture, other parameters unchanged");
+        // 52/53: typed entry; nonfinite/overflow/garbage text never reaches the host parameter.
+        for (auto* slider : {freq, threshold}) {
+            juce::Label* entry = nullptr; for (auto* c : slider->getChildren()) if (auto* l = dynamic_cast<juce::Label*>(c)) entry = l;
+            const char* id = slider == freq ? "freq" : "threshold";
+            for (const char* text : {"nan", "inf", "-inf", "1e999", "-1e999", "abc"}) {
+                entry->setText(text, juce::sendNotificationSync);
+                const float v = physical(*p, id);
+                if (!(std::isfinite(v) && std::isfinite(slider->getValue()) && v >= (slider == freq ? 2000.f : -80.f) && v <= (slider == freq ? 16000.f : 0.f))) {
+                    std::cerr << "FAIL typed '" << text << "' into " << id << " -> " << v << " (slider " << slider->getValue() << ")\n"; return 52;
+                }
+            }
+        }
+        box->setText("7000", juce::sendNotificationSync);
+        CHECK(std::abs(physical(*p, "freq") - 7000.f) < 1.f && box->getText() == "7000", 53, "typed Frequency entry");
+        // 54: SideChain pictogram follows the parameter (host and state recall while open) with a semantic title.
+        auto* shape = child<FilterShapeButton>(*ed, "sidechain_shape");
+        CHECK(shape != nullptr, 54, "SideChain filter-shape pictogram present");
+        setPhysical(*p, "sidechain", 0.f);
+        CHECK(!shape->isHighPass() && shape->getTitle() == "SideChain filter: BandPass" && sidechain->getText() == "BandPass", 54, "pictogram BandPass");
+        juce::MemoryBlock hpState; setPhysical(*p, "sidechain", 1.f); p->getStateInformation(hpState); setPhysical(*p, "sidechain", 0.f);
+        p->setStateInformation(hpState.getData(), int(hpState.getSize()));
+        CHECK(shape->isHighPass() && shape->getTitle() == "SideChain filter: HighPass" && shape->getTooltip().contains("HighPass"), 54, "pictogram follows state recall");
+        // 55: clicking the pictogram selects the other shape as one complete gesture; combo and other parameters follow.
+        const auto keep = others("sidechain"); const int b1 = gestures.begins, e1 = gestures.ends;
+        auto click = [&] { auto at = shape->getLocalBounds().getCentre().toFloat();
+            auto sev = [&](bool up) { return juce::MouseEvent(src, at, juce::ModifierKeys(up ? 0 : juce::ModifierKeys::leftButtonModifier), 1.f, 0.f, 0.f, 0.f, 0.f,
+                shape, shape, now, at, now, 1, false); };
+            auto* c = static_cast<juce::Component*>(shape); c->mouseDown(sev(false)); c->mouseUp(sev(true)); };
+        click();
+        CHECK(physical(*p, "sidechain") == 0.f && !shape->isHighPass() && sidechain->getText() == "BandPass" && gestures.begins == b1 + 1
+              && gestures.ends == e1 + 1 && others("sidechain") == keep, 55, "pictogram click selects BandPass");
+        click();
+        CHECK(physical(*p, "sidechain") == 1.f && shape->isHighPass() && gestures.begins == gestures.ends, 55, "pictogram click selects HighPass");
+        p->removeListener(&gestures);
+        // Restore the values the later sections expect.
+        setPhysical(*p, "freq", 4500.f);
+    }
+
     // Rendering: the Adapter passes physical values to the core unchanged (bit-identical to the portable core).
     setPhysical(*p, "threshold", -40.f); setPhysical(*p, "audio", 0.f); setPhysical(*p, "sidechain", 1.f);
     Processor reference;

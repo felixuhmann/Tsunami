@@ -12,6 +12,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Adapter.hpp"
 #include "EditorModel.hpp"
+#include <cmath>
 #include <memory>
 
 namespace tsunami::deesser {
@@ -69,6 +70,49 @@ public:
     }
 };
 
+// Frequency value window (manual ch.4 "Freq": a numeric window, dragged or typed): the bar-style
+// slider gives vertical drag and a full-size value label; only a framed white window is drawn
+// behind the number, no value-proportional fill.
+class ValueWindowLookAndFeel final : public juce::LookAndFeel_V4 {
+public:
+    void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float pos, float minPos, float maxPos,
+                          juce::Slider::SliderStyle style, juce::Slider& slider) override {
+        if (!slider.isBar()) return LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, pos, minPos, maxPos, style, slider);
+        const auto r = juce::Rectangle<int>(x, y, width, height).toFloat().reduced(.5f);
+        g.setColour(juce::Colours::white); g.fillRoundedRectangle(r, 3.f);
+        g.setColour(slider.isMouseOverOrDragging() || slider.hasKeyboardFocus(true) ? colour::energy : colour::panelLine);
+        g.drawRoundedRectangle(r, 3.f, 1.f);
+    }
+};
+
+// SideChain filter-shape pictogram (manual ch.4 "SideChain": the selector shows the filter shape).
+// Independently drawn vector curve: HighPass rises and stays flat, BandPass is a single hump.
+// A Button, so it is focusable, keyboard/accessibility pressable and carries a semantic title/tooltip.
+class FilterShapeButton final : public juce::Button {
+public:
+    FilterShapeButton() : juce::Button("SideChain filter shape") { setHighPass(true); }
+    bool isHighPass() const noexcept { return highPass; }
+    void setHighPass(bool hp) {
+        highPass = hp;
+        const juce::String name = hp ? "HighPass" : "BandPass";
+        setButtonText(name); setTitle("SideChain filter: " + name); setTooltip("SideChain filter: " + name + " (click to switch)");
+        repaint();
+    }
+    void paintButton(juce::Graphics& g, bool over, bool down) override {
+        const auto r = getLocalBounds().toFloat().reduced(.5f);
+        g.setColour(juce::Colours::white); g.fillRoundedRectangle(r, 3.f);
+        g.setColour(over || down || hasKeyboardFocus(false) ? colour::energy : colour::panelLine); g.drawRoundedRectangle(r, 3.f, 1.f);
+        const auto a = r.reduced(8.f, 3.5f);
+        const float x = a.getX(), w = a.getWidth(), top = a.getY(), bottom = a.getBottom();
+        juce::Path curve; curve.startNewSubPath(x, bottom);
+        if (highPass) { curve.cubicTo(x + w * .3f, bottom, x + w * .3f, top, x + w * .55f, top); curve.lineTo(x + w, top); }
+        else { curve.cubicTo(x + w * .3f, bottom, x + w * .35f, top, x + w * .5f, top); curve.cubicTo(x + w * .65f, top, x + w * .7f, bottom, x + w, bottom); }
+        g.setColour(colour::ink); g.strokePath(curve, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+private:
+    bool highPass = true;
+};
+
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
@@ -81,7 +125,10 @@ public:
         audio.onStateChange = [this] { audio.setButtonText(ui::valueText(3, audio.getToggleState() ? 1.f : 0.f)); };
         // Frequency: value window, drag to change; genuine 2000*8^n taper (slider-side range).
         freq.setSliderStyle(juce::Slider::LinearBarVertical); freq.setComponentID("freq");
-        freq.setTextBoxStyle(juce::Slider::TextBoxAbove, false, 60, 20);
+        freq.setLookAndFeel(&valueWindow);
+        freq.setColour(juce::Slider::textBoxTextColourId, colour::ink);
+        freq.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        freq.setTitle("Frequency"); freq.setTooltip("SideChain frequency (Hz): drag up/down, double-click to type");
         freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "freq", freq);
         // Genuine 2000*8^n taper on the slider side: the attachment converts in physical Hz, so a
         // custom range set AFTER it gives the taper even when the host parameter range is linear.
@@ -95,6 +142,12 @@ public:
         sidechain.setLookAndFeel(&compactCombo);
         sidechain.addItem("BandPass", 1); sidechain.addItem("HighPass", 2); sidechain.setComponentID("sidechain");
         sidechainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(state, "sidechain", sidechain);
+        // Filter-shape pictogram under the selector: follows the parameter, a click selects the other shape.
+        sidechainShape.setComponentID("sidechain_shape");
+        if (auto* param = state.getParameter("sidechain"))
+            sidechainShapeAttachment = std::make_unique<juce::ParameterAttachment>(*param, [this](float v) { sidechainShape.setHighPass(v >= .5f); });
+        sidechainShape.onClick = [this] {
+            if (sidechainShapeAttachment) sidechainShapeAttachment->setValueAsCompleteGesture(sidechainShape.isHighPass() ? 0.f : 1.f); };
         // Monitor: Audio / S Chain pair, one parameter; lamp lit in SideChain mode.
         monitorAudio.setComponentID("monitor_audio"); monitorSideChain.setComponentID("monitor_sidechain");
         if (auto* param = state.getParameter("monitor"))
@@ -107,6 +160,7 @@ public:
         thresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "threshold", threshold);
         threshold.textFromValueFunction = [](double v) { return juce::String(ui::valueText(1, float(v))); };
         threshold.updateText();
+        rejectNonfiniteEntry(freq); rejectNonfiniteEntry(threshold);
 
         energy.fill = colour::energy; energy.fraction = [](float db) { return ui::thresholdFraction(db); }; energy.setComponentID("energy_meter");
         atten.fill = colour::atten; atten.fromTop = true; atten.fraction = [](float db) { return ui::attenFraction(db); }; atten.setComponentID("atten_meter");
@@ -118,10 +172,11 @@ public:
         }
         energyReadout.onClick = attenReadout.onClick = [this] { meters.resetPeaks(); refreshReadouts(); };
         energyReadout.setComponentID("energy_readout"); attenReadout.setComponentID("atten_readout");
-        for (juce::Component* c : std::initializer_list<juce::Component*>{&audio, &freq, &sidechain, &monitorAudio, &monitorSideChain, &threshold,
+        for (juce::Component* c : std::initializer_list<juce::Component*>{&audio, &freq, &sidechain, &sidechainShape, &monitorAudio, &monitorSideChain, &threshold,
                                      &energy, &atten, &out[0], &out[1], &energyReadout, &attenReadout, &outReadout[0], &outReadout[1]})
             addAndMakeVisible(c);
         if (monitorAttachment) monitorAttachment->sendInitialUpdate();
+        if (sidechainShapeAttachment) sidechainShapeAttachment->sendInitialUpdate();
         audio.onStateChange();
         // Idle until the first poll: empty Energy/Output bars (floor), readouts show their idle text.
         energy.value = out[0].value = out[1].value = -120.f;
@@ -129,7 +184,7 @@ public:
         setSize(380, 380);
         startTimerHz(30);
     }
-    ~Editor() override { stopTimer(); sidechain.setLookAndFeel(nullptr); }
+    ~Editor() override { stopTimer(); sidechain.setLookAndFeel(nullptr); freq.setLookAndFeel(nullptr); }
 
     void paint(juce::Graphics& g) override {
         g.fillAll(colour::body);
@@ -155,6 +210,7 @@ public:
         audio.setBounds(15, 24, 60, 24);
         freq.setBounds(15, 88, 60, 24);
         sidechain.setBounds(6, 140, 78, 24); // centred in the 90 px column like the 60 px controls
+        sidechainShape.setBounds(15, 166, 60, 17); // above the Monitor divider at y 185
         monitorAudio.setBounds(15, 220, 60, 22); monitorSideChain.setBounds(15, 244, 60, 22);
         threshold.setBounds(96, 24, 74, 230);
         energy.setBounds(150, 30, 16, 218); atten.setBounds(200, 30, 16, 218);
@@ -173,16 +229,27 @@ private:
     bool hasDetectorMeters() const noexcept { return detectorMeters != nullptr || coreMeters != nullptr; }
     ui::MeterModel meters;
     juce::TextButton audio, monitorAudio{"Audio"}, monitorSideChain{"S Chain"};
+    ValueWindowLookAndFeel valueWindow; // declared before (destroyed after) the slider using it
     juce::Slider freq, threshold;
     CompactComboLookAndFeel compactCombo; // declared before (destroyed after) the combo using it
     juce::ComboBox sidechain;
+    FilterShapeButton sidechainShape;
     BarMeter energy, atten, out[2];
     Readout energyReadout, attenReadout, outReadout[2];
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> audioAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> freqAttachment, thresholdAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> sidechainAttachment;
-    std::unique_ptr<juce::ParameterAttachment> monitorAttachment;
+    std::unique_ptr<juce::ParameterAttachment> monitorAttachment, sidechainShapeAttachment;
 
+    // Typed entry keeps the host's text parsing (installed by the attachment) but a nonfinite result
+    // ("nan", "inf", overflow such as "1e999") keeps the current value: NaN passes the range clamp and
+    // reached the host parameter before (adapter test 52).
+    static void rejectNonfiniteEntry(juce::Slider& s) {
+        s.valueFromTextFunction = [&s, parse = s.valueFromTextFunction](const juce::String& text) {
+            const double v = parse ? parse(text) : text.getDoubleValue();
+            return std::isfinite(v) ? v : s.getValue();
+        };
+    }
     static void tick(juce::Graphics& g, juce::Rectangle<int> bar, float f, const juce::String& text) {
         const int y = bar.getY() + juce::roundToInt(f * float(bar.getHeight()));
         g.drawHorizontalLine(y, float(bar.getRight() + 1), float(bar.getRight() + 5));
