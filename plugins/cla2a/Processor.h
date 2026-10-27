@@ -13,10 +13,13 @@
 //  * RECOVERED (ControlLaws.h): Gain knob -> makeup dB and Peak Reduction
 //    knob -> sidechain drive dB breakpoint laws. Their placement (output
 //    gain / detector input gain) is a structural assumption.
-//  * PROVISIONAL: every numeric coefficient in Provisional:: below. They are
-//    NOT recovered from the reference and NOT fitted to it; the reference's
-//    coefficient initialisation was not recovered. Wet output is therefore
-//    a structurally faithful but numerically UNMATCHED opto model.
+//  * CHARACTERIZED (fitted to genuine renders, not recovered): Comp/Limit
+//    static curves (CharacterizedCurve.h) and the opto time constants.
+//  * RECOVERED design, INFERRED placement: 48 kHz biquad cascade on the
+//    detector input (SidechainFilters.h).
+//  * PROVISIONAL: remaining values in Provisional:: below (Hi Freq network,
+//    hum level, smoothing). NOT recovered, NOT fitted. Wet defaults remain
+//    UNMATCHED under the declared thresholds.
 #include "ControlLaws.h"
 #include "CharacterizedCurve.h"
 #include "ControlMapping.h"
@@ -28,7 +31,7 @@
 #include <stdexcept>
 namespace tsunami::cla2a {
 namespace Provisional {
-constexpr unsigned CurvePoints = 26;     // breakpoint count recovered; values provisional
+constexpr unsigned CurvePoints = 26;     // breakpoint count recovered; values characterized
 constexpr unsigned AttackPoints = 12;    // breakpoint count recovered; values provisional
 constexpr double AttackFastMs[2] = {1.0, 10.0}, AttackSlowMs[2] = {10.0, 60.0};
 constexpr double ReleaseFastS = 0.06, ReleaseSlowS = 1.5;
@@ -82,6 +85,10 @@ public:
     bool supportedConfiguration() const noexcept { return true; }
     bool fidelityVerified() const noexcept { return parameters_[Bypass] != 0 || parameters_[Mix] == 0; }
     double gainReduction() const noexcept { return meterGain_; }
+    // Opto ballistics time constants (attack ms at loud/quiet end of the
+    // 12-point table, release s). Defaults: Characterized:: (see below).
+    struct TimeConstants { double attackFastMs[2], attackSlowMs[2], releaseFastS, releaseSlowS; };
+    void setTimeConstants(const TimeConstants& t) noexcept { times_ = t; buildCurves(); }
 
     void process(const float* const* inputs, float* const* outputs, unsigned frames) noexcept {
         if (!outputs) return;
@@ -142,12 +149,12 @@ private:
         for (unsigned i = 0; i < Provisional::AttackPoints; ++i) {
             const double t = double(i) / (Provisional::AttackPoints - 1); // loud -> quiet
             attackLevel_[i] = dbToGain(-40.0 * t);
-            const double fastMs = Provisional::AttackFastMs[0] + (Provisional::AttackFastMs[1] - Provisional::AttackFastMs[0]) * t;
-            const double slowMs = Provisional::AttackSlowMs[0] + (Provisional::AttackSlowMs[1] - Provisional::AttackSlowMs[0]) * t;
+            const double fastMs = times_.attackFastMs[0] + (times_.attackFastMs[1] - times_.attackFastMs[0]) * t;
+            const double slowMs = times_.attackSlowMs[0] + (times_.attackSlowMs[1] - times_.attackSlowMs[0]) * t;
             attackFast_[i] = pole(fastMs * 1e-3);
             attackSlow_[i] = pole(slowMs * 1e-3);
         }
-        release_ = {pole(Provisional::ReleaseFastS), pole(Provisional::ReleaseSlowS), 0.75};
+        release_ = {pole(times_.releaseFastS), pole(times_.releaseSlowS), 0.75};
     }
     void updateDerived() noexcept {
         drive_ = dbToGain(peakReductionDriveDb(parameters_[PeakReduction]));
@@ -177,6 +184,9 @@ private:
     std::array<double, Provisional::CurvePoints> curveX_{}, curveY_{};
     std::array<double, Provisional::AttackPoints> attackLevel_{}, attackFast_{}, attackSlow_{};
     Poles release_{0, 0, 0.75};
+    TimeConstants times_{{Provisional::AttackFastMs[0], Provisional::AttackFastMs[1]},
+                         {Provisional::AttackSlowMs[0], Provisional::AttackSlowMs[1]},
+                         Provisional::ReleaseFastS, Provisional::ReleaseSlowS};
     Ballistics ballistics_;
     NoiseSource noise_;
     HumOscillator hum_;

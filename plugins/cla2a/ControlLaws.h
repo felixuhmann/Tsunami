@@ -26,7 +26,7 @@ template <std::size_t N>
 double uniformTable(double position, const std::array<double, N>& y) noexcept {
     if (position <= 0.0) return y.front();
     if (position >= double(N - 1)) return y.back();
-    const auto i = static_cast<std::size_t>(position);
+    const std::size_t i = std::min(static_cast<std::size_t>(position), N - 2);
     return y[i] + (y[i + 1] - y[i]) * (position - double(i));
 }
 }

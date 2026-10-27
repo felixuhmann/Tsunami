@@ -23,11 +23,13 @@ normalized sweep at 0.04 display resolution reproduces all 929 (Gain) and 931 (P
 Reduction) distinct host display values, plus the defaults 40 -> 0.535 and 46 -> 0.598
 (`test_mapping`).
 
-## Not recovered (blockers)
-* Coefficient initialisation (Windows init): curve tables, attack tables, release poles,
-  Peak Reduction drive, Gain makeup, sidechain / programme-path filter cascades, Hi Freq
-  network, auto-makeup, stereo link. All `Provisional::` values in `Processor.h` are
-  placeholders (neither recovered nor fitted).
+## Not recovered (blockers; updated round 2 task 3)
+* Recovered since round 1: Peak Reduction drive, Gain makeup, auto-makeup table
+  (`ControlLaws.h`) and the 48 kHz three-biquad cascade design (`SidechainFilters.h`).
+* Characterized (fitted, not recovered): Comp/Limit static curves (`CharacterizedCurve.h`)
+  and opto time constants (see round 2 task 3 below).
+* Still not recovered: reference curve breakpoints, attack table / release pole values
+  (hidden-control defaults), Hi Freq network, stereo link, coefficient-id -> kernel map.
 
 ## Genuine-render comparison
 Thresholds predeclared in `thresholds.json` before comparison; results in `comparison.json`.
@@ -60,3 +62,21 @@ No complete-plugin match is claimed.
   supporting the drive-law placement. Attack/release ballistics remain PROVISIONAL.
 * Wet defaults with characterized curve (same thresholds): rel. RMS error -14.1 / -19.0 dB,
   level diff +1.60 / +0.96 dB -> still **FAIL** (thresholds -40 dB / 0.5 dB).
+
+## Round 2 task 3 (filters, ballistics)
+* **Recovered design** (`SidechainFilters.h`): FUN_180031a10 builds three analog
+  second-order prototypes from literal constants (48 kHz: 60 Hz/Q0.5/-2,+6.5,0 dB;
+  9932.4 Hz/Q0.4707/+0.2,+5.3152,+1.3328 dB; 722 Hz/Q0.404/0,-0.3,+0.1 dB), bilinear
+  via FUN_1800094a0 prewarped at 50 Hz; FUN_180030480 chains them. `test_filters`.
+* **Placement inferred**: genuine PR 0 multitone (161747) gives a flat programme path
+  (8.43..8.51 dB, 40 Hz..2.5 kHz; -0.6 dB at 10 kHz) while the cascade varies ~6 dB,
+  so it is applied to the detector input. Genuine frequency steps at PR 46 (161915):
+  100/250/1000 Hz within 0.5 dB (PASS); 4 kHz +1.39 dB, 10 kHz +2.92 dB (FAIL: more
+  genuine HF detector emphasis, Hi Freq network not ported). Thresholds `r3_*` in
+  `thresholds.json` were declared before these comparisons.
+* Render use disclosure (runtime/evidence/cla2a):
+  - fitting: 161007, 161031, 161139, 161215 (static curve, round 2); 161805 (PR 46) and
+    161819 (PR 70) step bursts (time constants).
+  - verification only (not fitted): 161747 (multitone PR 0), 161915 (frequency steps).
+  - evaluation only (never fitted): 095837, 095855, 095937 (dry / wet defaults).
+  - held out: speech material, never rendered for fitting or comparison here.

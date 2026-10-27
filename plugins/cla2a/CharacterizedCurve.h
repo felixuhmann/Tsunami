@@ -5,7 +5,7 @@
 // fitted by tests/cla2a/fit_static_curve.py to genuine stepped 1 kHz tone
 // renders (runtime/evidence/cla2a 20261027T161007, 20261027T161031, 20261027T161215;
 // baseline 20261027T161139). The default evaluation renders were not
-// used. Comp is constrained by data over detector -14..+28 dB, Limit over
+// used. Comp is constrained by data over detector about -34..+28 dB, Limit over
 // -34..+8 dB; points outside are linear extrapolation. The 26-point count
 // matches the reference kernel; the reference breakpoints are unknown.
 // ProgrammeLevelDb: 1 kHz level offset between recovered makeup and the

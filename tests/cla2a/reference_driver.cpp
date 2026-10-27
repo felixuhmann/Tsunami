@@ -9,6 +9,13 @@ int main(int argc, char** argv) {
     tsunami::cla2a::Processor p;
     p.prepare(48000, 2, 1);
     for (int i = 1; i < argc; ++i) {
+        if (argv[i][0] == 't' && argv[i][1] == '=') {  // fit hook: t=af0,af1,as0,as1,rf,rs
+            tsunami::cla2a::Processor::TimeConstants t{};
+            if (std::sscanf(argv[i] + 2, "%lf,%lf,%lf,%lf,%lf,%lf", &t.attackFastMs[0], &t.attackFastMs[1],
+                            &t.attackSlowMs[0], &t.attackSlowMs[1], &t.releaseFastS, &t.releaseSlowS) != 6) return 2;
+            p.setTimeConstants(t);
+            continue;
+        }
         const char* eq = std::strchr(argv[i], '=');
         if (!eq) return 2;
         p.setParameter(unsigned(std::strtoul(argv[i], nullptr, 10)), std::strtof(eq + 1, nullptr));

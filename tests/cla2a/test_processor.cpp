@@ -69,7 +69,8 @@ int main() {
     { Processor p; p.prepare(48000, 2, 256); p.setParameter(Processor::Gain, 60);
       g60 = rmsTail(render(p, 0.05, frames), frames/2); }
     check(g60 > g30 * 1.5, "Gain raises output");
-    { // recovered Gain makeup law: quiet signal, minimal drive -> wet gain = law
+    { // recovered Gain makeup law plus the CHARACTERIZED -0.35 dB programme offset
+      // (that offset was measured at Gain 40 only): quiet signal, minimal drive
         for (float knob : {40.0f, 0.0f, 75.0f}) {
             Processor p; p.prepare(48000, 2, 256);
             p.setParameter(Processor::PeakReduction, 0);
