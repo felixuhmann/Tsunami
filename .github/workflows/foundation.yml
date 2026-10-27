@@ -70,6 +70,15 @@ jobs:
           else
             "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
           fi
+      - name: Download hash-locked mature Linux editor host
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p editor-host
+          curl -fL --retry 2 https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip -o editor-host/pluginval.zip
+          printf '%s  editor-host/pluginval.zip\n' c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352 | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('editor-host/pluginval.zip').extractall('editor-host')"
+          chmod +x editor-host/pluginval
+          editor-host/pluginval --version
       - name: Install hash-locked mature host wheels
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
@@ -78,7 +87,7 @@ jobs:
           mkdir -p evidence
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiFixture_artefacts').rglob('Tsunami Infrastructure Fixture.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then
-            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' bash tests/foundation/linux_host_smoke.sh "$plugin"
+            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' bash tests/foundation/linux_host_smoke.sh "$plugin" "$PWD/editor-host/pluginval"
           else
             python tests/foundation/host_smoke.py "$plugin" evidence --capture
           fi

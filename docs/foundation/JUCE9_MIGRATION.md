@@ -46,10 +46,50 @@ headers into the same private sysroot; no global package/config changes.
 All failed logs are retained, not replaced by successful runs.
 
 Native CI builds actual VST3/CLAP and runs CTest plus the mature Pedalboard VST3
-host's render/state/rate/block/editor tests. Artifact checkout SHA and PR head SHA
+host's render/state/rate/block tests. Windows retains Pedalboard editor capture.
+Linux uses pinned pluginval 1.0.4 for its real editor tests and capture (see below).
+Artifact checkout SHA and PR head SHA
 are saved separately because pull_request checkout is a synthetic merge commit.
 Full UI acceptance still requires human review of actual screenshots; the old
 JUCE7 Windows screenshot attached an editor but was clipped, and is not JUCE9 proof.
 Protocol validators, full UI proof on both platforms, package rebuild/download,
 reviewed complete SBOM, hardware realtime and all reference DSP comparisons remain
 separate gates. No auto-merge or public release.
+
+## Linux editor CI repair: a different mature host
+
+The exact failed run is <https://github.com/felixuhmann/Tsunami/actions/runs/40492704827/job/122150354697>.
+All 15 Pedalboard audio/state/rate/block cases passed, followed by X11 `BadWindow`,
+`X_GetProperty`, resource `0x0` in `show_editor()`. The EWMH readiness probe had
+already succeeded. This change does not assert a fix inside Pedalboard or JUCE.
+It removes that failing host GUI path only on Linux, not the GUI acceptance gate.
+
+- Pedalboard 0.9.26 still executes the unchanged audio/state matrix.
+- Separate host pluginval 1.0.4 (official Linux release archive SHA256
+  `c01c49d8063965c4c2dea8324468336768f5c9139e0b1caebde14c2400b55352`)
+  runs strictness 5 **without skipping GUI tests**.
+- The capture helper is display/assertion orchestration, not a custom plugin host.
+  It requires completed Editor, Open editor whilst processing, Editor Automation,
+  exact plugin name and overall SUCCESS. It captures during Editor Automation.
+- X11 window class and `_NET_WM_PID` must identify the launched in-process host;
+  `/proc/<pid>/maps` must contain the exact requested native module. The window
+  must remain viewable with unchanged identity before/after screen capture.
+- Full screen and actual window crop, window tree/properties, host/module/image
+  hashes, validator console log and source checkout SHA are retained. Capture
+  uses composited screen pixels, not the unpainted host-parent backing store.
+  An initially mapped but unpainted window is polled until actual pixels appear;
+  no captured live editor means failure even when validator succeeds.
+- Tests first failed on the old `--capture` Linux path and on missing identity
+  validation, then passed. Negative log tests reject SUCCESS without GUI tests,
+  and identity tests reject unrelated process/module paths.
+
+Local execution used the **downloaded native module from the failed run**, not
+another build: artifact checkout `6a63589cb39c10a82ae92bc2c347fdd7fc8fbf31`, PR
+head `208ba3749392676b546ddbe2515cd988f31db60a`; module SHA256
+`a84162affdaa10e3e13a710adabcee8e622148b4d40afc3aee286bf34a0e8a55`.
+Evidence: `/home/felix/work/tsunami-campaign/juce9-logs/linux-editor-repair/`;
+`editor-receipt.json`, `pluginval-editor.log`, `host-editor.png`,
+`host-desktop.png`, `host-audio.json`, `host-receipt.json` and window identity files.
+Actual screenshot reviewed: full title, Gain label/slider/value visible, no
+splash/overlay/clipping. This remains an infrastructure fixture, not a target UI
+or reference-fidelity result. Native CI at the new PR head is a separate gate.
