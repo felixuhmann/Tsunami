@@ -49,7 +49,7 @@ files, because they come from the same place as the files.
 - **VST3:** copy the entire `Tsunami Stereo.vst3` folder, not only the file
   inside it, to `C:\Program Files\Common Files\VST3\`. Windows asks for
   administrator rights for that folder.
-- **CLAP** (only if your DAW supports CLAP, e.g. Bitwig, REAPER, FL Studio):
+- **CLAP** (only if your DAW explicitly supports CLAP):
   copy `Tsunami Stereo.clap` to `C:\Program Files\Common Files\CLAP\`. Create
   the folder if it does not exist.
 - The build is unsigned. Windows SmartScreen or antivirus software may warn

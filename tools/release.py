@@ -571,7 +571,11 @@ def verify_package(zip_path, source_manifest, dest, expect=None):
         clap = manifest['formats']['clap']
         if clap not in files or files[clap].file_size == 0 or listed[clap] != manifest['clap_sha256']:
             fail('CLAP module missing, empty or not the manifest module')
-        for rel in ('licenses/LICENSE', 'licenses/THIRD_PARTY_NOTICES.md', 'licenses/dependencies.lock.json'):
+        # Required content is a versioned contract, independent of the archive's
+        # own checksum list (which an altered archive can rewrite).
+        for rel in ('INSTALL.md', 'licenses/LICENSE', 'licenses/AGPL-3.0.txt',
+                    'licenses/LICENSING.md', 'licenses/THIRD_PARTY_NOTICES.md',
+                    'licenses/dependencies.lock.json'):
             if rel not in files:
                 fail(f'package lacks {rel}')
         if manifest['commit'] != source['commit'] or manifest['lock_sha256'] != source['lock_sha256']:

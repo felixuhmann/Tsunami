@@ -281,6 +281,15 @@ class VerifyTest(Tmp):
         # Control: resigning without a semantic change is accepted.
         release.verify_package(self.rewrite(lambda m: resign(m, prefix, lambda m, d: None)), self.source, self.tmp / 'ok')
 
+    def test_required_files_cannot_be_removed_with_their_checksum_entries(self):
+        prefix = self.members[0][0].filename.split('/')[0]
+        for required in ('licenses/AGPL-3.0.txt', 'licenses/LICENSING.md', 'INSTALL.md'):
+            with self.subTest(required=required):
+                def remove_required(manifest, data):
+                    data.pop(required)
+                altered = self.rewrite(lambda members: resign(members, prefix, remove_required))
+                self.assert_rejected(altered)
+
     def test_expected_identity_checked(self):
         release.verify_package(self.zip, self.source, self.tmp / 'a', expect={'version': 'preview-1-aaaaaaa',
                                                                             'platform': 'linux-x64', 'id': 's1'})
