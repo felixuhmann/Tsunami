@@ -49,7 +49,12 @@ if(TSUNAMI_BUILD_FIXTURE)
   add_executable(adapter_test tests/foundation/adapter_test.cpp)
   target_link_libraries(adapter_test PRIVATE TsunamiFixture juce::juce_audio_utils)
   add_test(NAME foundation.adapter COMMAND adapter_test)
-  add_subdirectory(tests/clap) # synthetic CLAP layout harness (infrastructure only)
+  # Synthetic CLAP layout harness (infrastructure only). Off by default so the canonical fixture
+  # build registers only tests whose targets it builds; .github/workflows/clap-layouts.yml enables it.
+  option(TSUNAMI_BUILD_CLAP_LAYOUT_TESTS "Build and register the synthetic CLAP mono/stereo layout tests" OFF)
+  if(TSUNAMI_BUILD_CLAP_LAYOUT_TESTS)
+    add_subdirectory(tests/clap)
+  endif()
 endif()
 add_test(NAME foundation.metadata COMMAND "${Python3_EXECUTABLE}" -m unittest discover -s "${CMAKE_CURRENT_SOURCE_DIR}/tests/foundation" -v)
 set(TSUNAMI_PLUGIN_SOURCE_ROOT "" CACHE PATH "External portable cores (read-only integration; never copied into this PR)")

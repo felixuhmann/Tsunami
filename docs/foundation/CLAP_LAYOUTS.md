@@ -61,7 +61,10 @@ modules:
 It checks config enumeration, invalid IDs, rejected selection while active, port readback (count,
 type, in-place pairing), and processing of a known channel-distinct signal with sentinel guards at
 1 and 2 channels. It also checks reselect/re-activate and a state round-trip.
-`.github/workflows/clap-layouts.yml` runs it natively on Windows and Linux together with
+The harness, its mono fixture and `clap.layouts.derive_source` are registered only with
+`-DTSUNAMI_BUILD_CLAP_LAYOUT_TESTS=ON` (default OFF), so the canonical fixture build registers only
+tests whose targets it builds. `.github/workflows/clap-layouts.yml` enables the option, asserts that
+exactly these three tests are registered and runs them natively on Windows and Linux together with
 clap-validator. A target plugin opting into mono still needs its own entry point that provides a
 `Spec` with `supportsMono = true`. The shared `Plugin.cpp` instantiates the generated stereo-only
 spec.

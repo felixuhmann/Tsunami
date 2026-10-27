@@ -35,7 +35,7 @@ jobs:
       - name: Configure pinned JUCE 9.0.4 and clap-juce-extensions with the hash-bound derived wrapper
         run: |
           mkdir -p evidence
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release 2>&1 | tee evidence/configure.log
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_CLAP_LAYOUT_TESTS=ON 2>&1 | tee evidence/configure.log
           grep -F 'derived clap-juce-wrapper.cpp: source 82fb7862a2a40c718dcf53560ce69f3af4244b068c25ea7a25bfe5d16c963cc6' evidence/configure.log
       - name: Fetched dependency source stays pristine (no tracked, ignored or index-flag drift)
         run: |
@@ -57,6 +57,9 @@ jobs:
         run: cmake --build build --config Release --target clap_layout_test TsunamiFixture_CLAP TsunamiMonoFixture_CLAP --parallel 2
       - name: CTest layout harness against the compiled CLAP modules
         run: |
+          ctest --test-dir build -C Release -N -R 'clap\.layouts' | tr -d '\r' | tee evidence/ctest-registered.txt
+          for t in clap.layouts.mono_stereo clap.layouts.stereo_only clap.layouts.derive_source; do grep -q ": $t\$" evidence/ctest-registered.txt || { echo "missing $t"; exit 1; }; done
+          grep -qx 'Total Tests: 3' evidence/ctest-registered.txt
           if [[ "$RUNNER_OS" == Linux ]]; then
             xvfb-run -a ctest --test-dir build -C Release -R 'clap\.layouts' --no-tests=error --output-on-failure 2>&1 | tee evidence/ctest.log
           else
