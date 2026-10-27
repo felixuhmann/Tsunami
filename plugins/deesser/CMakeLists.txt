@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+cmake_minimum_required(VERSION 3.16)
+project(tsunami_deesser LANGUAGES CXX)
+enable_testing()
+add_library(tsunami_deesser Processor.cpp)
+target_compile_features(tsunami_deesser PUBLIC cxx_std_17)
+target_include_directories(tsunami_deesser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(tsunami_deesser PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>)
+add_executable(deesser_tests ../../tests/deesser/test_processor.cpp)
+target_link_libraries(deesser_tests PRIVATE tsunami_deesser)
+add_test(NAME deesser_processor COMMAND deesser_tests)
