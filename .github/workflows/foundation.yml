@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 name: Foundation native spike
 on:
-  push:
-    branches: [infrastructure/foundation]
   pull_request:
   workflow_dispatch:
 permissions:

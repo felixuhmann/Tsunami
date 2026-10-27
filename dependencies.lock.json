@@ -3,7 +3,7 @@
   "project_source_license": "GPL-3.0-or-later",
   "linked_combination_license": "GPL-3.0 (JUCE7 GPLv3 alternative; no later-version permission assumed for dependency)",
   "dependencies": [
-    {"name":"JUCE","repository":"https://github.com/juce-framework/JUCE.git","commit":"db7028f413b909ec9fd35f73c98b025c361a1c27","version":"7.0.13-security","license_choice":"GPLv3 alternative plus retained per-file permissive notices","source_subdir":"juce-src"},
+    {"name":"JUCE","repository":"https://github.com/juce-framework/JUCE.git","commit":"db7028f413b909ec9fd35f73c98b025c361a1c27","version":"7.0.13-security","archive_sha256":"e324e34f6660e76f883b274383ec69d14cfbd184bdedac2a1779635ff86dab58","license_choice":"GPLv3 alternative plus retained per-file permissive notices","source_subdir":"juce-src"},
     {"name":"clap-juce-extensions","repository":"https://github.com/free-audio/clap-juce-extensions.git","commit":"7adee3a1bd4684d4caa5601100e364abccff4b4d","license":"MIT","source_subdir":"clap_juce-src"},
     {"name":"clap","repository":"https://github.com/free-audio/clap.git","commit":"29ffcc273be7c7c651f6c9953b99e69700e2387a","license":"MIT","source_subdir":"clap_juce-src/clap-libs/clap"},
     {"name":"clap-helpers","repository":"https://github.com/free-audio/clap-helpers.git","commit":"a61bcdf0ecc2c8db1e80bfe8bf9cb7e8d9fd2bbc","license":"MIT","source_subdir":"clap_juce-src/clap-libs/clap-helpers"}

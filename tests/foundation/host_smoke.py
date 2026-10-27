@@ -21,7 +21,12 @@ parser.add_argument('output', type=Path)
 parser.add_argument('--capture', action='store_true')
 args = parser.parse_args()
 plugin_path = args.plugin.resolve(strict=True)
+# Pedalboard's Windows scanner may reject a VST3 bundle directory; point it at
+# the exact native PE module inside that same bundle, never a different plugin.
+if platform.system() == 'Windows' and plugin_path.is_dir():
+    plugin_path = (plugin_path / 'Contents' / 'x86_64-win' / plugin_path.name).resolve(strict=True)
 args.output.mkdir(parents=True, exist_ok=True)
+print('Loading native module:', plugin_path, flush=True)
 p = load_plugin(str(plugin_path))
 assert p.parameters, 'host enumerated no parameters'
 parameter = next(iter(p.parameters.values()))

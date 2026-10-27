@@ -100,8 +100,11 @@ public:
     void setStateInformation(const void* data, int bytes) override {
         if (auto xml=getXmlFromBinary(data, bytes)) {
             auto restored=juce::ValueTree::fromXml(*xml);
-            if (restored.hasType("TsunamiState") && restored["plugin"].toString()==Spec::id && int(restored["schema"])==1)
+            if (restored.hasType("TsunamiState") && restored["plugin"].toString()==Spec::id && int(restored["schema"])==1) {
                 state.replaceState(restored);
+                // Preset/state loads change values; CLAP must request a VALUES rescan.
+                updateHostDisplay(juce::AudioProcessorListener::ChangeDetails().withProgramChanged(true));
+            }
         }
     }
 };

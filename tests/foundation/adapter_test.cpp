@@ -22,7 +22,15 @@ int main() {
     if (std::abs(b.getSample(0,0)-.5f)>1e-6 || std::abs(b.getSample(1,0)+.25f)>1e-6) return 3;
     juce::MemoryBlock state; p.getStateInformation(state);
     parameter->setValueNotifyingHost(.75f);
+    struct Listener : juce::AudioProcessorListener {
+        bool rescanned = false;
+        void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+        void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails& details) override { rescanned |= details.programChanged; }
+    } listener;
+    p.addListener(&listener);
     p.setStateInformation(state.getData(), int(state.getSize()));
+    p.removeListener(&listener);
+    if (!listener.rescanned) { std::cerr << "state restore did not notify host parameter rescan\n"; return 8; }
     if (std::abs(parameter->getValue()-.25f)>1e-6) return 4;
     tsunami::Adapter<tsunami::PluginSpec> fresh;
     fresh.setStateInformation(state.getData(), int(state.getSize())); fresh.prepareToPlay(44100, 257);
