@@ -10,10 +10,14 @@
 //    one-pole smoothed; analog hum is a renormalised quadrature oscillator.
 //  * Control mapping (Gain / Peak Reduction knob <-> normalized) reproduces
 //    all genuine host display values.
+//  * RECOVERED (ControlLaws.h): Gain knob -> makeup dB and Peak Reduction
+//    knob -> sidechain drive dB breakpoint laws. Their placement (output
+//    gain / detector input gain) is a structural assumption.
 //  * PROVISIONAL: every numeric coefficient in Provisional:: below. They are
 //    NOT recovered from the reference and NOT fitted to it; the reference's
 //    coefficient initialisation was not recovered. Wet output is therefore
 //    a structurally faithful but numerically UNMATCHED opto model.
+#include "ControlLaws.h"
 #include "ControlMapping.h"
 #include "Kernel.h"
 #include <algorithm>
@@ -26,8 +30,6 @@ constexpr unsigned CurvePoints = 26;     // breakpoint count recovered; values p
 constexpr unsigned AttackPoints = 12;    // breakpoint count recovered; values provisional
 constexpr double ThresholdDb = -20.0, KneeDb = 6.0;
 constexpr double CompRatio = 3.0, LimitRatio = 20.0;
-constexpr double DriveMinDb = -30.0, DriveRangeDb = 60.0; // Peak Reduction -> sidechain drive
-constexpr double MakeupRangeDb = 40.0;                     // Gain knob span around default
 constexpr double AttackFastMs[2] = {1.0, 10.0}, AttackSlowMs[2] = {10.0, 60.0};
 constexpr double ReleaseFastS = 0.06, ReleaseSlowS = 1.5;
 constexpr double SmoothS = 0.02;
@@ -146,10 +148,8 @@ private:
         release_ = {pole(Provisional::ReleaseFastS), pole(Provisional::ReleaseSlowS), 0.75};
     }
     void updateDerived() noexcept {
-        const double pr = peakReductionToNormalized(parameters_[PeakReduction]);
-        drive_ = dbToGain(Provisional::DriveMinDb + Provisional::DriveRangeDb * pr);
-        const double gn = gainToNormalized(parameters_[Gain]);
-        makeup_ = dbToGain(Provisional::MakeupRangeDb * (gn - 0.535));
+        drive_ = dbToGain(peakReductionDriveDb(parameters_[PeakReduction]));
+        makeup_ = dbToGain(gainMakeupDb(parameters_[Gain]));
         mixTarget_ = parameters_[Mix] / 100.0;
         outTarget_ = dbToGain(parameters_[Trim]);
         hfWeight_ = parameters_[HiFreq] / 50.0;

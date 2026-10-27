@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Processor behaviour tests. These assert recovered STRUCTURE (direction of
 // control effects, determinism, dry paths); they make no fidelity claim.
+#include "ControlLaws.h"
 #include "Processor.h"
 #include <array>
 #include <cmath>
@@ -68,6 +69,16 @@ int main() {
     { Processor p; p.prepare(48000, 2, 256); p.setParameter(Processor::Gain, 60);
       g60 = rmsTail(render(p, 0.05, frames), frames/2); }
     check(g60 > g30 * 1.5, "Gain raises output");
+    { // recovered Gain makeup law: quiet signal, minimal drive -> wet gain = law
+        for (float knob : {40.0f, 0.0f, 75.0f}) {
+            Processor p; p.prepare(48000, 2, 256);
+            p.setParameter(Processor::PeakReduction, 0);
+            p.setParameter(Processor::Gain, knob);
+            const double ratio = rmsTail(render(p, 1e-3, frames), frames/2) / (1e-3 / std::sqrt(2.0));
+            const double expectDb = tsunami::cla2a::gainMakeupDb(knob);
+            check(std::abs(20.0 * std::log10(ratio) - expectDb) < 0.05, "wet gain follows recovered makeup law");
+        }
+    }
     { // reset determinism
         Processor p; p.prepare(48000, 2, 256);
         auto a = render(p, 0.3, 9600); p.reset(); auto b = render(p, 0.3, 9600);

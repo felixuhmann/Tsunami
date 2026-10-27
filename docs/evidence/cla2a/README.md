@@ -38,3 +38,18 @@ Thresholds predeclared in `thresholds.json` before comparison; results in `compa
 
 Restricted kernel tests and the complete-plugin fidelity results are separate claims.
 No complete-plugin match is claimed.
+
+## Round 2 (coefficient recovery from existing exports)
+* Coefficient writers in CLA-2A.dll go through `GetPointerToCoef(alg, inst, id)` + a store
+  callback, with most values read from hidden per-instance control slots
+  (`*(alg+0x598) + id*0x600 + 0xb0`). Those hidden-control defaults (curve / attack /
+  release times, filter shapes) are not present in the acquired code exports, so the
+  26-point curve, 12-point attack tables and release poles remain **not recovered**.
+* **Recovered** (`plugins/cla2a/ControlLaws.h`): Gain knob -> makeup dB (11-pt table,
+  FUN_18002fa10 + .rdata 0x18004b560), Peak Reduction knob -> drive dB (5-pt table,
+  FUN_180030d80), auto-makeup compensation table (FUN_18002f3a0, .rdata 0x18004b3f0/
+  0x18004b420; not yet wired). Control 38 = Gain / 74 = Peak Reduction is inferred from
+  the auto-makeup coupling; kernel placement of the two coefficients is assumed.
+* Wet defaults vs unchanged thresholds (`comparison-r2.json`): level diff -13.5 -> -6.1 dB
+  and -14.3 -> -6.7 dB; rel. RMS error -2.0 -> -5.9 dB and -1.9 -> -5.4 dB -> still **FAIL**.
+  No fitting on these renders; no new oracle renders.
