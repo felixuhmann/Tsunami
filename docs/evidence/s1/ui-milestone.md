@@ -137,3 +137,22 @@ Remaining:
 - Root full build validation, plus artifact and release gates.
 - Exact original ballistics, projection and gesture sensitivity.
 - The genuine original GUI, which still renders black.
+
+## Follow-up slice 4 (after native 9862ef0 review)
+The prior head `9862ef0` was verified by the parent on all four native/downloaded jobs, run 40513113985. The new
+head's native CI is **pending** and is not accepted.
+- **R label overlapped the tick column** in the hosted Linux image. `label-red.log`: compile red, there was no
+  geometry accessor yet. `label-green.log`: PASS. Labels now sit above each clip lamp, centred on the bar
+  (`channelLabelBounds`). The test asserts they do not intersect either tick column or either bar.
+- **Asymmetry readout showed `-24.4035`.** Root cause: `juce::String(double, 0)` means "no fixed precision" in JUCE,
+  not zero decimals. It was a genuine formatting bug, not active text editing. `precision-red.log`: runtime FAIL 39.
+  Host-style automation set -24.4035 and the readout showed `-24.4035`; Gain, Width and Rotation were already
+  correct. Fix: integers are rounded for display only. `precision-green.log`: PASS. The test also asserts the
+  parameter keeps its continuous -24.4035.
+- **Drawn two-position Input/Meter Mode selectors** (`ModeSwitch`, a real `juce::Button` toggle). Input Mode stays
+  bound through the APVTS `ButtonAttachment`. Meter Mode is still display-only. `selector-red.log`: compile red, the
+  type did not exist. `selector-green.log`: PASS. The test uses runtime snapshots of the slot to check that the
+  knob sits on the L-R side when off and the M-S side when on.
+- RT re-run: `rt-green-followup.log`, 0 allocations.
+- **Windows full-width capture is not changed.** The runner desktop is 1024 wide and clips about 24 px of the
+  1048 body. No supported resolution change was proven within this slice, so this remains an open blocker.

@@ -141,6 +141,30 @@ public:
     }
 };
 
+// Drawn two-position selector (L-R | M-S). Real toggle state: off=L-R, on=M-S.
+class ModeSwitch final : public juce::Button {
+public:
+    ModeSwitch() : juce::Button("mode") { setClickingTogglesState(true); }
+    juce::Rectangle<int> slotBounds() const { return getLocalBounds().reduced(44, 3); }
+    void paintButton(juce::Graphics& g, bool over, bool) override {
+        const bool ms=getToggleState();
+        auto area=getLocalBounds();
+        g.setFont(juce::Font(juce::FontOptions(15.f)));
+        g.setColour(juce::Colour(ms ? 0xff6a6a66 : 0xff1e1f22)); g.drawText("L-R", area.removeFromLeft(42), juce::Justification::centred);
+        g.setColour(juce::Colour(ms ? 0xff1e1f22 : 0xff6a6a66)); g.drawText("M-S", area.removeFromRight(42), juce::Justification::centred);
+        const auto slot=slotBounds().toFloat();
+        g.setColour(juce::Colour(0xff1a1b1d)); g.fillRoundedRectangle(slot, 4.f);
+        g.setColour(juce::Colours::black); g.drawRoundedRectangle(slot, 4.f, 1.2f);
+        auto knob=slot.reduced(2.f).withWidth(slot.getWidth()*.5f-2.f);
+        if(ms) knob=knob.withX(slot.getCentreX());
+        g.setGradientFill(juce::ColourGradient(juce::Colour(over ? 0xfff4f4f0 : 0xffe6e6e2), knob.getX(), knob.getY(),
+                                               juce::Colour(0xff9a9a96), knob.getX(), knob.getBottom(), false));
+        g.fillRoundedRectangle(knob, 3.f);
+        g.setColour(juce::Colour(0xff7a7a76));
+        for(int i=1;i<6;++i) { const float x=knob.getX()+knob.getWidth()*float(i)/6.f; g.drawLine(x, knob.getY()+3.f, x, knob.getBottom()-3.f, .8f); }
+    }
+};
+
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
@@ -149,7 +173,7 @@ public:
         horizontal(asymmetry, "asymmetry", 0.0, 0); horizontal(rotation, "rotation", 0.0, 1);
         toggle(inputMode, "input_mode", "L-R | M-S"); toggle(invertLeft, "invert_left", "+/-");
         toggle(swap, "swap", "<->"); toggle(invertRight, "invert_right", "+/-"); toggle(bypass, "bypass", "Bypass");
-        meterMode.setComponentID("meter_mode"); meterMode.setButtonText("L-R | M-S"); meterMode.setClickingTogglesState(true);
+        meterMode.setComponentID("meter_mode"); meterMode.setButtonText("L-R active");
         meterMode.onClick=[this] { displayed={-100.f,-100.f}; resetHold(0); resetHold(1); refreshPolarity(); repaint(); }; // display-only, never audio
         addAndMakeVisible(meterMode);
         display.onReset=[this] { resetImage(); };
@@ -191,6 +215,8 @@ public:
         repaint(meterArea);
     }
     std::array<float,2> meterReadings() const { return displayed; }
+    // Channel label above its clip lamp, centred on the bar and clear of the shared tick scale.
+    juce::Rectangle<int> channelLabelBounds(int k) const { return {(k ? 988 : 886)-10, 38, 20, 14}; }
     float heldPeakDb(int k) const { return held[size_t(k)]; }
     bool clipped(int k) const { return clip[size_t(k)]; }
     void resetHold(int k) { held[size_t(k)]=-100.f; clip[size_t(k)]=false; repaint(); }
@@ -243,7 +269,7 @@ public:
             g.setColour(clip[size_t(k)] ? juce::Colour(0xffff3020) : juce::Colour(0xff3a3a3a)); g.fillRoundedRectangle(lamp, 3.f);
             g.setColour(juce::Colours::black); g.drawRoundedRectangle(lamp, 3.f, 1.f);
             g.setColour(ui::ink); g.setFont(ui::font(13.f));
-            g.drawText(names[k], bar.getX()-20, barBottom-14, 16, 14, juce::Justification::centred);
+            g.drawText(names[k], channelLabelBounds(k), juce::Justification::centred);
             auto value=readouts[size_t(k)].getBounds();
             g.setColour(juce::Colours::white); g.fillRect(value); g.setColour(ui::ink); g.drawRect(value);
             g.setFont(ui::font(15.f));
@@ -275,7 +301,7 @@ public:
             lamps[size_t(k)].setBounds(k ? 976 : 874, 56, 24, 12);
             readouts[size_t(k)].setBounds(k ? 957 : 855, 414, 62, 25);
         }
-        meterMode.setBounds(rightPanel.getX()+36, 556, 150, 28);
+        meterMode.setBounds(rightPanel.getX()+36, 556, 150, 30);
         bypass.setBounds(strip.getX()+16, strip.getY()+14, 90, strip.getHeight()-28);
     }
 private:
@@ -308,11 +334,13 @@ private:
         s.setColour(juce::Slider::backgroundColourId, ui::ink); s.setColour(juce::Slider::thumbColourId, juce::Colour(0xff8a8a86));
         addAndMakeVisible(s);
         sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, id, s));
-        s.textFromValueFunction=[decimals](double v) { return juce::String(v, decimals); };
+        // juce::String(double, 0) prints full precision, so integers are rounded explicitly.
+        // Display only: the parameter keeps its continuous physical value.
+        s.textFromValueFunction=[decimals](double v) { return decimals>0 ? juce::String(v, decimals) : juce::String(juce::roundToInt(v)); };
         s.updateText();
         s.setDoubleClickReturnValue(true, reset);
     }
-    void toggle(juce::TextButton& b, const char* id, const char* text) {
+    void toggle(juce::Button& b, const char* id, const char* text) {
         b.setComponentID(id); b.setButtonText(text); b.setClickingTogglesState(true);
         b.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff6b5fb4));
         addAndMakeVisible(b);
@@ -323,7 +351,8 @@ private:
     MeterSource* meters;
     FaderLook faderLook; // declared before the sliders that reference it
     juce::Slider gain, width, asymmetry, rotation;
-    juce::TextButton inputMode, invertLeft, swap, invertRight, bypass, meterMode;
+    juce::TextButton invertLeft, swap, invertRight, bypass;
+    ModeSwitch inputMode, meterMode;
     VectorDisplay display;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;

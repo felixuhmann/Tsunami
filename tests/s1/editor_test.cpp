@@ -167,6 +167,54 @@ int main() {
         auto rotationCap = capStats(523, 512, 11, 18);
         CHECK(rotationCap.first > .5f, 36, "rotation cap centred");
     }
+    // Channel labels must clear the meter tick columns (hosted Linux 9862ef0 showed R over the right ticks).
+    {
+        const juce::Rectangle<int> ticks[]{{903, 74, 14, 326}, {957, 74, 14, 326}, {872, 74, 28, 326}, {974, 74, 28, 326}};
+        for (int k = 0; k < 2; ++k) {
+            const auto label = s1->channelLabelBounds(k);
+            for (auto& t : ticks) CHECK(!label.intersects(t), 37, "channel label clear of ticks/bars");
+            CHECK(std::abs(label.getCentreX() - (k ? 988 : 886)) <= 2, 38, "channel label centred on its bar");
+        }
+    }
+    // Host-style automation to non-round values (as pluginval Editor Automation did on 9862ef0):
+    // readouts use spec precision; the parameter keeps its continuous physical value.
+    {
+        const float values[]{-17.23f, 2.3141f, -4.3271f, -24.4035f};
+        const char* ids[]{"gain", "width", "rotation", "asymmetry"};
+        const char* expected[]{"-17.2", "2.31", "-4.3", "-24"};
+        for (int i = 0; i < 4; ++i) {
+            setPhysical(i, values[i]);
+            auto* sl = child<juce::Slider>(*editor, ids[i]);
+            const auto text = sl->getTextFromValue(sl->getValue());
+            if (text != expected[i]) std::cerr << ids[i] << " readout '" << text << "'\n";
+            CHECK(text == expected[i], 39, std::string("readout precision ") + ids[i]);
+        }
+        CHECK(std::abs(physical(3) + 24.4035f) < 1e-3, 40, "asymmetry parameter stays continuous");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Drawn two-position selectors: knob sits on the L-R side when off, M-S side when on.
+    {
+        for (const char* id : {"input_mode", "meter_mode"}) {
+            auto* sw = dynamic_cast<tsunami::s1::ModeSwitch*>(editor->findChildWithID(id));
+            CHECK(sw, 41, std::string("drawn selector ") + id);
+            auto knobSide = [&] {
+                auto img = sw->createComponentSnapshot(sw->getLocalBounds());
+                const auto slot = sw->slotBounds();
+                double left = 0, right = 0;
+                for (int y = slot.getY(); y < slot.getBottom(); ++y)
+                    for (int x = slot.getX(); x < slot.getRight(); ++x)
+                        (x < slot.getCentreX() ? left : right) += img.getPixelAt(x, y).getBrightness();
+                return left > right ? 0 : 1;
+            };
+            const bool start = sw->getToggleState();
+            sw->setToggleState(false, juce::sendNotificationSync);
+            CHECK(knobSide() == 0, 42, std::string("knob on L-R side ") + id);
+            sw->setToggleState(true, juce::sendNotificationSync);
+            CHECK(knobSide() == 1, 43, std::string("knob on M-S side ") + id);
+            sw->setToggleState(start, juce::sendNotificationSync);
+        }
+        setPhysical(7, 0.f);
+    }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {
             setPhysical(1, width); setPhysical(2, rotation);
