@@ -104,3 +104,31 @@ the hashes, the manifest and the source identity. It then loads the downloaded
 VST3 and checks finite, non-silent processing at several sample rates and block
 sizes, and a state round trip. That is a packaging smoke test, not evidence of
 sound equivalence. CLAP modules are packaged but not hosted in that smoke test.
+
+Default settings can leave a plugin passing audio through unchanged. The De-Esser
+threshold defaults to 0 dB, and the Voice compression defaults to 0 dB. So the
+smoke test also runs a fixed check for each product. It sets named controls to a
+neutral value and to an active value, reads them back from the host and renders
+fixed test audio both ways through the same plugin:
+
+| Product | Neutral | Active | Test audio | Required effect |
+| --- | --- | --- | --- | --- |
+| Tsunami Stereo | width 1.0 | width 2.4 | different tones in left and right | side/mid ratio up at least 3 dB |
+| Tsunami De-Esser | threshold 0 dB | threshold -36 dB | 300 Hz plus 7 kHz tone | 7 kHz down at least 3 dB, 300 Hz within 1.5 dB |
+| Tsunami Voice | compression 0 dB | compression -18 dB | tone switching loud and quiet | loud/quiet difference down at least 3 dB |
+
+The Voice check keeps the gate at -80 dB (off) and the gain at 0 dB in both runs.
+
+Pedalboard compensates for the latency that a plugin reports. A plugin can
+report a different latency at another sample rate, but Pedalboard only applies
+the new value after the first render at that rate. So the check renders once at
+each rate before measuring. It then checks that a noise signal comes out with
+no delay at both the neutral and the active setting. It compares the neutral and
+active outputs, not the input.
+
+A fresh instance must restore the active state and produce the same audio. A
+package for a product without a check fails the smoke test. It does not reuse
+another product's check. To release a newly registered target, first add its
+check to `tools/release_smoke.py`. These checks show that the downloaded package
+processes audio when its controls are set. They are not evidence of sound
+equivalence.
