@@ -14,7 +14,8 @@ namespace tsunami::hdelay {
 //    (Mono, Analog Off, HiFi, feedback 0, mix 100, 0 dB, 48 kHz): behavioural
 //    calibration data, not vendor code or tables.
 //  * Loop gain/extra loop sample measured from a genuine feedback-50 render.
-// Not implemented (stored only): BPM/Host sync, Analog, LoFi, modulation,
+// Sync law: BPM/Host note x 60/tempo, Host->ms copy (see effectiveDelayMs).
+// Not implemented: delay-time glide (genuine: ~0.5 s exponential), Analog, LoFi, modulation,
 // HiPass/LoPass, phase. Fractional delays are rounded to whole samples.
 class Processor {
 public:
@@ -52,13 +53,17 @@ public:
     void setParameter(unsigned index, float value) noexcept {
         if (index >= Count || !std::isfinite(value)) return;
         value = std::clamp(value, kLo[index], kHi[index]);
+        if (index == Sync) value = std::round(value);
+        // Genuine behaviour (oracle r2): switching Sync into ms copies the current
+        // note-derived time into the ms control (a same-block delay_sec write is overwritten).
+        if (index == Sync && value > 1.5f && p_[Sync] < 1.5f) p_[DelayMs] = float(effectiveDelayMs());
         p_[index] = value;
     }
     float getParameter(unsigned index) const noexcept { return index < Count ? p_[index] : 0.f; }
     void process(const float* const* in, float* const* out, unsigned frames) noexcept {
         if (lines_.empty()) return;
         const unsigned mask = size_ - 1;
-        const unsigned delay = std::max<unsigned>(kHalf + 1, unsigned(std::lround(p_[DelayMs] * 1e-3 * rate_)));
+        const unsigned delay = std::max<unsigned>(kHalf + 1, unsigned(std::lround(effectiveDelayMs() * 1e-3 * rate_)));
         const float fb = p_[Feedback] * .01f * float(kLoopDc / kDc());
         const float wet = p_[Mix] * .01f, dry = 1.f - wet; // linear law: UNVERIFIED
         const float g = std::pow(10.f, p_[Output] / 20.f);
@@ -78,14 +83,29 @@ public:
         }
         pos_ = (pos_ + frames) & mask;
     }
+    // Delay-time law. Sync choices (genuine order): 0 BPM, 1 Host, 2 ms.
+    // BPM/Host: note length (beats) x 60 / tempo. Plugin BPM raw r -> 30 + 270 r (readback:
+    // 0.2222 = 90, 0.3333 = 120). Host tempo: no host transport here -> 120 (PROVISIONAL).
+    double noteBeats() const noexcept {
+        static constexpr double kBase[] = {1. / 16, 1. / 8, 1. / 4, 1. / 2, 1., 2.}; // 1/64..1/2 (1/N = 4/N beats)
+        const int i = int(std::lround(p_[DelayBpm] * 19.f));
+        if (i >= 18) return i == 18 ? 4. : 8.; // "1B"/"2B" read as 1/2 bars of 4/4: PROVISIONAL
+        const double k[] = {2. / 3., 1., 1.5};  // T, straight, D
+        return kBase[i / 3] * k[i % 3];
+    }
+    double tempoBpm() const noexcept { return p_[Sync] < .5f ? 30. + 270. * p_[Bpm] : hostTempo_; }
+    double effectiveDelayMs() const noexcept {
+        return p_[Sync] > 1.5f ? double(p_[DelayMs]) : std::clamp(noteBeats() * 60000. / tempoBpm(), 1., 3500.);
+    }
     unsigned latencySamples() const noexcept { return 0; }
-    double tailSeconds() const noexcept { return p_[Feedback] > 0.f ? 30. : p_[DelayMs] * 1e-3 + .01; }
+    double tailSeconds() const noexcept { return p_[Feedback] > 0.f ? 30. : effectiveDelayMs() * 1e-3 + .01; }
 private:
     static constexpr double kDc() { double d = 0; for (float t : kTap) d += t; return d; }
     static constexpr std::array<float, Count> kLo{{1, 0, 0, 0, 0, -18, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
     static constexpr std::array<float, Count> kHi{{3500, 1, 200, 2, 100, 18, 4, 1, 1, 100, 1, 1, 1, 1, 1}};
     // Genuine fresh-instance defaults (Mono component readback).
     std::array<float, Count> p_{{375, 0.579f, 60, 1, 100, 0, 2, 0, 0, 0, 0, 1, 0, 0.3333333f, 0}};
+    double hostTempo_ = 120.;
     double rate_ = 48000.; unsigned channels_ = 0, size_ = 0, pos_ = 0;
     std::vector<std::vector<float>> lines_; std::vector<float> state_;
 };

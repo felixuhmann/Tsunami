@@ -1,0 +1,35 @@
+{
+ "declared_at": "2026-10-27T16:10Z UTC (before rendering r2 cases r1..r4; r1 evidence dir stamped 16:10:55Z)",
+ "rule": "Predeclared; never loosened. Held-out renders are not used for tuning.",
+ "input": "synthesized impulse 0.125 at sample 288000 (6.0 s) in 7 s, 48 kHz, f32 mono (sha256 7e9ceebf...); impulse placed late so the genuine delay-time glide from the fresh-instance 375 ms has settled",
+ "cases": {
+  "r1_ms_from_1_8_at120_fb0": {
+   "role": "held-out delay-time law (Sync ms switch derives time from delay_bpm note x 60/120)",
+   "predicted_peak_offset": 12000,
+   "peak_index_exact": true,
+   "max_abs_err_norm": 0.002
+  },
+  "r2_ms_from_1_4_at120_fb25": {
+   "role": "held-out delay-time law + held-out loop gain (kLoopDc fitted on fb50 only)",
+   "predicted_peak_offsets": [
+    24000,
+    48001
+   ],
+   "peak_index_exact": true,
+   "max_abs_err_norm": 0.002,
+   "repeat_dc_rel_err": 0.005
+  },
+  "r3_hipass_1k": {
+   "role": "filter derivation data (fit set, no fidelity claim)"
+  },
+  "r4_lopass_1k": {
+   "role": "filter derivation data (fit set, no fidelity claim)"
+  }
+ },
+ "amendments": [
+  {
+   "at": "2026-10-27T16:13Z",
+   "change": "r2 re-rendered with 8 s input (same impulse at 288000) because the 7 s render 20261027T161125-4693eb8b6ad6405c9d4f4c936307ef2c ends at sample 336000, before predicted repeat 2 at 336001. Thresholds unchanged; no r2 metrics were computed before this amendment."
+  }
+ ]
+}

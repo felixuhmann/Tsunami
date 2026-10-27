@@ -42,5 +42,28 @@ int main() {
         check(std::fabs(y[0] - .125f * std::pow(10.f, -6.f / 20.f)) < 1e-7f, "output gain dB");
         check(p.latencySamples() == 0, "no reported latency");
         std::cout << "PASS mix/output\n";
+        // Sync/delay-time law (genuine oracle r2: Sync->ms switch takes note x 60/tempo).
+        auto peakOf = [](const std::vector<float>& s) {
+            unsigned k = 0;
+            for (unsigned i = 1; i < s.size(); ++i) if (std::fabs(s[i]) > std::fabs(s[k])) k = i;
+            return k;
+        };
+        Processor q; q.prepare(48000, 1, 512);
+        q.setParameter(Processor::Mix, 100); q.setParameter(Processor::Feedback, 0);
+        q.setParameter(Processor::Sync, 0); q.setParameter(Processor::DelayBpm, 13.f / 19.f); // BPM, 1/4
+        q.setParameter(Processor::Bpm, 1.f / 3.f);                                           // 120 BPM
+        check(std::fabs(q.effectiveDelayMs() - 500.) < 1e-3, "BPM 1/4 at 120 = 500 ms");
+        q.setParameter(Processor::Bpm, 60.f / 270.f);                                         // 90 BPM
+        check(std::fabs(q.effectiveDelayMs() - 2000. / 3.) < 1e-3, "BPM 1/4 at 90 = 666.7 ms");
+        Processor r; r.prepare(48000, 1, 512);
+        r.setParameter(Processor::Mix, 100); r.setParameter(Processor::Feedback, 0);
+        r.setParameter(Processor::DelayMs, 100); r.setParameter(Processor::DelayBpm, 10.f / 19.f); // 1/8
+        r.setParameter(Processor::Sync, 2); // Host -> ms: time copied from note at host tempo 120
+        check(std::fabs(r.getParameter(Processor::DelayMs) - 250.f) < 1e-3f, "Host->ms switch copies 1/8 @120 = 250 ms");
+        r.reset(); y = impulseResponse(r, 24000);
+        check(peakOf(y) == 12000, "250 ms tap at 12000");
+        r.setParameter(Processor::DelayMs, 100); r.reset(); y = impulseResponse(r, 24000);
+        check(peakOf(y) == 4800, "ms mode honours DelayMs afterwards");
+        std::cout << "PASS sync/delay-time law\n";
     } catch (const std::exception& e) { std::cerr << "FAIL " << e.what() << '\n'; return 1; }
 }
