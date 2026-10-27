@@ -35,6 +35,7 @@ public:
     const GainStage::Coefficients& wetCoefficients() const noexcept { return wet_; }
 
     // Physical Gain dB [-30,30], Trim dB [-18,18], Mix % [0,100]. Atomic on failure.
+    // Valid before prepare(); accepted controls persist across prepare/reset.
     bool setOutput(float gainDb, float trimDb, float mixPercent) noexcept {
         OutputStage candidate = output_;
         if (!candidate.setGainTrim(0.0f, trimDb) || !candidate.setMix(mixPercent)) return false;

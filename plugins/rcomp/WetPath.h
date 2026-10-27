@@ -30,7 +30,14 @@ public:
     }
 
     // Physical Gain in dB folded with the geometry normalization; atomic on failure.
+    // Before prepare() a valid Gain is kept and applied by prepare() (project API
+    // lifecycle policy for hosts that set controls first, not a reference fact).
     bool setMakeup(float gainDb) noexcept {
+        if (geometry_.delay == 0) {
+            if (!std::isfinite(gainDb) || gainDb < -30.0f || gainDb > 30.0f) return false;
+            gainDb_ = gainDb;
+            return true;
+        }
         MakeupSplit m{};
         if (geometry_.delay == 0 || !splitMakeup(gainDb, geometry_, m)) return false;
         gainDb_ = gainDb;
@@ -61,7 +68,9 @@ public:
     // Wet output plus the same H-delayed audio, which the kernel's output mix
     // uses as its aligned dry input.
     struct Aligned { float wet; float dry; };
+    // Unprepared: silent (replacement-only defensive policy), no history access.
     Aligned tickHistoryAligned(float historyGain, float audio) noexcept {
+        if (geometry_.delay == 0) return {0.0f, 0.0f};
         const GainHistory::Frame f = history_.tick(historyGain, audio);
         return {(f.gain * makeup_) * f.delayed, f.delayed};
     }

@@ -12,13 +12,12 @@ namespace tsunami::rcomp {
 // included (gainIncrease is a fixed caller coefficient). Not a Processor.
 class WetChain {
 public:
-    // Off-audio-thread. Atomic on failure.
+    // Off-audio-thread. Atomic on failure. Makeup and coefficients accepted
+    // before or between prepares are kept (project API lifecycle policy).
     bool prepare(int sampleRateHz) {
         WetPath wet;
-        if (!wet.prepare(sampleRateHz)) return false;
-        if (prepared_ && !wet.setMakeup(gainDb_)) return false;
+        if (!wet.setMakeup(gainDb_) || !wet.prepare(sampleRateHz)) return false;
         wet_ = std::move(wet);
-        prepared_ = true;
         reset();
         return true;
     }
@@ -55,7 +54,6 @@ private:
     GainStage stage_;
     WetPath wet_;
     float gainDb_ = 0.0f;
-    bool prepared_ = false;
 };
 
 } // namespace tsunami::rcomp
