@@ -1,0 +1,522 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Native JUCE test of the actual S1 editor: real components, APVTS attachments,
+// state sync, reset-image semantics and process-derived output meters.
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include "Adapter.hpp"
+#include "Generated.hpp"
+
+#define CHECK(cond, code, what) do { if (!(cond)) { std::cerr << "FAIL " << what << "\n"; return code; } } while (0)
+
+template<class T> static T* child(juce::Component& root, const char* id) {
+    return dynamic_cast<T*>(root.findChildWithID(id));
+}
+
+static juce::MouseEvent mouseAt(juce::Component& c, juce::ModifierKeys mods, int clicks = 1) {
+    const auto centre = c.getLocalBounds().getCentre().toFloat();
+    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), centre, mods, 0.f, 0.f, 0.f, 0.f, 0.f,
+                            &c, &c, juce::Time::getCurrentTime(), centre, juce::Time::getCurrentTime(), clicks, false);
+}
+
+static juce::MouseEvent dragAt(juce::Component& c, float dx, juce::ModifierKeys mods = {}) {
+    const auto centre = c.getLocalBounds().getCentre().toFloat();
+    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), centre.translated(dx, 0.f), mods, 0.f, 0.f, 0.f, 0.f, 0.f,
+                            &c, &c, juce::Time::getCurrentTime(), centre, juce::Time::getCurrentTime(), 1, dx != 0.f);
+}
+
+static juce::MouseEvent editorEvent(juce::Component& c, juce::Point<float> at, juce::Point<float> down, bool dragged) {
+    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), at, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier),
+                            0.f, 0.f, 0.f, 0.f, 0.f, &c, &c, juce::Time::getCurrentTime(), down, juce::Time::getCurrentTime(), 1, dragged);
+}
+
+int main() {
+    juce::ScopedJuceInitialiser_GUI gui;
+    tsunami::Adapter<tsunami::PluginSpec> p;
+    p.prepareToPlay(48000, 64);
+    std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
+    CHECK(editor, 1, "editor created");
+    auto* s1 = dynamic_cast<tsunami::s1::Editor*>(editor.get());
+    CHECK(s1, 2, "actual S1 editor (not fixture fallback)");
+    // Original 17.1 static capture: Input Mode and Meter Mode selectors share one row
+    // (physical y~274 in the 2x-scaled frame => logical body y~512); titles align too.
+    { // runs first so it is witnessed independently
+        auto* in = editor->findChildWithID("input_mode"); auto* meter = editor->findChildWithID("meter_mode");
+        CHECK(std::abs(in->getBounds().getCentreY() - 512) <= 2 && in->getBounds().getCentreY() == meter->getBounds().getCentreY(), 58, "selectors share the original row");
+        CHECK(child<juce::Button>(*editor, "swap")->getBounds().getCentreY() == 570, 59, "polarity/swap row unchanged");
+    }
+    // Official body ratio from the independent reference spec: 1048x665, display x244 y32 w560 h321.
+    CHECK(editor->getWidth() == 1048 && editor->getHeight() == 665, 18, "1048x665 body");
+    CHECK(editor->findChildWithID("vector_display")->getBounds() == juce::Rectangle<int>(244, 32, 560, 321), 19, "display geometry");
+    for (const char* id : {"gain", "width", "rotation", "asymmetry"})
+        CHECK(child<juce::Slider>(*editor, id), 3, std::string("slider ") + id);
+    for (const char* id : {"swap", "invert_left", "invert_right", "input_mode", "bypass", "meter_mode"})
+        CHECK(child<juce::Button>(*editor, id), 4, std::string("button ") + id);
+    auto& params = p.getParameters();
+    auto ranged = [&](int i) { return static_cast<juce::RangedAudioParameter*>(params[i]); };
+    auto physical = [&](int i) { return ranged(i)->convertFrom0to1(params[i]->getValue()); };
+    auto setPhysical = [&](int i, float v) { ranged(i)->setValueNotifyingHost(ranged(i)->convertTo0to1(v)); };
+
+    // UI -> parameter through attachments.
+    child<juce::Slider>(*editor, "width")->setValue(2.0, juce::sendNotificationSync);
+    CHECK(std::abs(physical(1) - 2.f) < 1e-4, 5, "width slider drives parameter");
+    { auto* bi = child<juce::Button>(*editor, "input_mode"); bi->setToggleState(!bi->getToggleState(), juce::sendNotificationSync); }
+    CHECK(physical(7) > .5f, 6, "M/S input toggle drives parameter");
+    // Host automation -> UI.
+    setPhysical(2, 30.f);
+    CHECK(std::abs(child<juce::Slider>(*editor, "rotation")->getValue() - 30.) < 1e-3, 7, "rotation automation reaches slider");
+
+    // Vector display model agrees with the DSP matrix (left input maps to output (a, d)).
+    params[7]->setValueNotifyingHost(0.f);
+    auto vec = tsunami::s1::vectorModel({-6.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
+    // Ordinary M/S polar coordinates (x=(R-L)/sqrt2, y=(R+L)/sqrt2): unity L/R at -45/+45 deg.
+    CHECK(std::abs(vec.left.angleDegrees + 45.f) < 1e-3 && std::abs(vec.right.angleDegrees - 45.f) < 1e-3, 8, "default L/R at +-45 deg (M/S coordinates)");
+    CHECK(std::abs(vec.center.angleDegrees) < 1e-3 && std::abs(vec.left.levelDb + 6.f) < 1e-3, 9, "centre upright, gain shown as level");
+    auto rotated = tsunami::s1::vectorModel({0.f, 1.f, 20.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
+    CHECK(std::abs(rotated.center.angleDegrees - 20.f) < 1e-3, 10, "rotation 20 turns centre ray by 20 deg");
+
+    // Reset image: width/asymmetry/rotation to defaults; gain and input settings preserved.
+    setPhysical(0, -6.f);
+    setPhysical(3, 40.f);
+    params[4]->setValueNotifyingHost(1.f);
+    s1->resetImage();
+    CHECK(std::abs(physical(1) - 1.f) < 1e-4 && std::abs(physical(2)) < 1e-4 && std::abs(physical(3)) < 1e-4, 11, "image reset");
+    CHECK(std::abs(physical(0) + 6.f) < 1e-3 && physical(4) > .5f, 12, "gain/swap preserved by reset image");
+    params[4]->setValueNotifyingHost(0.f); params[0]->setValueNotifyingHost(1.f);
+
+    // Plain drag: X rotation / Y gain; Alt-drag: X asymmetry / Y width (bounded).
+    auto plain = tsunami::s1::applyVectorDrag({0.f, 1.f, 0.f, 0.f}, 50.f, -1000.f, false);
+    CHECK(plain[2] > 0.f && plain[2] <= 45.f && plain[0] == 0.f && plain[1] == 1.f, 13, "plain drag bounds");
+    auto alt = tsunami::s1::applyVectorDrag({0.f, 1.f, 0.f, 0.f}, 1000.f, -100.f, true);
+    CHECK(alt[3] == 90.f && alt[1] > 1.f && alt[2] == 0.f, 14, "alt drag asymmetry/width");
+
+    // Process-derived meters; LR/MS switch changes display only, never audio.
+    p.prepareToPlay(48000, 64);
+    juce::AudioBuffer<float> b(2, 64); b.clear();
+    for (int n = 0; n < 64; ++n) { b.setSample(0, n, .5f); b.setSample(1, n, .5f); }
+    juce::MidiBuffer midi; p.processBlock(b, midi);
+    const float before = b.getSample(0, 63);
+    s1->pollMeters();
+    auto lr = s1->meterReadings();
+    CHECK(lr[0] > -9.f && lr[0] < 0.f && std::abs(lr[0] - lr[1]) < .05f, 15, "LR meters from processed output");
+    { auto* bm = child<juce::Button>(*editor, "meter_mode"); bm->setToggleState(!bm->getToggleState(), juce::sendNotificationSync); }
+    for (int n = 0; n < 64; ++n) { b.setSample(0, n, .5f); b.setSample(1, n, .5f); }
+    p.processBlock(b, midi);
+    CHECK(std::abs(b.getSample(0, 63) - before) < 1e-6, 16, "meter mode does not alter audio");
+    s1->pollMeters();
+    auto ms = s1->meterReadings();
+    CHECK(ms[1] < -60.f && std::abs(ms[0] - lr[0]) < .05f, 17, "MS meters show mid, silent side");
+    // Whole-buffer bit identity across a meter-mode switch (display-only).
+    {
+        auto render = [&] { juce::AudioBuffer<float> x(2, 64);
+            for (int n = 0; n < 64; ++n) { x.setSample(0, n, std::sin(.1f * n)); x.setSample(1, n, .3f * std::cos(.07f * n)); }
+            p.processBlock(x, midi); return x; };
+        p.reset(); auto a = render();
+        { auto* bm = child<juce::Button>(*editor, "meter_mode"); bm->setToggleState(!bm->getToggleState(), juce::sendNotificationSync); }
+        p.reset(); auto c = render();
+        for (int ch = 0; ch < 2; ++ch)
+            CHECK(std::memcmp(a.getReadPointer(ch), c.getReadPointer(ch), sizeof(float) * 64) == 0, 20, "meter mode switch is bit-identical over whole buffer");
+    }
+    // Live state restore while the editor stays open: controls follow restored values.
+    {
+        const float target[]{-9.5f, 2.25f, -12.5f, 33.f, 1.f, 1.f, 0.f, 1.f, 1.f};
+        for (int i = 0; i < 9; ++i) setPhysical(i, target[i]);
+        juce::MemoryBlock saved; p.getStateInformation(saved);
+        const float other[]{-1.f, .5f, 10.f, -20.f, 0.f, 0.f, 1.f, 0.f, 0.f};
+        for (int i = 0; i < 9; ++i) setPhysical(i, other[i]);
+        p.setStateInformation(saved.getData(), int(saved.getSize()));
+        const char* sl[]{"gain", "width", "rotation", "asymmetry"};
+        for (int i = 0; i < 4; ++i)
+            CHECK(std::abs(child<juce::Slider>(*editor, sl[i])->getValue() - target[i]) < 1e-3, 21, std::string("restored slider ") + sl[i]);
+        const char* bt[]{"swap", "invert_left", "invert_right", "input_mode", "bypass"};
+        for (int i = 0; i < 5; ++i)
+            CHECK(child<juce::Button>(*editor, bt[i])->getToggleState() == (target[4 + i] > .5f), 22, std::string("restored toggle ") + bt[i]);
+        for (int i = 0; i < 9; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Peak hold / clip lamps driven by processed audio; click lamp or readout resets that channel.
+    {
+        { auto* bm = child<juce::Button>(*editor, "meter_mode"); if (bm->getToggleState()) bm->setToggleState(false, juce::sendNotificationSync); }
+        juce::AudioBuffer<float> x(2, 64); x.clear();
+        for (int n = 0; n < 64; ++n) { x.setSample(0, n, n == 10 ? 1.2f : .1f); x.setSample(1, n, .25f); }
+        s1->pollMeters(); s1->resetHold(0); s1->resetHold(1); // drain peaks from earlier unpolled renders
+        p.reset(); p.processBlock(x, midi); s1->pollMeters();
+        CHECK(s1->clipped(0) && !s1->clipped(1), 23, "clip lamp latches only on |x|>=1 channel");
+        CHECK(std::abs(s1->heldPeakDb(0) - 20.f * std::log10(1.2f)) < .05f && std::abs(s1->heldPeakDb(1) + 12.04f) < .05f, 24, "held peaks");
+        for (int i = 0; i < 5; ++i) { x.clear(); p.processBlock(x, midi); s1->pollMeters(); }
+        CHECK(s1->clipped(0) && std::abs(s1->heldPeakDb(0) - 20.f * std::log10(1.2f)) < .05f, 25, "hold survives silence");
+        CHECK(s1->meterReadings()[0] < s1->heldPeakDb(0) - 5.f, 26, "bar falls in silence while hold remains");
+        auto* lamp = editor->findChildWithID("peak_lamp_0"); CHECK(lamp, 27, "lamp component");
+        lamp->mouseDown(mouseAt(*lamp, {}));
+        CHECK(!s1->clipped(0) && s1->heldPeakDb(0) <= -99.f && std::abs(s1->heldPeakDb(1) + 12.04f) < .05f, 28, "lamp click resets that channel only");
+        auto* readout = editor->findChildWithID("peak_readout_1"); CHECK(readout, 29, "readout component");
+        readout->mouseDown(mouseAt(*readout, {}));
+        CHECK(s1->heldPeakDb(1) <= -99.f, 30, "readout click resets hold");
+    }
+    // Alt-click on an individual fader resets it to default (manual p8); plain click does not.
+    {
+        auto* w = child<juce::Slider>(*editor, "width");
+        setPhysical(1, 2.5f); setPhysical(0, -10.f);
+        w->mouseDown(mouseAt(*w, juce::ModifierKeys(juce::ModifierKeys::altModifier | juce::ModifierKeys::leftButtonModifier)));
+        w->mouseUp(mouseAt(*w, juce::ModifierKeys(juce::ModifierKeys::altModifier)));
+        CHECK(std::abs(physical(1) - 1.f) < 1e-4, 31, "alt-click resets width to default");
+        CHECK(std::abs(physical(0) + 10.f) < 1e-3, 32, "alt-click on width leaves gain");
+        setPhysical(0, 0.f);
+    }
+    // Runtime-drawn fader caps: broad dark grooved rectangle with pale index at the
+    // actual value position (gain 0 -> y82 travel top; width 1 -> one third up from y370).
+    {
+        auto* g = child<juce::Slider>(*editor, "gain");
+        CHECK(g->getBounds().getX() <= 41 && g->getBounds().getRight() >= 103, 33, "gain fader column");
+        auto shot = editor->createComponentSnapshot(editor->getLocalBounds());
+        auto capStats = [&](int cx, int cy, int hw, int hh) {
+            int dark = 0, pale = 0, total = 0;
+            for (int y = cy - hh; y <= cy + hh; ++y) for (int x = cx - hw; x <= cx + hw; ++x) {
+                const auto c = shot.getPixelAt(x, y); const float b = c.getBrightness(); ++total;
+                dark += b < .35f; pale += (b > .8f && x >= cx - hw + 3 && x <= cx + hw - 3 && std::abs(y - cy) <= 1);
+            }
+            return std::pair<float,int>(float(dark) / float(total), pale);
+        };
+        auto gainCap = capStats(72, 82, 18, 11);
+        CHECK(gainCap.first > .55f && gainCap.second >= 20, 34, "gain cap broad dark with pale index line");
+        // Revised 2026-10-27: the genuine original 17.1 static capture shows Width 1.00 near mid-travel
+        // (y226), superseding the earlier documentation-only one-third assumption (y274).
+        auto widthCap = capStats(160, 226, 18, 11);
+        CHECK(widthCap.first > .55f && widthCap.second >= 20, 35, "width cap at value 1");
+        auto rotationCap = capStats(523, 512, 11, 18);
+        CHECK(rotationCap.first > .5f, 36, "rotation cap centred");
+    }
+    // Channel labels must clear the meter tick columns (hosted Linux 9862ef0 showed R over the right ticks).
+    {
+        const juce::Rectangle<int> ticks[]{{903, 74, 14, 326}, {957, 74, 14, 326}, {872, 74, 28, 326}, {974, 74, 28, 326}};
+        for (int k = 0; k < 2; ++k) {
+            const auto label = s1->channelLabelBounds(k);
+            for (auto& t : ticks) CHECK(!label.intersects(t), 37, "channel label clear of ticks/bars");
+            CHECK(std::abs(label.getCentreX() - (k ? 988 : 886)) <= 2, 38, "channel label centred on its bar");
+        }
+    }
+    // Host-style automation to non-round values (as pluginval Editor Automation did on 9862ef0):
+    // readouts use spec precision; the parameter keeps its continuous physical value.
+    {
+        const float values[]{-17.23f, 2.3141f, -4.3271f, -24.4035f};
+        const char* ids[]{"gain", "width", "rotation", "asymmetry"};
+        const char* expected[]{"-17.2", "2.31", "-4.3", "-24"};
+        for (int i = 0; i < 4; ++i) {
+            setPhysical(i, values[i]);
+            auto* sl = child<juce::Slider>(*editor, ids[i]);
+            const auto text = sl->getTextFromValue(sl->getValue());
+            if (text != expected[i]) std::cerr << ids[i] << " readout '" << text << "'\n";
+            CHECK(text == expected[i], 39, std::string("readout precision ") + ids[i]);
+        }
+        CHECK(std::abs(physical(3) + 24.4035f) < 1e-3, 40, "asymmetry parameter stays continuous");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Drawn two-position selectors: knob sits on the L-R side when off, M-S side when on.
+    {
+        for (const char* id : {"input_mode", "meter_mode"}) {
+            auto* sw = dynamic_cast<tsunami::s1::ModeSwitch*>(editor->findChildWithID(id));
+            CHECK(sw, 41, std::string("drawn selector ") + id);
+            auto knobSide = [&] {
+                auto img = sw->createComponentSnapshot(sw->getLocalBounds());
+                const auto slot = sw->slotBounds();
+                double left = 0, right = 0;
+                for (int y = slot.getY(); y < slot.getBottom(); ++y)
+                    for (int x = slot.getX(); x < slot.getRight(); ++x)
+                        (x < slot.getCentreX() ? left : right) += img.getPixelAt(x, y).getBrightness();
+                return left > right ? 0 : 1;
+            };
+            const bool start = sw->getToggleState();
+            sw->setToggleState(false, juce::sendNotificationSync);
+            CHECK(knobSide() == 0, 42, std::string("knob on L-R side ") + id);
+            sw->setToggleState(true, juce::sendNotificationSync);
+            CHECK(knobSide() == 1, 43, std::string("knob on M-S side ") + id);
+            sw->setToggleState(start, juce::sendNotificationSync);
+        }
+        setPhysical(7, 0.f);
+    }
+    // Manual p6: dragging the space between Asymmetry and Rotation links them (balance-like).
+    // Replacement policy: common normalized delta = dx / 317 px track width; the delta is clamped
+    // so neither control leaves its range (offset preserved); gestures only on the two params.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto* strip = editor->findChildWithID("link_strip");
+        CHECK(strip, 44, "link strip between asymmetry and rotation rows");
+        const auto sb = strip->getBounds();
+        CHECK(sb.getY() >= 454 && sb.getBottom() <= 499 && sb.getX() >= 340 && sb.getRight() <= 712, 45, "strip lies between the two rows");
+        setPhysical(3, 10.f); setPhysical(2, -5.f); setPhysical(0, -3.f); setPhysical(1, 1.5f);
+        p.addListener(&gestures);
+        strip->mouseDown(dragAt(*strip, 0.f, juce::ModifierKeys(juce::ModifierKeys::altModifier | juce::ModifierKeys::leftButtonModifier)));
+        strip->mouseDrag(dragAt(*strip, 31.7f, juce::ModifierKeys(juce::ModifierKeys::altModifier | juce::ModifierKeys::leftButtonModifier)));
+        if (std::abs(physical(3) - 28.f) >= .05f || std::abs(physical(2) - 4.f) >= .05f) std::cerr << "asym " << physical(3) << " rot " << physical(2) << "\n";
+        CHECK(std::abs(physical(3) - 28.f) < .05f && std::abs(physical(2) - 4.f) < .05f, 46, "linked common normalized delta (alt does not reset)");
+        strip->mouseUp(dragAt(*strip, 31.7f));
+        p.removeListener(&gestures);
+        CHECK(gestures.begins[2] == 1 && gestures.ends[2] == 1 && gestures.begins[3] == 1 && gestures.ends[3] == 1, 47, "balanced gestures on linked pair");
+        for (int i : {0, 1, 4, 5, 6, 7, 8}) CHECK(gestures.begins[size_t(i)] == 0 && gestures.ends[size_t(i)] == 0, 48, "no gestures on other params");
+        CHECK(std::abs(physical(0) + 3.f) < 1e-3 && std::abs(physical(1) - 1.5f) < 1e-3, 49, "gain/width untouched");
+        CHECK(bool(editor->getProperties()["s1_linked"]), 50, "pair shown linked after drag");
+        // Boundary: asymmetry 80 / rotation 0, drag far right -> stops when asymmetry reaches 90, offset kept.
+        setPhysical(3, 80.f); setPhysical(2, 0.f);
+        strip->mouseDown(dragAt(*strip, 0.f)); strip->mouseDrag(dragAt(*strip, 400.f)); strip->mouseUp(dragAt(*strip, 400.f));
+        CHECK(std::abs(physical(3) - 90.f) < .05f && std::abs(physical(2) - 5.f) < .05f, 51, "clamped common delta preserves offset");
+        // State restore while linked: controls follow restored values; next linked drag starts from them.
+        juce::MemoryBlock linkedState; setPhysical(3, -20.f); setPhysical(2, 10.f); p.getStateInformation(linkedState);
+        setPhysical(3, 50.f); setPhysical(2, -30.f);
+        p.setStateInformation(linkedState.getData(), int(linkedState.getSize()));
+        CHECK(std::abs(child<juce::Slider>(*editor, "asymmetry")->getValue() + 20.) < 1e-3 && std::abs(child<juce::Slider>(*editor, "rotation")->getValue() - 10.) < 1e-3, 52, "restore while linked");
+        strip->mouseDown(dragAt(*strip, 0.f)); strip->mouseDrag(dragAt(*strip, -31.7f)); strip->mouseUp(dragAt(*strip, -31.7f));
+        CHECK(std::abs(physical(3) + 38.f) < .05f && std::abs(physical(2) - 1.f) < .05f, 53, "linked drag from restored values");
+        // Click elsewhere unlinks.
+        editor->mouseDown(mouseAt(*editor, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier)));
+        CHECK(!bool(editor->getProperties()["s1_linked"]), 54, "click elsewhere unlinks");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Gesture lifecycle: closing an editor mid-drag (no mouseUp) must still end every begun gesture;
+    // a repeated mouseDown without mouseUp must not nest gestures; mouseUp after cleanup must not double-end.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        p.addListener(&gestures);
+        for (const char* id : {"link_strip", "vector_display"}) {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            auto* c = transient->findChildWithID(id); CHECK(c, 55, std::string("component ") + id);
+            c->mouseDown(dragAt(*c, 0.f)); c->mouseDown(dragAt(*c, 0.f)); // repeated press
+            c->mouseDrag(dragAt(*c, 5.f));
+            transient.reset(); // editor closed mid-drag
+        }
+        {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            auto* c = transient->findChildWithID("link_strip");
+            c->mouseDown(dragAt(*c, 0.f)); c->mouseUp(dragAt(*c, 0.f)); c->mouseUp(dragAt(*c, 0.f));
+        }
+        p.removeListener(&gestures);
+        for (size_t i = 0; i < 9; ++i) {
+            if (gestures.begins[i] != gestures.ends[i]) std::cerr << "param " << i << " begins " << gestures.begins[i] << " ends " << gestures.ends[i] << "\n";
+            CHECK(gestures.begins[i] == gestures.ends[i], 56, "balanced gestures across editor close mid-drag");
+        }
+        CHECK(gestures.begins[3] == 3 && gestures.begins[0] == 1, 57, "one gesture per drag, no nesting on repeated press");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
+    // Uniform editor resizing (manual wrapper resize): 50/75/125/100 %. Children keep logical
+    // 1048x665 geometry; parent-space bounds and hit-testing scale uniformly; values stay physical.
+    {
+        CHECK(editor->isResizable(), 63, "editor resizable");
+        editor->setVisible(true); // hosts show the editor; Component::getComponentAt ignores invisible roots
+        auto* constrainer = editor->getConstrainer();
+        CHECK(constrainer && std::abs(constrainer->getFixedAspectRatio() - 1048.0 / 665.0) < 1e-6
+              && constrainer->getMinimumWidth() <= 524 && constrainer->getMaximumWidth() >= 1310, 64, "fixed aspect, 50..125% limits");
+        const char* ids[]{"gain", "width", "rotation", "asymmetry", "input_mode", "meter_mode", "swap", "vector_display", "link_strip", "peak_lamp_1"};
+        for (float z : {.5f, .75f, 1.25f, 1.f}) {
+            editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            for (auto* id : ids) {
+                auto* c = editor->findChildWithID(id);
+                const auto logical = c->getBounds(), parent = c->getBoundsInParent();
+                if (std::abs(parent.getX() - logical.getX() * z) > 1.5f || std::abs(parent.getWidth() - logical.getWidth() * z) > 1.5f
+                    || std::abs(parent.getBottom() - logical.getBottom() * z) > 1.5f)
+                    std::cerr << id << " at " << z << ": " << parent.toString() << " vs logical " << logical.toString() << "\n";
+                CHECK(std::abs(parent.getX() - logical.getX() * z) <= 1.5f && std::abs(parent.getWidth() - logical.getWidth() * z) <= 1.5f
+                      && std::abs(parent.getBottom() - logical.getBottom() * z) <= 1.5f, 65, std::string("uniform child scale ") + id);
+                auto* hit = editor->getComponentAt(parent.getCentre());
+                CHECK(hit == c || c->isParentOf(hit), 66, std::string("hit-test at scale ") + id);
+            }
+            CHECK(child<juce::Slider>(*editor, "gain")->getBounds() == juce::Rectangle<int>(41, 60, 62, 379), 67, "logical geometry kept");
+            setPhysical(1, 2.f);
+            CHECK(std::abs(child<juce::Slider>(*editor, "width")->getValue() - 2.) < 1e-4, 68, "automation->UI at scale");
+            child<juce::Slider>(*editor, "width")->setValue(1.0, juce::sendNotificationSync);
+            CHECK(std::abs(physical(1) - 1.f) < 1e-4, 69, "UI->physical at scale");
+        }
+        // Coverage: state restore while resized, and resizing never alters processed audio.
+        {
+            auto render = [&] { juce::AudioBuffer<float> x(2, 64);
+                for (int n = 0; n < 64; ++n) { x.setSample(0, n, std::sin(.13f * n)); x.setSample(1, n, .4f * std::cos(.05f * n)); }
+                p.processBlock(x, midi); return x; };
+            p.reset(); auto before = render();
+            editor->setSize(786, 499);
+            setPhysical(3, 33.f); juce::MemoryBlock st; p.getStateInformation(st); setPhysical(3, -70.f);
+            p.setStateInformation(st.getData(), int(st.getSize()));
+            CHECK(std::abs(child<juce::Slider>(*editor, "asymmetry")->getValue() - 33.) < 1e-3, 71, "restore while resized");
+            setPhysical(3, 0.f);
+            p.reset(); auto after = render();
+            for (int ch = 0; ch < 2; ++ch)
+                CHECK(std::memcmp(before.getReadPointer(ch), after.getReadPointer(ch), sizeof(float) * 64) == 0, 72, "resize leaves audio bit-identical");
+            editor->setSize(1048, 665);
+        }
+        CHECK(editor->getWidth() == 1048 && editor->getHeight() == 665, 70, "default size restored");
+        editor->setVisible(false);
+    }
+    // Width: anchor-calibrated replacement mapping (0 bottom, 1.00 mid-travel, 3 top) on the slider only;
+    // parameter stays physical/continuous. Intermediate curve is NOT the recovered original law.
+    {
+        auto* w = child<juce::Slider>(*editor, "width");
+        auto y = [&](double v) { return w->getY() + float(w->getPositionOfValue(v)); };
+        if (std::abs(y(1.0) - 226.f) > 1.5f) std::cerr << "width thumb y " << y(0.) << " " << y(1.) << " " << y(3.) << "\n";
+        CHECK(std::abs(y(1.0) - 226.f) <= 1.5f && std::abs(y(0.0) - 370.f) <= 1.5f && std::abs(y(3.0) - 82.f) <= 1.5f, 60, "width 0/1/3 anchors");
+        w->setValue(1.0, juce::sendNotificationSync);
+        CHECK(std::abs(physical(1) - 1.f) < 1e-4 && w->getTextFromValue(w->getValue()) == "1.00", 61, "UI->parameter physical 1.00");
+        setPhysical(1, 2.37f);
+        CHECK(std::abs(w->getValue() - 2.37) < 1e-3 && std::abs(physical(1) - 2.37f) < 1e-4, 62, "automation->UI continuous");
+        setPhysical(1, 1.f);
+    }
+    // Manual p8-9 tracer 1: a rectangle drawn on the background around both horizontal image
+    // faders selects (links) them; a rectangle missing one selects nothing. At 100 % and 75 %.
+    {
+        for (float z : {1.f, .75f}) {
+            editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            auto lasso = [&](juce::Point<float> a, juce::Point<float> b) {
+                a *= z; b *= z;
+                editor->mouseDown(editorEvent(*editor, a, a, false));
+                editor->mouseDrag(editorEvent(*editor, b, a, true));
+                editor->mouseUp(editorEvent(*editor, b, a, true));
+            };
+            lasso({230.f, 402.f}, {792.f, 548.f});
+            CHECK(bool(editor->getProperties()["s1_linked"]), 73, "rectangle around asymmetry+rotation links them");
+            lasso({230.f, 402.f}, {792.f, 470.f});
+            CHECK(!bool(editor->getProperties()["s1_linked"]), 74, "rectangle around one fader selects nothing");
+        }
+        editor->setSize(1048, 665);
+    }
+    // Tracer 2: with the pair selected, a real mouse drag on either horizontal fader moves both by
+    // one common normalized delta (offset kept, clamped); partner gesture balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto select = [&] { editor->mouseDown(editorEvent(*editor, {230.f, 402.f}, {230.f, 402.f}, false));
+                            editor->mouseUp(editorEvent(*editor, {792.f, 548.f}, {230.f, 402.f}, true)); };
+        auto dragFader = [&](const char* id, float dx) {
+            auto* sl = child<juce::Slider>(*editor, id);
+            const juce::Point<float> down(float(sl->getPositionOfValue(sl->getValue())), 13.f);
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(dx, 0.f), down, true));
+            sl->mouseUp(editorEvent(*sl, down.translated(dx, 0.f), down, true));
+        };
+        setPhysical(3, 10.f); setPhysical(2, -5.f); select();
+        CHECK(bool(editor->getProperties()["s1_linked"]), 75, "pair selected");
+        p.addListener(&gestures);
+        dragFader("asymmetry", 31.7f);
+        p.removeListener(&gestures);
+        if (std::abs(physical(2) - 4.f) > .3f) std::cerr << "asym " << physical(3) << " rot " << physical(2) << "\n";
+        CHECK(std::abs(physical(3) - 28.f) < .3f && std::abs(physical(2) - 4.f) < .3f, 76, "selected faders move together");
+        CHECK(gestures.begins[2] == 1 && gestures.ends[2] == 1 && gestures.begins[3] == 1 && gestures.ends[3] == 1, 77, "balanced gestures on pair");
+        setPhysical(3, 80.f); setPhysical(2, 0.f);
+        dragFader("rotation", 200.f); // rotation would pass 45 later than asymmetry hits 90
+        CHECK(std::abs(physical(3) - 90.f) < .3f && std::abs(physical(2) - 5.f) < .3f, 78, "common delta clamped, offset kept");
+        editor->mouseDown(editorEvent(*editor, {10.f, 10.f}, {10.f, 10.f}, false));
+        editor->mouseUp(editorEvent(*editor, {10.f, 10.f}, {10.f, 10.f}, false));
+        setPhysical(3, 0.f); setPhysical(2, 0.f);
+    }
+    // Tracer 3: a press anywhere outside the selected group - including on other child controls -
+    // unlinks; presses on the selected faders keep it. The editor receives child presses as a nested
+    // mouse listener; here that callback is invoked with the child as eventComponent, as JUCE delivers
+    // it (real peer dispatch is not exercised locally: Xvfb without a WM rejects addToDesktop).
+    {
+        auto linked = [&] { return bool(editor->getProperties()["s1_linked"]); };
+        auto select = [&] { editor->mouseDown(editorEvent(*editor, {230.f, 402.f}, {230.f, 402.f}, false));
+                            editor->mouseUp(editorEvent(*editor, {792.f, 548.f}, {230.f, 402.f}, true)); };
+        auto childPress = [&](const char* id) {
+            auto* c = editor->findChildWithID(id); const auto at = c->getLocalBounds().getCentre().toFloat();
+            editor->mouseDown(editorEvent(*c, at, at, false)); editor->mouseUp(editorEvent(*c, at, at, false));
+        };
+        select(); childPress("asymmetry");
+        CHECK(linked(), 80, "press on a selected fader keeps the selection");
+        childPress("gain");
+        CHECK(!linked(), 81, "press on another control (gain) unlinks");
+        select(); childPress("input_mode");
+        CHECK(!linked(), 82, "press on input selector unlinks");
+    }
+    // Coverage (implemented in tracer 2): group drag closed mid-drag or released twice stays balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        p.addListener(&gestures);
+        for (bool closeMidDrag : {true, false}) {
+            std::unique_ptr<juce::AudioProcessorEditor> transient(p.createEditor());
+            transient->mouseDown(editorEvent(*transient, {230.f, 402.f}, {230.f, 402.f}, false));
+            transient->mouseUp(editorEvent(*transient, {792.f, 548.f}, {230.f, 402.f}, true));
+            auto* sl = dynamic_cast<juce::Slider*>(transient->findChildWithID("rotation"));
+            const juce::Point<float> down(float(sl->getPositionOfValue(sl->getValue())), 13.f);
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(20.f, 0.f), down, true));
+            if (!closeMidDrag) { sl->mouseUp(editorEvent(*sl, down.translated(20.f, 0.f), down, true));
+                                 sl->mouseUp(editorEvent(*sl, down.translated(20.f, 0.f), down, true)); }
+            transient.reset();
+        }
+        p.removeListener(&gestures);
+        for (size_t i = 0; i < 9; ++i) if (gestures.begins[i] != gestures.ends[i]) std::cerr << "param " << i << " begins " << gestures.begins[i] << " ends " << gestures.ends[i] << "\n";
+        for (size_t i = 0; i < 9; ++i) CHECK(gestures.begins[i] == gestures.ends[i], 83, "group drag gestures balanced on close/duplicate release");
+        CHECK(gestures.begins[3] == 2, 84, "partner gesture begun once per group drag");
+        setPhysical(3, 0.f); setPhysical(2, 0.f);
+    }
+    // Manual p8: "draw a box around contiguous controls to link them together. Offsets are maintained."
+    // Vertical tracer: a box around Gain+Width links that pair; dragging one moves the other by a common
+    // parameter-normalized delta, clamped so neither leaves its range; gestures balanced.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto vlinked = [&] { return bool(editor->getProperties()["s1_linked_vertical"]); };
+        auto boxLeft = [&] { editor->mouseDown(editorEvent(*editor, {30.f, 50.f}, {30.f, 50.f}, false));
+                             editor->mouseUp(editorEvent(*editor, {205.f, 445.f}, {30.f, 50.f}, true)); };
+        auto dragV = [&](const char* id, float dy) {
+            auto* sl = child<juce::Slider>(*editor, id);
+            const juce::Point<float> down(31.f, float(sl->getPositionOfValue(sl->getValue())));
+            sl->mouseDown(editorEvent(*sl, down, down, false));
+            sl->mouseDrag(editorEvent(*sl, down.translated(0.f, dy), down, true));
+            sl->mouseUp(editorEvent(*sl, down.translated(0.f, dy), down, true));
+        };
+        setPhysical(0, -12.f); setPhysical(1, 1.5f); boxLeft();
+        CHECK(vlinked(), 85, "box around Gain+Width links them");
+        CHECK(!bool(editor->getProperties()["s1_linked"]), 86, "horizontal pair not selected by left box");
+        p.addListener(&gestures);
+        dragV("gain", -28.8f); // up 10 % of the 288 px travel
+        p.removeListener(&gestures);
+        if (std::abs(physical(1) - 1.8f) > .05f) std::cerr << "gain " << physical(0) << " width " << physical(1) << "\n";
+        CHECK(std::abs(physical(0) + 9.6f) < .15f && std::abs(physical(1) - 1.8f) < .05f, 87, "gain drag moves width (normalized offset kept)");
+        CHECK(gestures.begins[0] == 1 && gestures.ends[0] == 1 && gestures.begins[1] == 1 && gestures.ends[1] == 1, 88, "balanced gestures on vertical pair");
+        setPhysical(0, -3.f); setPhysical(1, 0.f);
+        dragV("width", -200.f);
+        if (std::abs(physical(1) - .375f) >= .03f || std::abs(physical(0)) >= .05f) std::cerr << "clamp gain " << physical(0) << " width " << physical(1) << " slider " << child<juce::Slider>(*editor, "width")->getValue() << "\n";
+        CHECK(std::abs(physical(0)) < .05f && std::abs(physical(1) - .375f) < .03f, 89, "clamped common delta keeps offset");
+        editor->mouseDown(editorEvent(*editor, {600.f, 600.f}, {600.f, 600.f}, false));
+        editor->mouseUp(editorEvent(*editor, {600.f, 600.f}, {600.f, 600.f}, false));
+        CHECK(!vlinked(), 90, "click elsewhere unlinks vertical pair");
+        setPhysical(0, 0.f); setPhysical(1, 1.f);
+    }
+    if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
+        auto shot = [&](const char* name, float width, float rotation) {
+            setPhysical(1, width); setPhysical(2, rotation);
+            p.processBlock(b, midi); s1->pollMeters();
+            juce::File file = juce::File(dir).getChildFile(name); file.deleteFile(); juce::FileOutputStream out(file);
+            juce::PNGImageFormat().writeImageToStream(editor->createComponentSnapshot(editor->getLocalBounds()), out);
+        };
+        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f); s1->setLinked(true); shot("candidate-linked.png", 1.f, 10.f); s1->setLinked(false); for (float z : {.5f, 1.25f}) { editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            shot(z < 1.f ? "candidate-scale50.png" : "candidate-scale125.png", 2.f, 10.f); } editor->setSize(1048, 665);
+    }
+    std::cout << "S1 editor controls, attachments, automation sync, vector model, reset image, drag, meters PASS\n";
+    return 0;
+}

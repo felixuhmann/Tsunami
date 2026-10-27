@@ -3,11 +3,22 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Parameter.hpp"
 #include <array>
+#include <atomic>
+#include <cmath>
 #include <memory>
 #include <type_traits>
 #include <utility>
 
 namespace tsunami {
+// Optional read-only output meter bridge for plugin editors (dynamic_cast from AudioProcessor).
+// Peaks are collected on the audio thread after DSP with lock-free atomics; the
+// consumer takes and resets them. Order: L, R, M=(L+R)/2, S=(L-R)/2 (linear).
+static_assert(std::atomic<float>::is_always_lock_free, "meter bridge requires lock-free atomic<float>");
+// The CAS max loop is lock-free, not wait-free: retries are unbounded under contention.
+struct MeterSource {
+    virtual ~MeterSource() = default;
+    virtual std::array<float, 4> takeOutputPeaks() noexcept = 0;
+};
 namespace detail {
 template<class Spec, class = void> struct HasEditorFactory : std::false_type {};
 template<class Spec> struct HasEditorFactory<Spec, std::void_t<decltype(Spec::createEditor(
@@ -15,12 +26,24 @@ template<class Spec> struct HasEditorFactory<Spec, std::void_t<decltype(Spec::cr
 }
 // Physical-value, block-boundary automation. No claim of sample-offset automation.
 // All core calls are serialized on the host's audio/lifecycle thread.
-template<class Spec> class Adapter final : public juce::AudioProcessor {
+template<class Spec> class Adapter final : public juce::AudioProcessor, public MeterSource {
     static constexpr size_t count = std::size(Spec::parameters);
     typename Spec::Core core;
     juce::AudioProcessorValueTreeState state;
     std::array<std::atomic<float>*, count> values{};
     unsigned maxBlock = 0;
+    std::array<std::atomic<float>, 4> peaks{};
+    void publishPeaks(const float* l, const float* r, int frames) noexcept {
+        std::array<float, 4> block{};
+        for (int n=0;n<frames;++n) {
+            const float values[]{std::abs(l[n]), std::abs(r[n]), std::abs(.5f*(l[n]+r[n])), std::abs(.5f*(l[n]-r[n]))};
+            for (size_t k=0;k<4;++k) block[k]=juce::jmax(block[k], values[k]);
+        }
+        for (size_t k=0;k<4;++k) {
+            float old=peaks[k].load(std::memory_order_relaxed);
+            while (block[k]>old && !peaks[k].compare_exchange_weak(old, block[k], std::memory_order_relaxed)) {}
+        }
+    }
     static juce::AudioProcessorValueTreeState::ParameterLayout layout() {
         juce::AudioProcessorValueTreeState::ParameterLayout result;
         for (const auto& p : Spec::parameters)
@@ -97,6 +120,12 @@ public:
         const float* inputs[]{b.getReadPointer(0), b.getReadPointer(1)};
         float* outputs[]{b.getWritePointer(0), b.getWritePointer(1)};
         core.process(inputs, outputs, unsigned(b.getNumSamples()));
+        publishPeaks(outputs[0], outputs[1], b.getNumSamples());
+    }
+    std::array<float, 4> takeOutputPeaks() noexcept override {
+        std::array<float, 4> result{};
+        for (size_t k=0;k<4;++k) result[k]=peaks[k].exchange(0.f, std::memory_order_relaxed);
+        return result;
     }
     bool hasEditor() const override { return true; }
     juce::AudioProcessorEditor* createEditor() override {

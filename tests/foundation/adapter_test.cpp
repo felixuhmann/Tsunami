@@ -33,6 +33,12 @@ int main() {
     juce::AudioBuffer<float> b(2, 17); b.clear(); b.setSample(0, 0, 1); b.setSample(1, 0, -.5f);
     juce::MidiBuffer midi; p.processBlock(b, midi);
     if (std::abs(b.getSample(0,0)-.5f)>1e-6 || std::abs(b.getSample(1,0)+.25f)>1e-6) return 3;
+    auto* meters = dynamic_cast<tsunami::MeterSource*>(static_cast<juce::AudioProcessor*>(&p));
+    if (!meters) { std::cerr << "adapter exposes no read-only output meter source\n"; return 13; }
+    const auto peaks = meters->takeOutputPeaks(); // L, R, M=(L+R)/2, S=(L-R)/2 after DSP
+    if (std::abs(peaks[0]-.5f)>1e-6 || std::abs(peaks[1]-.25f)>1e-6
+        || std::abs(peaks[2]-.125f)>1e-6 || std::abs(peaks[3]-.375f)>1e-6) { std::cerr << "wrong output peaks\n"; return 14; }
+    if (meters->takeOutputPeaks()!=std::array<float,4>{}) { std::cerr << "peaks not consumed\n"; return 15; }
     juce::MemoryBlock state; p.getStateInformation(state);
     parameter->setValueNotifyingHost(.75f);
     struct Listener : juce::AudioProcessorListener {
@@ -67,7 +73,7 @@ int main() {
     localParameter->setValueNotifyingHost(.75f);
     local.setStateInformation(localState.getData(), int(localState.getSize()));
     if (std::abs(localParameter->getValue()-.25f)>1e-6) return 12;
-    std::cout << "adapter physical automation, in-place stereo, latency/tail, state, fresh instance, layout, editor, local factory/APVTS PASS\n";
+    std::cout << "adapter physical automation, in-place stereo, latency/tail, state, fresh instance, layout, editor, local factory/APVTS, output meters PASS\n";
     return 0;
 #endif
 }

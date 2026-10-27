@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "component": "S1 Imager Stereo",
+  "parameters": [
+    {"index": 0, "id": "gain", "name": "Gain", "min": -24, "max": 0, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "group": "output"},
+    {"index": 1, "id": "width", "name": "Width", "min": 0, "max": 3, "default": 1, "unit": "", "type": "float", "logarithmic": false, "group": "image"},
+    {"index": 2, "id": "rotation", "name": "Rotation", "min": -45, "max": 45, "default": 0, "unit": "deg", "type": "float", "logarithmic": false, "group": "image"},
+    {"index": 3, "id": "asymmetry", "name": "Asymmetry", "min": -90, "max": 90, "default": 0, "unit": "deg", "type": "float", "logarithmic": false, "group": "image"},
+    {"index": 4, "id": "swap", "name": "Input Swap", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "input"},
+    {"index": 5, "id": "invert_left", "name": "Invert Left", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "input"},
+    {"index": 6, "id": "invert_right", "name": "Invert Right", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "input"},
+    {"index": 7, "id": "input_mode", "name": "M/S Input", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "input"},
+    {"index": 8, "id": "bypass", "name": "Bypass", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "output"}
+  ]
+}
