@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "component": "Tsunami Suppressor (NS1 target) Mono",
+  "evidence": "Reference parameter readback (fresh instance): 'NS1' range 0..100 % step 0.1 default 0.0; 'Bypass' boolean default Off.",
+  "parameters": [
+    {"index": 0, "id": "ns1", "name": "NS1", "min": 0, "max": 100, "default": 0, "step": 0.1, "unit": "%", "type": "float", "logarithmic": false, "group": "main",
+     "established_values": [0, 50, 100], "note": "Only 0/50/100 % coefficient designs are established; other values run the nearest established design and are flagged not-established."},
+    {"index": 1, "id": "bypass", "name": "Bypass", "min": 0, "max": 1, "default": 0, "unit": "", "type": "bool", "logarithmic": false, "group": "main"}
+  ],
+  "channels": {"mono": "supported", "stereo": "not implemented (prepare refuses channels != 1)"}
+}

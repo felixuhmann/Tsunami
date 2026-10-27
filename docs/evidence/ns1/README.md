@@ -1,15 +1,51 @@
-# NS1 DSP checkpoint (partial, not a distributable denoiser)
+# NS1 (Tsunami Suppressor) evidence: PARTIAL, mono only, established controls only
 
-Independent GPL-3.0-or-later C++17, no framework/UI dependency or vendor loading.
+Independent GPL-3.0-or-later C++17. It has no framework/UI dependency and loads no vendor code. Not verified, and no general equivalence claim is made.
 
-The adaptive band detector is implemented with explicit semantic coefficients and state. It includes the interband noise-floor ratio, asymmetric smoothing, fourth-power threshold followed by squared shaping, and the actual mixed float/double boundaries. A synthetic unit test was witnessed failing before implementation. A private samplewise comparison against the unmodified Linux kernel exercised all six bands at controls 0, 0.5 and 1, 10,000 samples each: gain, band signal and six observable state fields all matched exactly on the tested GCC/x86_64 build. This is a conditional detector result, **not** full-plugin equivalence or initialized-chain validation.
+## What exists
 
-Build/test:
+- `detector.{hpp,cpp}`: the typed adaptive band gain estimator (interband floor ratio, asymmetric smoothing, fourth-power threshold followed by squared shaping, mixed float/double boundaries).
+- `mono.{hpp,cpp}`: the mono chain. It has a two-stage parallel allpass front, six detector bands, a global activity latch, six three-stage audio sections, and `configure()` to swap coefficients while keeping state.
+- `design.{hpp,cpp}`: independent trigonometric coefficient design plus semantic initial detector state, for NS1 = 0, 0.5 and 1 at 40-100 kHz.
+- `Processor.hpp`: the plugin contract (`prepare/reset/setParameter/getParameter/process/latencySamples/tailSeconds`). Index 0 is `NS1` (0..100 %, default 0). Index 1 is `Bypass` (sample-exact identity).
+- `parameters.json`: taken from the reference parameter readback of a fresh instance (`NS1` 0..100 % step 0.1 default 0.0, `Bypass` bool default Off).
+
+## Limitations (explicit)
+
+- **Control mapping off-grid is NOT established.** Values other than 0/50/100 % run the nearest established design, and `controlEstablished()` returns false. This is a placeholder, not a recovered mapping. Measured off-grid error (0.25 and 0.75) is large: nrmse 0.04-0.73. See `fidelity-comparison.json`.
+- **Stereo/linked is not implemented.** `prepare()` throws for channels != 1. The reference stereo kernel shares a detector, so it must not be emulated with two monos.
+- Parameter changes swap coefficients instantly. The reference's control smoothing/transition behaviour is unmeasured.
+- Bypass does not advance DSP state. The reference's behaviour on bypass toggles mid-stream is unmeasured.
+- Latency is reported as 0. The impulse response starts at sample 0 in the reference captures, and the host-reported latency is unknown.
+- Tail is reported as 0.5 s, a conservative figure. The measured impulse decay below 1e-6 takes 0.025-0.051 s at 44.1/48/96 kHz.
+- Results are from GCC 11 / x86_64 with `-ffp-contract=off`. Other compilers/FMA are unvalidated.
+
+## TDD
+
+- RED: `tests/ns1/test_processor.cpp` was written first. It failed to compile with `fatal error: Processor.hpp: No such file or directory`.
+- GREEN: after adding `Processor.hpp` and `Mono::configure`, `processor contract checks passed`.
+- The prior worker's design, initialized and mono tests were verified to pass before integration.
+
+## Full-plugin fidelity vs genuine original renders
+
+Thresholds were declared in `tests/ns1/fidelity_thresholds.json` before comparing. A row passes if nrmse <= 1e-3 and max |err| <= 1e-4.
+
+There is one amendment, recorded in that file. For buffers longer than 19 s, the gate applies to the first 19 s. This adopts the clean-room's earlier pre-19 s demo-window policy. The original's unlicensed-demo interruptions begin at about 19.88 s and are not reproduced. Whole-buffer results are still reported.
+
+- Calibrated captures: `ns1-research/analysis/characterization/capture` (NS1 Mono, fresh instance, no warmup). 42/42 established-control rows pass, covering silence, impulse, tone, white noise, tone+noise, noise step, level ladder, chirp, blocks 64/512/2048, 44.1/48/96 kHz, repeat/reset, and 180 s offline/paced. Worst established-row error: nrmse 9.3e-7, max 2.1e-6 (96 kHz tone+noise). Many rows are bit-exact. The long rows are 0.0 error over the first 19 s and fail whole-buffer only because of the demo interruptions. Report: `fidelity-comparison.json`.
+- Held-out speech (evaluation only, never tuned on): two fresh original renders, `6930-75918-0000-snr0` @ 50 % and `6930-75918-0006-snr10` @ 100 %. Results: nrmse 4.4e-8 / 1.2e-8, max 1.2e-7 / 1.4e-8. PASS. Report: `heldout-comparison.json`.
+
+The restricted kernel/detector tests (`test_detector`, `test_mono`) are separate unit checks. They are not fidelity claims.
+
+## Reproduce
 
 ```
-cmake -S plugins/ns1 -B /path/outside/source/ns1-build -DCMAKE_BUILD_TYPE=Release
-cmake --build /path/outside/source/ns1-build -j2
-ctest --test-dir /path/outside/source/ns1-build --output-on-failure
+cmake -S plugins/ns1 -B /tmp/ns1-build -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/ns1-build -j2
+ctest --test-dir /tmp/ns1-build --output-on-failure
+PY=/home/felix/work/ns1-research/analysis/characterization/.venv/bin/python   # needs NumPy
+$PY tests/ns1/compare_captures.py --capture <private capture dir> --render /tmp/ns1-build/ns1_render --report docs/evidence/ns1/fidelity-comparison.json
+$PY tests/ns1/compare_heldout.py /tmp/ns1-build/ns1_render docs/evidence/ns1/heldout-comparison.json <oracle evidence dirs...>
 ```
 
-Private analysis, vendor artifacts, raw coefficient/state traces and oracle-only adapters remain outside this repository. They are not dependencies of this library. No measured coefficient blobs, original assets, pseudocode or original binary are committed. Subsequent mono-chain work and initialization/control-generation validation are in progress. Stereo is intentionally not implemented before mono fidelity passes. Full strict audio fidelity remains unestablished; no gate was weakened.
+The private captures, oracle evidence and analysis are not committed. No vendor binary, coefficient blob, asset or pseudocode is included.

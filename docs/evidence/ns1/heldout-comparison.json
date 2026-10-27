@@ -1,0 +1,32 @@
+{
+ "scope": "held-out speech evaluation (not used for tuning)",
+ "thresholds": {
+  "nrmse_max": 0.001,
+  "max_abs_error_max": 0.0001
+ },
+ "all_pass": true,
+ "rows": [
+  {
+   "input": "6930-75918-0000-snr0-48000.wav",
+   "control": 0.5,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 4.422909991822653e-08,
+   "max_abs_error": 1.1920928955078125e-07,
+   "pass": true,
+   "evidence": "20261027T154011-a65d51b5aec847b2970a57bab401b759"
+  },
+  {
+   "input": "6930-75918-0006-snr10-48000.wav",
+   "control": 1.0,
+   "frames": 384000,
+   "seconds": 8.0,
+   "window_frames": 384000,
+   "nrmse": 1.2174635924158901e-08,
+   "max_abs_error": 1.4057150110602379e-08,
+   "pass": true,
+   "evidence": "20261027T154025-d1c51194fe9a4e3cbc1671afe7dc1b82"
+  }
+ ]
+}
