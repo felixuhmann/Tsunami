@@ -13,6 +13,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace tsunami::rvox {
@@ -94,6 +95,31 @@ class PeakReadout final : public juce::Label {
 public:
     std::function<void()> onReset;
     void mouseDown(const juce::MouseEvent&) override { if (onReset) onReset(); }
+};
+
+// Link only changes made synchronously by user input, never APVTS callbacks.
+class UserFader final : public juce::Slider {
+public:
+    UserFader() : juce::Slider(juce::Slider::LinearVertical, juce::Slider::NoTextBox) {}
+    bool userChange = false;
+    void mouseDown(const juce::MouseEvent& e) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseDown(e);
+    }
+    void mouseDrag(const juce::MouseEvent& e) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseDrag(e);
+    }
+    void mouseUp(const juce::MouseEvent& e) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseUp(e);
+    }
+    void mouseDoubleClick(const juce::MouseEvent& e) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseDoubleClick(e);
+    }
+    bool keyPressed(const juce::KeyPress& e) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); return juce::Slider::keyPressed(e);
+    }
+    void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override {
+        const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseWheelMove(e, w);
+    }
 };
 
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
@@ -216,10 +242,18 @@ public:
 
 private:
     struct Fader {
-        juce::Slider slider{juce::Slider::LinearVertical, juce::Slider::NoTextBox};
+        UserFader slider;
         juce::Label value;
         std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
         double last = 0.0;
+        juce::RangedAudioParameter* parameter = nullptr;
+        bool dragOpen = false;
+        ~Fader() {
+            // SliderAttachment is destroyed before slider; JUCE removes its listener
+            // without ending a live gesture. Close it while APVTS still exists.
+            if (std::exchange(dragOpen, false) && parameter != nullptr)
+                parameter->endChangeGesture();
+        }
     };
 
     static void styleReadout(juce::Label& l) {
@@ -233,6 +267,9 @@ private:
         f.slider.setBounds(bounds);
         f.attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, id, f.slider);
         auto* param = state.getParameter(id);
+        f.parameter = param;
+        f.slider.onDragStart = [&f] { f.dragOpen = true; };
+        f.slider.onDragEnd = [&f] { f.dragOpen = false; };
         const double minimum = f.slider.getMinimum();
         f.slider.setDoubleClickReturnValue(true, param->convertFrom0to1(param->getDefaultValue()));
         f.value.setComponentID(juce::String(id) + "_value");
@@ -242,6 +279,7 @@ private:
         f.last = f.slider.getValue();
         f.value.setText(formatDb(f.last, juce::String(id) == "gate" ? minimum : -1e9), juce::dontSendNotification);
         f.value.onTextChange = [&f, minimum] {
+            const juce::ScopedValueSetter<bool> origin(f.slider.userChange, true);
             const auto text = f.value.getText();
             f.slider.setValue(text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue(), juce::sendNotificationSync);
         };
@@ -250,7 +288,7 @@ private:
             f.last = now;
             f.value.setText(formatDb(now, id == "gate" ? minimum : -1e9), juce::dontSendNotification);
             if (&f == &comp) placeCompValue();
-            if (propagating || delta == 0.0 || !isLinked(id)) return;
+            if (propagating || !f.slider.userChange || delta == 0.0 || !isLinked(id)) return;
             propagating = true;
             for (auto* other : linked)
                 if (other != &f) other->slider.setValue(other->slider.getValue() + delta, juce::sendNotificationSync);

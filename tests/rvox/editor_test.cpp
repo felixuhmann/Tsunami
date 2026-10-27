@@ -2,10 +2,12 @@
 // Native JUCE test of the actual RVox editor: geometry from the original 17.1
 // GUI layout (371x357 view, fader rects), APVTS-bound faders, value entry,
 // option-click reset, Comp+Gain box linking (user guide p5) and process-driven
-// output meters with click-to-reset peak readouts (user guide p6).
+// output meters with click-to-reset peak readouts (user guide p6), host
+// automation isolated from linking, and balanced host gestures on editor close.
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Adapter.hpp"
 #include "Generated.hpp"
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -79,8 +81,51 @@ int main() {
     editor->mouseDrag(event(*editor, {340.f, 312.f}, {120.f, 92.f}, true));
     editor->mouseUp(event(*editor, {340.f, 312.f}, {120.f, 92.f}, true));
     CHECK(rv->isLinked("compression") && rv->isLinked("gain") && !rv->isLinked("gate"), 23, "box links comp+gain only");
-    comp->setValue(-15.3, juce::sendNotificationSync);
+    // Linking follows user input only; a programmatic/APVTS setValue is host state.
+    child<juce::Label>(*editor, "comp_value")->setText("-15.3", juce::sendNotificationSync);
     CHECK(std::abs(physical(2) - (-3.8f - 4.f)) < 1e-3f, 24, "linked gain follows comp offset");
+    auto near = [](float a, float b) { return std::abs(a - b) < 1e-3f; };
+    // Host automation of one linked parameter must not write the other (the
+    // attachment updates the slider synchronously here on the message thread).
+    setPhysical(0, -18.f);
+    CHECK(near(physical(0), -18.f) && near(physical(2), -7.8f) && near(physical(1), -80.f), 40, "comp automation isolated while linked");
+    setPhysical(2, -5.f);
+    CHECK(near(physical(0), -18.f) && near(physical(2), -5.f), 41, "gain automation isolated while linked");
+    {
+        juce::MemoryBlock saved; p.getStateInformation(saved);
+        setPhysical(0, -30.f); setPhysical(2, -1.f);
+        p.setStateInformation(saved.getData(), int(saved.getSize()));
+        CHECK(near(physical(0), -18.f) && near(physical(2), -5.f) && near(physical(1), -80.f), 42, "state recall exact while linked");
+    }
+    // Every user input path still moves the linked pair by the same offset.
+    auto linkedDelta = [&](auto&& action, int code, const char* what) {
+        const float c = physical(0), g = physical(2);
+        action();
+        const float dc = physical(0) - c, dg = physical(2) - g;
+        if (dg == 0.f || !near(dc, dg) || !near(physical(1), -80.f)) {
+            std::cerr << "FAIL " << what << " comp_delta=" << dc << " gain_delta=" << dg << "\n"; return code;
+        }
+        return 0;
+    };
+    if (int r = linkedDelta([&] { child<juce::Label>(*editor, "gain_value")->setText("-6.5", juce::sendNotificationSync); }, 43, "linked value entry")) return r;
+    if (int r = linkedDelta([&] { CHECK(gain->keyPressed(juce::KeyPress(juce::KeyPress::upKey)), 44, "key handled"); return 0; }, 44, "linked key")) return r;
+    setPhysical(0, -20.f); setPhysical(2, -15.f);
+    if (int r = linkedDelta([&] {
+            gain->mouseDown(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false));
+            gain->mouseDrag(event(*gain, {16.f, 120.f}, {16.f, 90.f}, true));
+            gain->mouseUp(event(*gain, {16.f, 120.f}, {16.f, 90.f}, true));
+        }, 45, "linked drag")) return r;
+    if (int r = linkedDelta([&] {
+            juce::MouseWheelDetails wheel{}; wheel.deltaY = 0.1f;
+            gain->mouseWheelMove(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false, juce::ModifierKeys()), wheel);
+        }, 46, "linked wheel")) return r;
+    setPhysical(0, -20.f); setPhysical(2, -10.f);
+    gain->mouseDoubleClick(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false));
+    CHECK(near(physical(0), -10.f) && near(physical(2), 0.f), 47, "linked double-click reset keeps offset");
+    // Host automation right after user input must not inherit user origin.
+    setPhysical(2, -4.f);
+    CHECK(near(physical(0), -10.f), 48, "automation after user input isolated");
+    setPhysical(0, -15.3f); setPhysical(2, -7.8f);
     editor->mouseDown(event(*editor, {100.f, 340.f}, {100.f, 340.f}, false));
     editor->mouseUp(event(*editor, {100.f, 340.f}, {100.f, 340.f}, false));
     CHECK(!rv->isLinked("compression"), 25, "background click unlinks");
@@ -121,6 +166,48 @@ int main() {
         CHECK(stream.openedOk() && juce::PNGImageFormat().writeImageToStream(image, stream), 32, "write editor PNG");
     }
     editor.reset();
+
+    // Host gestures stay balanced: normal release, editor closed mid-drag,
+    // repeated press and duplicate release, on every fader. APVTS outlives editors.
+    struct Gestures final : juce::AudioProcessorListener {
+        std::array<int, 3> open{}, begins{}, ends{};
+        bool invalid = false;
+        void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+        void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+        void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override {
+            if (i < 0 || i >= 3) { invalid = true; return; }
+            ++begins[size_t(i)]; if (++open[size_t(i)] != 1) invalid = true;
+        }
+        void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override {
+            if (i < 0 || i >= 3) { invalid = true; return; }
+            ++ends[size_t(i)]; if (--open[size_t(i)] != 0) invalid = true;
+        }
+        bool balanced() const { return !invalid && open == std::array<int, 3>{} && begins == ends; }
+    } gestures;
+    p.addListener(&gestures);
+    const char* ids[] = {"compression", "gate", "gain"}; // parameter index order
+    for (int i = 0; i < 3; ++i) {
+        for (int scenario = 0; scenario < 3; ++scenario) {
+            std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+            auto* s = child<juce::Slider>(*ed, ids[i]);
+            CHECK(s, 60, "fader for gesture test");
+            const int before = gestures.begins[size_t(i)];
+            s->mouseDown(event(*s, {16.f, 90.f}, {16.f, 90.f}, false));
+            s->mouseDrag(event(*s, {16.f, 120.f}, {16.f, 90.f}, true));
+            if (scenario == 0) s->mouseUp(event(*s, {16.f, 120.f}, {16.f, 90.f}, true));
+            if (scenario == 2) {
+                s->mouseDown(event(*s, {16.f, 100.f}, {16.f, 100.f}, false));
+                s->mouseUp(event(*s, {16.f, 100.f}, {16.f, 100.f}, true));
+                s->mouseUp(event(*s, {16.f, 100.f}, {16.f, 100.f}, true));
+            }
+            ed.reset(); // scenario 1 closes the editor while the drag is live
+            std::cout << "GESTURE " << ids[i] << " scenario=" << scenario << " begins=" << gestures.begins[size_t(i)]
+                      << " ends=" << gestures.ends[size_t(i)] << " open=" << gestures.open[size_t(i)] << "\n";
+            CHECK(gestures.begins[size_t(i)] > before, 61, "drag begins a host gesture");
+            CHECK(gestures.balanced(), 62, "host gestures balanced after editor close");
+        }
+    }
+    p.removeListener(&gestures);
     std::cout << "PASS rvox editor\n";
     return 0;
 }
