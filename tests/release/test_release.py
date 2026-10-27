@@ -512,6 +512,43 @@ class SourceTest(Tmp):
         again = release.stage_source(repo, deps, commit, 'preview-1-' + commit[:7], self.tmp / 'dist2')
         self.assertEqual(json.loads(again.read_text())['archive_sha256'], manifest['archive_sha256'])
 
+    def test_ignored_dependency_source_is_rejected(self):
+        repo, deps, commit = self.make_repo()
+        release.verify_dependencies(repo, deps)
+        ignored = deps / 'clap_juce-src/clap-libs/generated.hpp'
+        ignored.write_bytes(b'// synthetic ignored source not represented by pinned HEAD\n')
+        with self.assertRaisesRegex(release.ReleaseError, 'ignored'):
+            release.verify_dependencies(repo, deps)
+
+    def test_tracked_nested_dependency_drift_is_rejected(self):
+        repo, deps, commit = self.make_repo()
+        clean = release.verify_dependencies(repo, deps)
+        nested = deps / 'clap_juce-src/clap-libs/clap'
+        (nested / 'LICENSE.md').write_bytes(b'synthetic changed tracked source\n')
+        self.assertEqual(git(nested, 'rev-parse', 'HEAD'), clean['clap'])
+        with self.assertRaisesRegex(release.ReleaseError, 'dirty'):
+            release.verify_dependencies(repo, deps)
+
+    def test_hidden_tracked_dependency_changes_are_rejected(self):
+        # Index optimisation flags must not hide source bytes from the release gate.
+        for flag in ('--assume-unchanged', '--skip-worktree'):
+            with self.subTest(flag=flag):
+                isolated = self.tmp / flag[2:]
+                isolated.mkdir()
+                old, self.tmp = self.tmp, isolated
+                try:
+                    repo, deps, commit = self.make_repo()
+                    clean = release.verify_dependencies(repo, deps)
+                    nested = deps / 'clap_juce-src/clap-libs/clap'
+                    git(nested, 'update-index', flag, 'LICENSE.md')
+                    (nested / 'LICENSE.md').write_bytes(b'synthetic hidden tracked drift\n')
+                    self.assertEqual(git(nested, 'status', '--porcelain'), '')
+                    self.assertEqual(git(nested, 'rev-parse', 'HEAD'), clean['clap'])
+                    with self.assertRaisesRegex(release.ReleaseError, 'index flags'):
+                        release.verify_dependencies(repo, deps)
+                finally:
+                    self.tmp = old
+
     def test_missing_wrong_or_unlocked_dependency_fails(self):
         repo, deps, commit = self.make_repo()
         (deps / 'juce-src' / 'CMakeLists.txt').write_text('project(JUCE VERSION 8.0.0)\n')
