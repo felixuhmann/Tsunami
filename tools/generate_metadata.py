@@ -8,22 +8,47 @@ import math
 import re
 
 
+def taper_skew(p, lo, hi):
+    """JUCE NormalisableRange skew: explicit taper.skew, or logarithmic (geometric midpoint at .5)."""
+    taper = p.get('taper') or {}
+    if 'skew' in taper:
+        skew = float(taper['skew'])
+    elif p.get('logarithmic', False) or taper.get('type') == 'logarithmic':
+        if lo <= 0:
+            raise ValueError('logarithmic taper needs a positive minimum')
+        skew = math.log(0.5) / math.log((math.sqrt(lo * hi) - lo) / (hi - lo))
+    else:
+        skew = 1.0
+    if not math.isfinite(skew) or skew <= 0:
+        raise ValueError('taper skew must be finite and positive')
+    return round(skew, 6)
+
+
 def generate(data, plugin_id, product, core, editor=False):
     descriptors = []
     seen = set()
     for index, p in enumerate(data['parameters']):
-        if p.get('logarithmic', False):
-            raise ValueError('logarithmic mapping is not implemented')
         values = [float(p[k]) for k in ('min', 'max', 'default')]
         if (p['index'] != index or not re.fullmatch(r'[a-z][a-z0-9_]*', p['id'])
                 or p['id'] in seen or not all(map(math.isfinite, values))
                 or not values[0] <= values[2] <= values[1] or values[0] >= values[1]):
             raise ValueError('invalid parameter metadata')
         seen.add(p['id'])
+        skew = taper_skew(p, values[0], values[1])
+        choices = p.get('choices')
+        kind = p.get('type')
+        if kind == 'choice' or choices is not None:
+            if (not isinstance(choices, list) or not choices or values[0] != 0
+                    or values[1] != len(choices) - 1 or not all(isinstance(c, str) and c and '|' not in c for c in choices)):
+                raise ValueError('choice parameters need labels for indices min=0..max=len(choices)-1')
+        step = 1.0 if kind in ('bool', 'boolean', 'int', 'integer', 'enum', 'choice') or choices is not None else 0.0
         descriptors.append('    {' + ', '.join([
             json.dumps(p['id']), json.dumps(p['name']),
             *(f'{float(p[k])}f' for k in ('min', 'max', 'default')),
-            json.dumps(p.get('unit', '')), '1.0f' if p.get('type') in ('bool', 'boolean', 'int', 'integer', 'enum') else '0.0f',
+            json.dumps(p.get('unit', '')), f'{step}f',
+            # Optional trailing fields stay omitted for linear, label-free controls (stable S1 output).
+            *([f'{skew!r}f'] if skew != 1.0 or choices else []),
+            *([json.dumps('|'.join(choices))] if choices else []),
         ]) + '}')
     return '''// SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
