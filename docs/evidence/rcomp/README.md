@@ -1,4 +1,13 @@
-# RComp: partial detector, gain and fixed-point audio-history milestone
+# RComp: partial detector, history and physical output-control processing
+
+New milestone: [`OutputStage.h`](../../../plugins/rcomp/OutputStage.h) now maps
+physical Gain/Trim/Mix to aligned dry/wet processing. Native C++ comparisons
+against four fresh genuine original control renders pass over 192000 samples
+(max absolute error1.49e-8); these use genuine wet+dry baselines and **are not
+complete compressor fidelity**. [Scope, TDD and measurements](output-segment.md).
+The existing detector/history stage remains unchanged. Static output control
+mapping is recovered; automation smoothing and the independent full wet chain
+remain incomplete.
 
 **Not a complete plugin, not reference-equivalent, and not adapter-ready.**
 Related issue: <https://github.com/felixuhmann/Tsunami/issues/6>.
