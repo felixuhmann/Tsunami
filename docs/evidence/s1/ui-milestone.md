@@ -274,3 +274,27 @@ to the 1048x665 logical body, with an 18 px toolbar above).
   - The alignment was then re-applied to the shared row centred at y512, from the genuine original static capture.
   - `selector-row-green.log`: PASS. `rt-green-capture-repair.log`: 0 allocations.
   - Net source change versus `27f581d`: only the test order. The Width-only taper and the physical DSP are unchanged.
+
+## Uniform editor resizing slice 9 (local commit, native pending)
+- **Behaviour.** The editor is host-resizable with a fixed 1048:665 aspect, from 524 to 1310 px wide (50–125 %),
+  through `setResizable`, `setResizeLimits` and a fixed-aspect constrainer, with a corner resizer. All children
+  keep their logical 1048x665 bounds. `resized()` gives every child one `AffineTransform::scale(width/1048)`, and
+  `paint` draws panels, scales, meters and labels through the same transform, so this is vector drawing, not bitmap
+  scaling. The meter repaint rectangle is transformed too. The default 1048x665 layout, `FaderLook` logical anchors,
+  Width 0/1/3 anchors, selector row, APVTS physical values and the DSP are unchanged.
+- **TDD:**
+  - `resize-red.log`: runtime FAIL 63, the editor was not resizable.
+  - `resize-green.log`: FAIL 66. The hit test failed because the test never made the editor visible, and
+    `Component::getComponentAt` ignores invisible roots; hosts do show the editor. This was a test-setup fix only.
+  - `resize-green-2.log`: PASS. At 50/75/125/100 % it checks that ten controls' parent-space bounds equal their
+    logical bounds times the scale, that the hit test reaches each control, that logical geometry is unchanged, and
+    UI↔physical in both directions.
+- **Coverage (passed on first run, no production change):** `resize-coverage.log`. State restore while resized
+  to 75 %, and whole-buffer bit-identical audio across a resize.
+- RT re-run: `rt-green-resize.log`, 0 allocations.
+- In-process snapshots (not hosted): `candidates/candidate-scale50.png` (524x332) and
+  `candidates/candidate-scale125.png` (1310x831).
+- **Limits.**
+  - There is no in-editor zoom menu; only host or corner resizing is available.
+  - Whether hosts honour resize requests (VST3/CLAP) is not natively proven.
+  - The Windows capture helper still expects the default 1048x665 body.

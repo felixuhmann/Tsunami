@@ -304,6 +304,53 @@ int main() {
         CHECK(gestures.begins[3] == 3 && gestures.begins[0] == 1, 57, "one gesture per drag, no nesting on repeated press");
         for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
     }
+    // Uniform editor resizing (manual wrapper resize): 50/75/125/100 %. Children keep logical
+    // 1048x665 geometry; parent-space bounds and hit-testing scale uniformly; values stay physical.
+    {
+        CHECK(editor->isResizable(), 63, "editor resizable");
+        editor->setVisible(true); // hosts show the editor; Component::getComponentAt ignores invisible roots
+        auto* constrainer = editor->getConstrainer();
+        CHECK(constrainer && std::abs(constrainer->getFixedAspectRatio() - 1048.0 / 665.0) < 1e-6
+              && constrainer->getMinimumWidth() <= 524 && constrainer->getMaximumWidth() >= 1310, 64, "fixed aspect, 50..125% limits");
+        const char* ids[]{"gain", "width", "rotation", "asymmetry", "input_mode", "meter_mode", "swap", "vector_display", "link_strip", "peak_lamp_1"};
+        for (float z : {.5f, .75f, 1.25f, 1.f}) {
+            editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            for (auto* id : ids) {
+                auto* c = editor->findChildWithID(id);
+                const auto logical = c->getBounds(), parent = c->getBoundsInParent();
+                if (std::abs(parent.getX() - logical.getX() * z) > 1.5f || std::abs(parent.getWidth() - logical.getWidth() * z) > 1.5f
+                    || std::abs(parent.getBottom() - logical.getBottom() * z) > 1.5f)
+                    std::cerr << id << " at " << z << ": " << parent.toString() << " vs logical " << logical.toString() << "\n";
+                CHECK(std::abs(parent.getX() - logical.getX() * z) <= 1.5f && std::abs(parent.getWidth() - logical.getWidth() * z) <= 1.5f
+                      && std::abs(parent.getBottom() - logical.getBottom() * z) <= 1.5f, 65, std::string("uniform child scale ") + id);
+                auto* hit = editor->getComponentAt(parent.getCentre());
+                CHECK(hit == c || c->isParentOf(hit), 66, std::string("hit-test at scale ") + id);
+            }
+            CHECK(child<juce::Slider>(*editor, "gain")->getBounds() == juce::Rectangle<int>(41, 60, 62, 379), 67, "logical geometry kept");
+            setPhysical(1, 2.f);
+            CHECK(std::abs(child<juce::Slider>(*editor, "width")->getValue() - 2.) < 1e-4, 68, "automation->UI at scale");
+            child<juce::Slider>(*editor, "width")->setValue(1.0, juce::sendNotificationSync);
+            CHECK(std::abs(physical(1) - 1.f) < 1e-4, 69, "UI->physical at scale");
+        }
+        // Coverage: state restore while resized, and resizing never alters processed audio.
+        {
+            auto render = [&] { juce::AudioBuffer<float> x(2, 64);
+                for (int n = 0; n < 64; ++n) { x.setSample(0, n, std::sin(.13f * n)); x.setSample(1, n, .4f * std::cos(.05f * n)); }
+                p.processBlock(x, midi); return x; };
+            p.reset(); auto before = render();
+            editor->setSize(786, 499);
+            setPhysical(3, 33.f); juce::MemoryBlock st; p.getStateInformation(st); setPhysical(3, -70.f);
+            p.setStateInformation(st.getData(), int(st.getSize()));
+            CHECK(std::abs(child<juce::Slider>(*editor, "asymmetry")->getValue() - 33.) < 1e-3, 71, "restore while resized");
+            setPhysical(3, 0.f);
+            p.reset(); auto after = render();
+            for (int ch = 0; ch < 2; ++ch)
+                CHECK(std::memcmp(before.getReadPointer(ch), after.getReadPointer(ch), sizeof(float) * 64) == 0, 72, "resize leaves audio bit-identical");
+            editor->setSize(1048, 665);
+        }
+        CHECK(editor->getWidth() == 1048 && editor->getHeight() == 665, 70, "default size restored");
+        editor->setVisible(false);
+    }
     // Width: anchor-calibrated replacement mapping (0 bottom, 1.00 mid-travel, 3 top) on the slider only;
     // parameter stays physical/continuous. Intermediate curve is NOT the recovered original law.
     {
@@ -324,7 +371,8 @@ int main() {
             juce::File file = juce::File(dir).getChildFile(name); file.deleteFile(); juce::FileOutputStream out(file);
             juce::PNGImageFormat().writeImageToStream(editor->createComponentSnapshot(editor->getLocalBounds()), out);
         };
-        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f); s1->setLinked(true); shot("candidate-linked.png", 1.f, 10.f); s1->setLinked(false);
+        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f); s1->setLinked(true); shot("candidate-linked.png", 1.f, 10.f); s1->setLinked(false); for (float z : {.5f, 1.25f}) { editor->setSize(juce::roundToInt(1048 * z), juce::roundToInt(665 * z));
+            shot(z < 1.f ? "candidate-scale50.png" : "candidate-scale125.png", 2.f, 10.f); } editor->setSize(1048, 665);
     }
     std::cout << "S1 editor controls, attachments, automation sync, vector model, reset image, drag, meters PASS\n";
     return 0;

@@ -234,6 +234,11 @@ public:
         setLinked(false);
         setWantsKeyboardFocus(true);
         refreshPolarity();
+        // Uniform resizing 50..125 %: children keep logical 1048x665 bounds and receive one
+        // scale transform; paint draws through the same transform (no bitmap scaling).
+        setResizable(true, true);
+        setResizeLimits(524, 333, 1310, 831);
+        getConstrainer()->setFixedAspectRatio(1048.0/665.0);
         setSize(1048, 665);
         startTimerHz(30);
     }
@@ -261,7 +266,7 @@ public:
             held[size_t(k)]=juce::jmax(held[size_t(k)], db);
             if(peak>=1.f) clip[size_t(k)]=true;
         }
-        repaint(meterArea);
+        repaint(meterArea.toFloat().transformedBy(scaleTransform()).getSmallestIntegerContainer());
     }
     std::array<float,2> meterReadings() const { return displayed; }
     // Channel label above its clip lamp, centred on the bar and clear of the shared tick scale.
@@ -278,6 +283,7 @@ public:
     }
     void paint(juce::Graphics& g) override {
         g.fillAll(ui::strip);
+        g.addTransform(scaleTransform());
         for(auto r : {leftPanel, centrePanel, rightPanel}) {
             g.setGradientFill(juce::ColourGradient(ui::panel.brighter(.15f), 0.f, float(r.getY()), ui::panel.darker(.08f), 0.f, float(r.getBottom()), false));
             g.fillRect(r); g.setColour(ui::panelEdge); g.drawRect(r, 1);
@@ -340,10 +346,15 @@ public:
         for(int i=0;i<=60;++i) { const float y=float(barTop+3)+float(barBottom-barTop-6)*float(i)/60.f;
             g.drawLine(905.f, y, 910.f, y, .6f); g.drawLine(964.f, y, 969.f, y, .6f); }
         g.setColour(juce::Colours::white.withAlpha(.9f)); g.setFont(ui::font(24.f, true));
-        g.drawText("Tsunami Stereo", getLocalBounds().removeFromBottom(stripHeight).reduced(24, 0), juce::Justification::centredRight);
+        g.drawText("Tsunami Stereo", logicalBounds().removeFromBottom(stripHeight).reduced(24, 0), juce::Justification::centredRight);
     }
-    void resized() override { // fixed 1048x665 body: panels 222 / centre / 222
-        auto area=getLocalBounds(); auto strip=area.removeFromBottom(stripHeight);
+    static juce::Rectangle<int> logicalBounds() { return {0, 0, 1048, 665}; }
+    float scale() const { return float(getWidth())/1048.f; }
+    juce::AffineTransform scaleTransform() const { return juce::AffineTransform::scale(scale()); }
+    void resized() override { // logical 1048x665 body: panels 222 / centre / 222, then uniform scale
+        for(auto* c : getChildren())
+            if(c!=resizableCorner.get()) c->setTransform(scaleTransform());
+        auto area=logicalBounds(); auto strip=area.removeFromBottom(stripHeight);
         leftPanel=area.removeFromLeft(222); rightPanel=area.removeFromRight(222); centrePanel=area;
         gain.setBounds(41, 60, 62, 379); width.setBounds(129, 60, 62, 379);
         inputMode.setBounds(leftPanel.getX()+36, 497, 150, 30); // original 17.1 static capture: shared selector row, centre y512
