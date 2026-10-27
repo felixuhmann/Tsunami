@@ -492,5 +492,40 @@
       "stereo_fresh",
       "mono_deep"
     ]
+  },
+  "hosted_preset_recall": {
+    "scope": "Preset authored in one hosted Adapter, saved via getStateInformation, recalled into a fresh hosted Adapter via setStateInformation, rendered through processBlock at the original block size (Linux local build, JUCE 9.0.4 pinned). Stored genuine captures only; no new oracle render; held-out not used.",
+    "thresholds": "docs/evidence/rvox/thresholds.json (written before comparison)",
+    "rows": [
+      {
+        "name": "stereo_fresh",
+        "rate": 48000,
+        "block": 257,
+        "metric": {
+          "frames": 96000,
+          "channels": 2,
+          "max_abs": 3.159046173095703e-06,
+          "rms_error": 1.3524318206850508e-08,
+          "relative_rms": 1.0539736933838344e-07
+        },
+        "guard_pass": true,
+        "bit_identical_to_direct_core": true
+      },
+      {
+        "name": "rate44100",
+        "rate": 44100,
+        "block": 127,
+        "metric": {
+          "frames": 88200,
+          "channels": 2,
+          "max_abs": 1.1920928955078125e-07,
+          "rms_error": 5.106885058442502e-09,
+          "relative_rms": 2.279634886892101e-08
+        },
+        "guard_pass": true,
+        "bit_identical_to_direct_core": true
+      }
+    ],
+    "automation_oracle_limit": "oracle.py renders one static control set per fresh instance; mid-stream automation/state-load renders of the original are not supported, so automation semantics are grounded on the ELF RVoxMproc structure (coefficients read per call, state block untouched) and verified internally, not against genuine automation renders."
   }
 }

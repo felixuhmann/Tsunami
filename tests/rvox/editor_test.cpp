@@ -107,9 +107,13 @@ int main() {
     CHECK(child<juce::Label>(*editor, "out_peak_l")->getText() == "-inf", 30, "click resets peak hold");
 
     // Paint the real editor (no fixture) to an image without errors.
+    // Windows' default native image is Direct2D-backed and only flushed when the
+    // Graphics context ends; scope it so pixel reads see the painted result.
     juce::Image image(juce::Image::ARGB, 371, 357, true);
-    juce::Graphics g(image);
-    editor->paintEntireComponent(g, true);
+    {
+        juce::Graphics g(image);
+        editor->paintEntireComponent(g, true);
+    }
     CHECK(image.getPixelAt(185, 20).getAlpha() == 255, 31, "opaque painted body");
     if (const char* path = std::getenv("RVOX_EDITOR_PNG")) { // optional inspection artifact
         juce::FileOutputStream stream{juce::File(path)};

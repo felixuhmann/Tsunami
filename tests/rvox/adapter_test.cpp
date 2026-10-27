@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace {
@@ -67,10 +68,113 @@ int compare(tsunami::Adapter<Spec>& hosted, double rate, int block, std::vector<
     identical = out[0] == ref[0] && out[1] == ref[1];
     return 0;
 }
+// Streams the shared program through the hosted adapter and a direct core in
+// lockstep; before each block `atBlock` may change host-side controls and must
+// mirror the same physical values into the direct core (block-boundary automation).
+template<class F>
+bool lockstep(tsunami::Adapter<Spec>& hosted, Spec::Core& direct, double rate, int block, unsigned frames, F atBlock) {
+    std::vector<float> in[2]{program(frames, rate, 0), program(frames, rate, 1)};
+    juce::MidiBuffer midi; bool identical = true; std::vector<float> ref[2]{std::vector<float>(size_t(block)), std::vector<float>(size_t(block))};
+    for (unsigned at = 0, k = 0; at < frames; at += unsigned(block), ++k) {
+        atBlock(k);
+        const auto& params = hosted.getParameters();
+        for (int i = 0; i < params.size(); ++i) direct.setParameter(unsigned(i), physical(params[i]));
+        const unsigned n = std::min(unsigned(block), frames - at);
+        juce::AudioBuffer<float> b(2, int(n));
+        for (int c = 0; c < 2; ++c) b.copyFrom(c, 0, in[c].data() + at, int(n));
+        hosted.processBlock(b, midi);
+        const float* ins[]{in[0].data() + at, in[1].data() + at};
+        float* outs[]{ref[0].data(), ref[1].data()};
+        direct.process(ins, outs, n);
+        for (int c = 0; c < 2; ++c) identical = identical && std::memcmp(ref[c].data(), b.getReadPointer(c), n * sizeof(float)) == 0;
+    }
+    return identical;
+}
+juce::MemoryBlock withValue(const juce::MemoryBlock& saved, const char* id, const char* value) {
+    auto xml = juce::AudioProcessor::getXmlFromBinary(saved.getData(), int(saved.getSize()));
+    for (auto* e : xml->getChildIterator()) if (e->getStringAttribute("id") == id) e->setAttribute("value", value);
+    juce::MemoryBlock out; juce::AudioProcessor::copyXmlToBinary(*xml, out); return out;
+}
+// Automation / preset hidden-state matrix through the actual hosted product.
+int hiddenStateMatrix() {
+    for (int block : {1, 64, 257}) {
+        tsunami::Adapter<Spec> p; const auto& params = p.getParameters();
+        p.prepareToPlay(48000, block); Spec::Core direct; direct.prepare(48000, 2, unsigned(block));
+        juce::MemoryBlock a, b;
+        setPhysical(params[0], -24.f); setPhysical(params[1], -45.f); setPhysical(params[2], -6.f); p.getStateInformation(a);
+        setPhysical(params[0], -9.f); setPhysical(params[1], -80.f); setPhysical(params[2], -1.5f); p.getStateInformation(b);
+        const unsigned frames = 48000, blocks = frames / unsigned(block);
+        const bool same = lockstep(p, direct, 48000, block, frames, [&](unsigned k) {
+            if (k == blocks / 8) setPhysical(params[2], -12.f);                       // gain automation
+            if (k == blocks / 4) setPhysical(params[1], -30.f);                       // gate engage
+            if (k == blocks / 3) for (int i = 0; i < 3; ++i) setPhysical(params[i], physical(params[i])); // re-send
+            if (k == blocks / 2) p.setStateInformation(a.getData(), int(a.getSize()));  // preset recall
+            if (k == 2 * blocks / 3) p.setStateInformation(a.getData(), int(a.getSize())); // same preset again
+            if (k == 3 * blocks / 4) p.setStateInformation(b.getData(), int(b.getSize())); // other preset
+            if (k == 7 * blocks / 8) setPhysical(params[0], -36.f);                   // compression automation
+        });
+        if (!same) return fail(30, "hosted automation/preset recall differs from block-boundary core schedule");
+        if (std::abs(physical(params[0]) + 36) > 1e-3 || std::abs(physical(params[1]) + 80) > 1e-3) return fail(31, "final controls");
+    }
+    // Hostile/legacy preset values: host-visible controls stay finite and in
+    // range, and the core renders exactly what the host shows.
+    tsunami::Adapter<Spec> p; const auto& params = p.getParameters(); p.prepareToPlay(48000, 128);
+    setPhysical(params[0], -18.f); setPhysical(params[1], -40.f); setPhysical(params[2], -3.f);
+    juce::MemoryBlock saved; p.getStateInformation(saved);
+    const float lo[]{-36, -80, -36};
+    auto inRange = [&] { for (int i = 0; i < 3; ++i) { const float v = physical(params[i]);
+        if (!std::isfinite(v) || v < lo[i] || v > 0) return false; } return true; };
+    const char* hostile[][2]{{"gate", "-200"}, {"compression", "12"}, {"compression", "inf"}, {"gate", "garbage"}};
+    for (auto& h : hostile) {
+        const auto state = withValue(saved, h[0], h[1]);
+        p.setStateInformation(state.getData(), int(state.getSize()));
+        if (!inRange()) return std::cerr << h[0] << '=' << h[1] << '\n', fail(32, "hostile preset value escaped the control range");
+        Spec::Core direct; direct.prepare(48000, 2, 128);
+        p.reset();
+        if (!lockstep(p, direct, 48000, 128, 9600, [](unsigned) {})) return fail(33, "core diverges from host-visible control after hostile preset");
+    }
+    // KNOWN SHARED-FOUNDATION DEFECT (expected failure, reported not hidden):
+    // shared/Adapter.hpp setStateInformation hands a NaN preset value to APVTS,
+    // which publishes NaN to the host while the RVox core ignores the nonfinite
+    // write and keeps its previous control. Fixing it needs a shared edit that is
+    // outside the RVox scope; flip to a hard failure once the shared fix lands.
+    {
+        const auto state = withValue(saved, "gain", "nan");
+        p.setStateInformation(state.getData(), int(state.getSize()));
+        if (inRange()) std::cout << "XPASS nonfinite preset value now sanitized; make this a hard check\n";
+        else std::cout << "XFAIL shared adapter publishes NaN for a nonfinite preset value (gain=nan)\n";
+    }
+    std::cout << "rvox.adapter hidden-state matrix PASS: block-boundary automation, preset recall, hostile preset values\n";
+    return 0;
+}
+// Genuine-comparison mode: recall a preset through saved state into a fresh
+// hosted instance, render interleaved stereo float32 at the original block size.
+int presetRender(char** a) {
+    tsunami::Adapter<Spec> author; const auto& ap = author.getParameters();
+    for (int i = 0; i < 3; ++i) setPhysical(ap[i], std::stof(a[5 + i]));
+    juce::MemoryBlock preset; author.getStateInformation(preset);
+    tsunami::Adapter<Spec> p; p.setStateInformation(preset.getData(), int(preset.getSize()));
+    const double rate = std::stod(a[3]); const int block = std::stoi(a[4]);
+    p.prepareToPlay(rate, block);
+    juce::File src(a[1]); juce::MemoryBlock raw; if (!src.loadFileAsData(raw) || raw.getSize() % 8) return 4;
+    const unsigned frames = unsigned(raw.getSize() / 8), latency = unsigned(p.getLatencySamples());
+    const float* x = static_cast<const float*>(raw.getData());
+    std::vector<float> out(size_t(frames) * 2); juce::MidiBuffer midi;
+    for (unsigned at = 0; at < frames + latency; at += unsigned(block)) {
+        const unsigned n = std::min(unsigned(block), frames + latency - at);
+        juce::AudioBuffer<float> b(2, int(n)); b.clear();
+        for (unsigned i = 0; i < n; ++i) if (at + i < frames) for (int c = 0; c < 2; ++c) b.setSample(c, int(i), x[(at + i) * 2 + unsigned(c)]);
+        p.processBlock(b, midi);
+        for (unsigned i = 0; i < n; ++i) if (at + i >= latency) for (int c = 0; c < 2; ++c) out[(at + i - latency) * 2 + unsigned(c)] = b.getSample(c, int(i));
+    }
+    return juce::File(a[2]).replaceWithData(out.data(), out.size() * sizeof(float)) ? 0 : 5;
+}
 }
 
-int main() {
+int main(int argc, char** argv) {
     juce::ScopedJuceInitialiser_GUI gui;
+    // rvox_adapter_test in.raw out.raw rate block compression gate gain
+    if (argc == 8) return presetRender(argv);
     if (std::strcmp(Spec::id, "rvox") != 0) return fail(2, "hosted product is not RVox");
     tsunami::Adapter<Spec> p;
     const auto& params = p.getParameters();
@@ -107,6 +211,7 @@ int main() {
     if (a[0] != b[0] || a[1] != b[1]) return fail(8, "fresh restored instance renders differently");
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (!editor) return fail(9, "no editor");
+    if (int r = hiddenStateMatrix()) return r;
     std::cout << "rvox.adapter PASS: hosted RVox core bit-identical across 3 rates x 3 blocks, state restore exact\n";
     return 0;
 }
