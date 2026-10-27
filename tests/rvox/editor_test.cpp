@@ -82,33 +82,39 @@ int main() {
     editor->mouseUp(event(*editor, {340.f, 312.f}, {120.f, 92.f}, true));
     CHECK(rv->isLinked("compression") && rv->isLinked("gain") && !rv->isLinked("gate"), 23, "box links comp+gain only");
     // Linking follows user input only; a programmatic/APVTS setValue is host state.
-    child<juce::Label>(*editor, "comp_value")->setText("-15.3", juce::sendNotificationSync);
-    CHECK(std::abs(physical(2) - (-3.8f - 4.f)) < 1e-3f, 24, "linked gain follows comp offset");
-    auto near = [](float a, float b) { return std::abs(a - b) < 1e-3f; };
+    auto approx = [](float a, float b) { return std::abs(a - b) < 1e-3f; };
+    {
+        const float c = physical(0), g = physical(2);
+        CHECK(comp->keyPressed(juce::KeyPress(juce::KeyPress::downKey)), 24, "comp key handled");
+        CHECK(physical(0) != c && approx(physical(2) - g, physical(0) - c), 24, "linked gain follows comp offset");
+    }
+    setPhysical(0, -15.3f); setPhysical(2, -7.8f);
     // Host automation of one linked parameter must not write the other (the
     // attachment updates the slider synchronously here on the message thread).
     setPhysical(0, -18.f);
-    CHECK(near(physical(0), -18.f) && near(physical(2), -7.8f) && near(physical(1), -80.f), 40, "comp automation isolated while linked");
+    CHECK(approx(physical(0), -18.f) && approx(physical(2), -7.8f) && approx(physical(1), -80.f), 40, "comp automation isolated while linked");
     setPhysical(2, -5.f);
-    CHECK(near(physical(0), -18.f) && near(physical(2), -5.f), 41, "gain automation isolated while linked");
+    CHECK(approx(physical(0), -18.f) && approx(physical(2), -5.f), 41, "gain automation isolated while linked");
     {
         juce::MemoryBlock saved; p.getStateInformation(saved);
         setPhysical(0, -30.f); setPhysical(2, -1.f);
         p.setStateInformation(saved.getData(), int(saved.getSize()));
-        CHECK(near(physical(0), -18.f) && near(physical(2), -5.f) && near(physical(1), -80.f), 42, "state recall exact while linked");
+        CHECK(approx(physical(0), -18.f) && approx(physical(2), -5.f) && approx(physical(1), -80.f), 42, "state recall exact while linked");
     }
     // Every user input path still moves the linked pair by the same offset.
     auto linkedDelta = [&](auto&& action, int code, const char* what) {
         const float c = physical(0), g = physical(2);
         action();
         const float dc = physical(0) - c, dg = physical(2) - g;
-        if (dg == 0.f || !near(dc, dg) || !near(physical(1), -80.f)) {
+        if (dg == 0.f || !approx(dc, dg) || !approx(physical(1), -80.f)) {
             std::cerr << "FAIL " << what << " comp_delta=" << dc << " gain_delta=" << dg << "\n"; return code;
         }
         return 0;
     };
     if (int r = linkedDelta([&] { child<juce::Label>(*editor, "gain_value")->setText("-6.5", juce::sendNotificationSync); }, 43, "linked value entry")) return r;
-    if (int r = linkedDelta([&] { CHECK(gain->keyPressed(juce::KeyPress(juce::KeyPress::upKey)), 44, "key handled"); return 0; }, 44, "linked key")) return r;
+    bool keyHandled = false;
+    if (int r = linkedDelta([&] { keyHandled = gain->keyPressed(juce::KeyPress(juce::KeyPress::upKey)); }, 44, "linked key")) return r;
+    CHECK(keyHandled, 44, "gain key handled");
     setPhysical(0, -20.f); setPhysical(2, -15.f);
     if (int r = linkedDelta([&] {
             gain->mouseDown(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false));
@@ -121,16 +127,24 @@ int main() {
         }, 46, "linked wheel")) return r;
     setPhysical(0, -20.f); setPhysical(2, -10.f);
     gain->mouseDoubleClick(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false));
-    CHECK(near(physical(0), -10.f) && near(physical(2), 0.f), 47, "linked double-click reset keeps offset");
+    CHECK(approx(physical(0), -10.f) && approx(physical(2), 0.f), 47, "linked double-click reset keeps offset");
+    setPhysical(0, -20.f); setPhysical(2, -10.f);
+    const juce::ModifierKeys alt(juce::ModifierKeys::leftButtonModifier | juce::ModifierKeys::altModifier);
+    gain->mouseDown(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false, alt));
+    gain->mouseUp(event(*gain, {16.f, 90.f}, {16.f, 90.f}, false, alt));
+    CHECK(approx(physical(0), -10.f) && approx(physical(2), 0.f), 49, "linked alt-click reset keeps offset");
     // Host automation right after user input must not inherit user origin.
     setPhysical(2, -4.f);
-    CHECK(near(physical(0), -10.f), 48, "automation after user input isolated");
+    CHECK(approx(physical(0), -10.f), 48, "automation after user input isolated");
     setPhysical(0, -15.3f); setPhysical(2, -7.8f);
     editor->mouseDown(event(*editor, {100.f, 340.f}, {100.f, 340.f}, false));
     editor->mouseUp(event(*editor, {100.f, 340.f}, {100.f, 340.f}, false));
     CHECK(!rv->isLinked("compression"), 25, "background click unlinks");
-    comp->setValue(-12.0, juce::sendNotificationSync);
-    CHECK(std::abs(physical(2) + 7.8f) < 1e-3f, 26, "unlinked gain unchanged");
+    {
+        const float c = physical(0);
+        CHECK(comp->keyPressed(juce::KeyPress(juce::KeyPress::upKey)) && physical(0) != c, 26, "unlinked comp key moves comp");
+        CHECK(std::abs(physical(2) + 7.8f) < 1e-3f, 26, "unlinked gain unchanged");
+    }
 
     // Output meters are driven by actual processed audio; peak readouts reset on click.
     CHECK(child<juce::Label>(*editor, "out_peak_l")->getText() == "-inf", 27, "peak empty before audio");
