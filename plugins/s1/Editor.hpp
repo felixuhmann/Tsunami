@@ -43,11 +43,12 @@ public:
             return juce::Point<float>(originX+r*std::sin(a), originY-r*std::cos(a));
         };
         const auto o=juce::Point<float>(originX, originY), l=at(model.left), c=at(model.center), r=at(model.right);
-        juce::Path image; image.startNewSubPath(o); image.lineTo(l); image.lineTo(c); image.lineTo(r); image.closeSubPath();
+        juce::Path image; image.startNewSubPath(o); image.lineTo(l); image.lineTo(r); image.closeSubPath(); // origin-L-R triangle
         g.saveState(); g.reduceClipRegion(inner.withTrimmedBottom(26.f).toNearestInt());
         g.setColour(ui::fill); g.fillPath(image);
         g.setColour(ui::trace);
-        g.drawLine({o, l}, 2.f); g.drawLine({o, r}, 2.f); g.drawLine({o, c}, 2.f); g.drawLine({l, c}, 2.f); g.drawLine({c, r}, 2.f);
+        g.drawLine({o, l}, 2.f); g.drawLine({o, r}, 2.f); g.drawLine({l, r}, 2.f);
+        g.drawLine({o, c}, 2.f); // independent centre ray
         g.setFont(ui::font(12.f, true)); g.drawText("L", juce::Rectangle<float>(l.x-8.f, l.y-18.f, 16.f, 14.f), juce::Justification::centred);
         g.drawText("R", juce::Rectangle<float>(r.x-8.f, r.y-18.f, 16.f, 14.f), juce::Justification::centred);
         g.restoreState();
@@ -83,8 +84,7 @@ private:
     bool dragging=false;
 };
 
-class Editor final : public juce::AudioProcessorEditor, private juce::Timer,
-                     private juce::AudioProcessorValueTreeState::Listener {
+class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
         : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), display(s) {
@@ -93,18 +93,17 @@ public:
         toggle(inputMode, "input_mode", "L-R | M-S"); toggle(invertLeft, "invert_left", "+/-");
         toggle(swap, "swap", "<->"); toggle(invertRight, "invert_right", "+/-"); toggle(bypass, "bypass", "Bypass");
         meterMode.setComponentID("meter_mode"); meterMode.setButtonText("L-R | M-S"); meterMode.setClickingTogglesState(true);
-        meterMode.onClick=[this] { displayed={-100.f,-100.f}; repaint(); }; // display-only, never audio
+        meterMode.onClick=[this] { displayed={-100.f,-100.f}; refreshPolarity(); repaint(); }; // display-only, never audio
         addAndMakeVisible(meterMode);
         display.onReset=[this] { resetImage(); };
         addAndMakeVisible(display);
-        for(auto* id : {"gain","width","rotation","asymmetry","swap","invert_left","invert_right","input_mode","bypass"}) state.addParameterListener(id, this);
         setWantsKeyboardFocus(true);
+        refreshPolarity();
         setSize(780, 470);
         startTimerHz(30);
     }
     ~Editor() override {
         stopTimer();
-        for(auto* id : {"gain","width","rotation","asymmetry","swap","invert_left","invert_right","input_mode","bypass"}) state.removeParameterListener(id, this);
     }
     // Manual: reset image restores width/asymmetry/rotation; gain and input options stay.
     void resetImage() {
@@ -180,11 +179,18 @@ public:
         bypass.setBounds(strip.getX()+16, strip.getY()+10, 80, strip.getHeight()-20);
     }
 private:
-    void timerCallback() override { pollMeters(); }
-    void parameterChanged(const juce::String&, float) override { triggerRepaint(); }
-    void triggerRepaint() {
-        juce::Component::SafePointer<VectorDisplay> safe(&display);
-        juce::MessageManager::callAsync([safe] { if(safe) safe->repaint(); });
+    // Message-thread polling only: no parameter listener runs on host/audio threads.
+    void refreshPolarity() {
+        invertLeft.setButtonText(shown[5]>=.5f ? "-" : "+"); invertRight.setButtonText(shown[6]>=.5f ? "-" : "+");
+        inputMode.setButtonText(shown[7]>=.5f ? "M-S active" : "L-R active");
+        meterMode.setButtonText(meterMode.getToggleState() ? "M-S active" : "L-R active");
+    }
+    void timerCallback() override {
+        pollMeters();
+        std::array<float,Processor::Count> now{};
+        static constexpr const char* all[Processor::Count]{"gain","width","rotation","asymmetry","swap","invert_left","invert_right","input_mode","bypass"};
+        for(size_t i=0;i<now.size();++i) now[i]=state.getRawParameterValue(all[i])->load(std::memory_order_relaxed);
+        if(now!=shown) { shown=now; display.repaint(); refreshPolarity(); }
     }
     void vertical(juce::Slider& s, const char* id, double reset, int decimals) {
         configure(s, id, reset, decimals); s.setSliderStyle(juce::Slider::LinearVertical);
@@ -221,6 +227,7 @@ private:
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;
     juce::Rectangle<int> leftPanel, centrePanel, rightPanel, meterArea;
     std::array<float,2> displayed{{-100.f,-100.f}};
+    std::array<float,Processor::Count> shown{};
 };
 } // namespace tsunami::s1
 

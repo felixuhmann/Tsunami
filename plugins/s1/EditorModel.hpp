@@ -7,14 +7,14 @@
 #include <cmath>
 
 namespace tsunami::s1 {
-struct VectorPoint { float angleDegrees, levelDb; }; // 0 deg = centre/up, -90 = left edge
+struct VectorPoint { float angleDegrees, levelDb; }; // 0 deg = centre/up, unity L at -45, -90 = full side
 struct VectorModel { VectorPoint left, center, right; };
 
 inline VectorPoint vectorPoint(double l, double r) noexcept {
     constexpr double degrees=57.29577951308232;
-    double angle=2.*(std::atan2(r,l)*degrees-45.);
-    while(angle>180.) angle-=360.;
-    while(angle<-180.) angle+=360.;
+    // Ordinary Mid/Side polar coordinates: x=(R-L)/sqrt2 (right), y=(R+L)/sqrt2 (up).
+    // Exact original angle/radial projection is not established (pending reference).
+    const double angle=std::atan2(r-l, r+l)*degrees;
     const double magnitude=std::hypot(l,r);
     return {float(angle), float(magnitude>1e-6 ? 20.*std::log10(magnitude) : -120.)};
 }

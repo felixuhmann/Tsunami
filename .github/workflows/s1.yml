@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native:
-    name: s1-native-${{ matrix.os }} (DSP/state only; product UI pending)
+    name: s1-native-${{ matrix.os }} (DSP/state + actual editor capture; UI fidelity pending)
     strategy:
       fail-fast: false
       matrix:
@@ -43,7 +43,7 @@ jobs:
           python tests/s1/test_renderer_io.py "$renderer"
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=s1
       - name: Build actual native format modules and adapter test
-        run: cmake --build build --config Release --target TsunamiStereo_VST3 TsunamiStereo_CLAP --parallel 2
+        run: cmake --build build --config Release --target TsunamiStereo_VST3 TsunamiStereo_CLAP s1_editor_test s1_editor_rt_test --parallel 2
       - name: CTest
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
@@ -98,6 +98,16 @@ jobs:
           if [[ "$RUNNER_OS" == Linux ]]; then
             timeout 90 xvfb-run -a editor-host/pluginval --validate-in-process --strictness-level 6 --random-seed 17 --validate "$plugin" > evidence/s1-pluginval.log 2>&1
           fi
+      - name: Actual S1 module hosted editor capture (original-style UI, not reference equivalence)
+        run: |
+          mkdir -p evidence/ui
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiStereo_artefacts').rglob('Tsunami Stereo.vst3')).resolve())")"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/s1/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
+          else
+            python tests/foundation/host_smoke.py "$plugin" evidence/ui --capture
+          fi
+          python -c "import hashlib,json,pathlib; fs=['plugins/s1/Editor.hpp','plugins/s1/EditorModel.hpp','shared/Adapter.hpp']+[str(p) for p in pathlib.Path('evidence/ui').glob('*.png')]; pathlib.Path('evidence/ui/s1-ui-hashes.json').write_text(json.dumps({f:hashlib.sha256(pathlib.Path(f).read_bytes()).hexdigest() for f in fs},indent=2))"
       - name: Matching corresponding source and notices beside experimental binaries
         if: always()
         run: |

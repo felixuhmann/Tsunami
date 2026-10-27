@@ -43,10 +43,11 @@ int main() {
     // Vector display model agrees with the DSP matrix (left input maps to output (a, d)).
     params[7]->setValueNotifyingHost(0.f);
     auto vec = tsunami::s1::vectorModel({-6.f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
-    CHECK(std::abs(vec.left.angleDegrees + 90.f) < 1e-3 && std::abs(vec.right.angleDegrees - 90.f) < 1e-3, 8, "default L/R at display edges");
+    // Ordinary M/S polar coordinates (x=(R-L)/sqrt2, y=(R+L)/sqrt2): unity L/R at -45/+45 deg.
+    CHECK(std::abs(vec.left.angleDegrees + 45.f) < 1e-3 && std::abs(vec.right.angleDegrees - 45.f) < 1e-3, 8, "default L/R at +-45 deg (M/S coordinates)");
     CHECK(std::abs(vec.center.angleDegrees) < 1e-3 && std::abs(vec.left.levelDb + 6.f) < 1e-3, 9, "centre upright, gain shown as level");
     auto rotated = tsunami::s1::vectorModel({0.f, 1.f, 20.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f});
-    CHECK(std::abs(rotated.center.angleDegrees - 40.f) < 1e-3, 10, "rotation turns centre by twice the matrix angle");
+    CHECK(std::abs(rotated.center.angleDegrees - 20.f) < 1e-3, 10, "rotation 20 turns centre ray by 20 deg");
 
     // Reset image: width/asymmetry/rotation to defaults; gain and input settings preserved.
     setPhysical(0, -6.f);
@@ -79,10 +80,14 @@ int main() {
     s1->pollMeters();
     auto ms = s1->meterReadings();
     CHECK(ms[1] < -60.f && std::abs(ms[0] - lr[0]) < .05f, 17, "MS meters show mid, silent side");
-    if (auto* path = std::getenv("TSUNAMI_S1_SNAPSHOT")) { // in-process component render, not a host capture
-        p.processBlock(b, midi); s1->pollMeters();
-        juce::File file(path); file.deleteFile(); juce::FileOutputStream out(file);
-        juce::PNGImageFormat().writeImageToStream(editor->createComponentSnapshot(editor->getLocalBounds()), out);
+    if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
+        auto shot = [&](const char* name, float width, float rotation) {
+            setPhysical(1, width); setPhysical(2, rotation);
+            p.processBlock(b, midi); s1->pollMeters();
+            juce::File file = juce::File(dir).getChildFile(name); file.deleteFile(); juce::FileOutputStream out(file);
+            juce::PNGImageFormat().writeImageToStream(editor->createComponentSnapshot(editor->getLocalBounds()), out);
+        };
+        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f);
     }
     std::cout << "S1 editor controls, attachments, automation sync, vector model, reset image, drag, meters PASS\n";
     return 0;

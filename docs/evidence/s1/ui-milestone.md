@@ -9,8 +9,9 @@ the official product image (SHA256 62e4e4cb…f96d) and the official manual
 (SHA256 4955022c…0d2970; printed p5 vector display, p6/7 controls, p22 key
 commands), both kept privately outside the repository. Nothing was sampled,
 embedded or traced; all drawing is JUCE code. The original binary's editor
-still does not open under the private Wine setup (WebView2/WoW64), so no
-same-version visual comparison exists.
+was blocked under private Wine (WebView2/WoW64). The parent has since installed the
+official offline WebView2 runtime in a fresh isolated WoW64 prefix, but no genuine
+editor capture exists yet, so no same-version visual comparison exists.
 
 ## What was implemented
 - `shared/Adapter.hpp`: optional `tsunami::MeterSource` interface. After the DSP in
@@ -60,3 +61,40 @@ Core: `cmake -S plugins/s1 -B …/s1-ui-build/core && cmake --build … -j2 && c
   stock JUCE drawing, not custom silver thumbs. The meters have no peak-hold or clip
   indicator, and the display-scale/ballistic behaviour is not measured against the original.
 - No pixel or geometry comparison with the original (its editor is unavailable on this host).
+
+## Correction slice 2 (after parent review)
+Each fix had its own witnessed red/green run (logs in `s1-ui-logs`). The original
+`editor_test` red was a single compile failure. It is **not** a red witness for each
+behaviour that test covers.
+1. **RT regression.** `tests/s1/editor_rt_test.cpp` notifies all parameters from a
+   worker thread after one warm-up notification, with the editor open and no message
+   pumping. It counts operator-new calls on that thread. `rt-red.log`: FAIL, 175
+   allocations (`callAsync` + `SafePointer` in the editor's APVTS listener).
+   Fix: the listener is removed. The message-thread timer compares raw parameter
+   values and repaints. `rt-green.log`: 0 allocations. This does not claim every JUCE
+   host-automation path is allocation-free.
+2. **Vector angle regression.** At unity, L/C/R must sit at -45/0/+45 degrees, and
+   rotation 20 must put the centre at 20 degrees (ordinary M/S coordinates).
+   `vector-red.log`: FAIL code 8 (the old doubled angle gave ±90). Fix: angle =
+   atan2(R-L, R+L). The drawing is now an origin-L-R triangle plus an independent
+   centre ray. `vector-green.log` PASS. The exact original radial/angle projection
+   is still **pending**: it has not been established beyond the manual diagram.
+3. The +/- symbols now follow polarity. The input and meter switches show
+   "L-R active"/"M-S active". There was no separate red for these.
+4. The meter bridge has `static_assert(std::atomic<float>::is_always_lock_free)`.
+   The CAS max is lock-free, **not wait-free**.
+5. Candidate in-process renders: `s1-ui-logs/candidates/candidate-{default,width2,rotation20}.png`.
+6. CI (`s1.yml`) now builds `s1_editor_test` and `s1_editor_rt_test` for ctest. It
+   also adds actual-module UI capture: on Linux, `tests/s1/linux_editor_capture.py`
+   (the foundation pluginval strictness-6 capture with the S1 title); on Windows,
+   `tests/foundation/host_smoke.py --capture`. Screenshots, receipts and hashes go to
+   `evidence/ui`. The existing native DSP comparison and downloaded smoke are unchanged.
+
+### Still pending
+- The 1048x665 body ratio (222/600/222 panels, display at x244 y32 w560 h321) is not
+  implemented. The canvas is still 780x470.
+- Grooved silver fader caps, tick scales, held-peak/clip lamps and Alt-click reset
+  are not implemented.
+- There is no test of state restore while the editor is open. Full state/UI
+  acceptance is pending.
+- The root full CMake build has not been run locally. CI is the first full build.

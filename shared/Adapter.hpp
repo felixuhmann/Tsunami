@@ -13,6 +13,8 @@ namespace tsunami {
 // Optional read-only output meter bridge for plugin editors (dynamic_cast from AudioProcessor).
 // Peaks are collected on the audio thread after DSP with lock-free atomics; the
 // consumer takes and resets them. Order: L, R, M=(L+R)/2, S=(L-R)/2 (linear).
+static_assert(std::atomic<float>::is_always_lock_free, "meter bridge requires lock-free atomic<float>");
+// The CAS max loop is lock-free, not wait-free: retries are unbounded under contention.
 struct MeterSource {
     virtual ~MeterSource() = default;
     virtual std::array<float, 4> takeOutputPeaks() noexcept = 0;
