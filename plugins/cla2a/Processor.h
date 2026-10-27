@@ -88,7 +88,16 @@ public:
     // Opto ballistics time constants (attack ms at loud/quiet end of the
     // 12-point table, release s). Defaults: Characterized:: (see below).
     struct TimeConstants { double attackFastMs[2], attackSlowMs[2], releaseFastS, releaseSlowS; };
-    void setTimeConstants(const TimeConstants& t) noexcept { times_ = t; buildCurves(); }
+    // Replacement-only defensive policy (not original-equivalence): every value
+    // must be finite and positive, otherwise the whole update is ignored so a
+    // NaN/negative constant cannot poison the ballistics memory.
+    void setTimeConstants(const TimeConstants& t) noexcept {
+        for (double v : {t.attackFastMs[0], t.attackFastMs[1], t.attackSlowMs[0], t.attackSlowMs[1],
+                         t.releaseFastS, t.releaseSlowS})
+            if (!(std::isfinite(v) && v > 0.0)) return;
+        times_ = t;
+        buildCurves();
+    }
 
     void process(const float* const* inputs, float* const* outputs, unsigned frames) noexcept {
         if (!outputs) return;
@@ -125,8 +134,10 @@ public:
             for (unsigned c = 0; c < channels_; ++c) {
                 if (!outputs[c]) continue;
                 const double wet = d[c] * g * makeup_ + hum;
-                const double y = ((wet - x[c]) * mix + x[c]) * out;
-                outputs[c][n] = std::isfinite(y) ? float(y) : 0.0f;
+                // Defensive policy: samples not representable as finite float32
+                // (nonfinite, or finite double beyond float range) are written as 0.
+                const float y = float(((wet - x[c]) * mix + x[c]) * out);
+                outputs[c][n] = std::isfinite(y) ? y : 0.0f;
             }
         }
     }

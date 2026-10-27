@@ -87,3 +87,42 @@ No complete-plugin match is claimed.
 * Auto Makeup: genuine host default "Off ", so it is not wired for the defaults.
 * Wet defaults (unchanged thresholds, `comparison-r3.json`): rel RMS -19.04 / -19.11 dB,
   level +0.91 / +0.94 dB -> still **FAIL**.
+
+## Source maintenance: processor API/state lifecycle (no fidelity change)
+
+Scope: existing project source and `docs/PLUGIN_CONTRACT.md` only; no vendor
+binaries, exports, captures or fitting scripts were used. New test
+`tests/cla2a/test_lifecycle.cpp` (ctest `cla2a_lifecycle`).
+
+Demonstrated bugs fixed (replacement-only defensive policy, NOT
+original-equivalence):
+
+- `setTimeConstants` accepted NaN/inf/non-positive values. A NaN constant
+  poisoned the ballistics memory so output stayed silent even after valid
+  constants were restored (until `reset`). Updates with any non-finite or
+  non-positive value are now ignored as a whole.
+- Finite double results beyond float32 range were cast to `inf` (e.g. dry
+  path, +18 dB trim, 1e38 input). Such samples are now written as 0, the
+  same policy as the existing nonfinite-output guard.
+
+RED: `cla2a_lifecycle` failed with `FAIL: invalid time constants rejected`,
+then (after that fix) `FAIL: dry trim overflow stays finite`. GREEN: all 7
+ctests pass. Regression guards (already passing, not new behaviour):
+controls/time constants before prepare, repeated prepare/reset preserve
+parameters, rejected prepare/nonfinite controls leave state intact,
+zero-frame/null-output calls, in-place equals out-of-place, unprepared
+process writes silence. Unprepared silence arises through the existing
+nonfinite-output guard (default-constructed curves); `prepare` clears it.
+
+Bit-identity: a 75-configuration render (5 control sets x 44.1/48/96 kHz x
+5 levels up to +12 dBFS, 333-frame blocks) is byte-identical before and
+after the change (sha256 f3a90216...0910154).
+
+CI: `.github/workflows/cla2a-core.yml` runs these portable partial-core tests
+on native ubuntu-22.04 and windows-2022. A green run is NOT plugin fidelity,
+host, UI or release acceptance.
+
+Unchanged open gaps: Hi Freq network not ported (4/10 kHz sidechain points
+still fail), default gain offset/levels and wet defaults UNMATCHED, opto
+time constants only characterized, stereo link/level behaviour unverified,
+no plugin wrapper/UI, no native host/plugin evidence.

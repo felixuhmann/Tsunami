@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# CLA-2A PORTABLE PARTIAL-CORE tests only: header-only C++17 processor and its
+# standalone unit/lifecycle tests. This is NOT plugin fidelity, host, UI or
+# release acceptance; the measured fidelity failures in
+# docs/evidence/cla2a/README.md remain open.
+name: CLA-2A portable partial-core tests (not fidelity/UI acceptance)
+on:
+  pull_request:
+    paths:
+      - 'plugins/cla2a/**'
+      - 'tests/cla2a/**'
+      - '.github/workflows/cla2a-core.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cla2a-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    name: cla2a-core-${{ matrix.os }} (portable partial-core tests; not fidelity/UI acceptance)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and run partial-core tests (no original binaries, captures or fitting scripts)
+        run: |
+          cmake -S plugins/cla2a -B build-core -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-core --config Release --parallel 2
+          ctest --test-dir build-core -C Release --output-on-failure
