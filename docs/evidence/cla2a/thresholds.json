@@ -30,5 +30,13 @@
     "envelope_rms_db_max": 0.5,
     "claim_if_pass": "attack/release CHARACTERIZED (fitted, not recovered) on step bursts"
   },
-  "r3_wet_defaults": "unchanged: wet_complete_plugin thresholds above apply (rel RMS <= -40 dB, |level| <= 0.5 dB)"
+  "r3_wet_defaults": "unchanged: wet_complete_plugin thresholds above apply (rel RMS <= -40 dB, |level| <= 0.5 dB)",
+  "r3_sidechain_filter": {
+    "declared_before_comparison": "2026-10-27T16:18Z",
+    "reason": "r3_filter_response render (PR 0) shows a flat programme path, so the cascade is tested in the sidechain",
+    "input": "stepped-frequency sines 100,250,1000,4000,10000 Hz at -18 dBFS peak, 1.2 s each, mono int16 48 kHz; PR 46 Comp, other params default",
+    "metric": "steady gain (dB, RMS ratio, last 0.4 s of each step) model vs genuine",
+    "max_abs_db": 0.5,
+    "claim_if_pass": "recovered 48 kHz biquad cascade acts as detector (sidechain) weighting"
+  }
 }
