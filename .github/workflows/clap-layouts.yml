@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CLAP mono/stereo layouts
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: clap-layouts-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: native-${{ matrix.os }} (synthetic SDK layout fixture, not target verification)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Linux build prerequisites (ephemeral runner only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libfreetype6-dev libfontconfig1-dev libxi-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev xvfb
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Configure pinned JUCE 9.0.4 and clap-juce-extensions with the hash-bound derived wrapper
+        run: |
+          mkdir -p evidence
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_CLAP_LAYOUT_TESTS=ON 2>&1 | tee evidence/configure.log
+          grep -F 'derived clap-juce-wrapper.cpp: source 82fb7862a2a40c718dcf53560ce69f3af4244b068c25ea7a25bfe5d16c963cc6' evidence/configure.log
+      - name: Fetched dependency source stays pristine (no tracked, ignored or index-flag drift)
+        run: |
+          for dep in build/_deps/clap_juce-src build/_deps/clap_juce-src/clap-libs/clap build/_deps/clap_juce-src/clap-libs/clap-helpers; do
+            if git -C "$dep" rev-parse --git-dir >/dev/null 2>&1; then
+              test -z "$(git -C "$dep" status --porcelain --ignored)" || { git -C "$dep" status --porcelain --ignored; exit 1; }
+              test -z "$(git -C "$dep" ls-files -v | grep -E '^[a-zS] ' || true)" || { echo "index flags in $dep"; exit 1; }
+            fi
+          done
+          git -C build/_deps/clap_juce-src rev-parse HEAD | tee evidence/clap-juce-extensions-commit.txt
+          grep -qx 7adee3a1bd4684d4caa5601100e364abccff4b4d evidence/clap-juce-extensions-commit.txt
+          python - <<'EOF' | tee evidence/wrapper-hashes.txt
+          import hashlib, pathlib
+          for p in ('build/_deps/clap_juce-src/src/wrapper/clap-juce-wrapper.cpp', 'cmake/clap-wrapper-audio-ports-config.json', 'build/tsunami-clap-wrapper/clap-juce-wrapper.cpp'):
+              b = pathlib.Path(p).read_bytes().replace(b'\r\n', b'\n')
+              print(hashlib.sha256(b).hexdigest(), p)
+          EOF
+      - name: Build real CLAP modules and ABI layout harness
+        run: cmake --build build --config Release --target clap_layout_test TsunamiFixture_CLAP TsunamiMonoFixture_CLAP --parallel 2
+      - name: CTest layout harness against the compiled CLAP modules
+        run: |
+          ctest --test-dir build -C Release -N -R 'clap\.layouts' | tr -d '\r' | tee evidence/ctest-registered.txt
+          for t in clap.layouts.mono_stereo clap.layouts.stereo_only clap.layouts.derive_source; do grep -q ": $t\$" evidence/ctest-registered.txt || { echo "missing $t"; exit 1; }; done
+          grep -qx 'Total Tests: 3' evidence/ctest-registered.txt
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a ctest --test-dir build -C Release -R 'clap\.layouts' --no-tests=error --output-on-failure 2>&1 | tee evidence/ctest.log
+          else
+            ctest --test-dir build -C Release -R 'clap\.layouts' --no-tests=error --output-on-failure 2>&1 | tee evidence/ctest.log
+          fi
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Native CLAP protocol validation of both fixtures (upstream mature validator)
+        run: |
+          mkdir -p validator
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            asset=clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+            digest=49edadcfb407ea0dd946ce418300e853fbd2660fa4b0d00e4f19ff8eef24ad90
+            executable=validator/clap-validator
+          else
+            asset=clap-validator-0.4.1-127-g152b982-windows.zip
+            digest=d935c3af0a45c3911ea2e900f4aa5d6709dac82bb485f0c4ce28648ab2cd0c10
+            executable=validator/clap-validator.exe
+          fi
+          curl -fL --retry 2 "https://github.com/free-audio/clap-validator/releases/download/0.4.1/$asset" -o validator.zip
+          printf '%s  validator.zip\n' "$digest" | sha256sum -c -
+          python -c "import zipfile; zipfile.ZipFile('validator.zip').extractall('validator')"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            tar -xzf validator/*.tar.gz -C validator
+          fi
+          chmod +x "$executable"
+          "$executable" --version | tee evidence/clap-validator-version.txt
+          for name in TsunamiFixture TsunamiMonoFixture; do
+            plugin="$(python -c "from pathlib import Path; print(next(Path('build').rglob('${name}_artefacts/**/*.clap')).resolve())")"
+            if [[ "$RUNNER_OS" == Linux ]]; then
+              xvfb-run -a "$executable" validate --json --jobs 2 "$plugin" > "evidence/clap-validator-$name.json"
+            else
+              "$executable" validate --json --jobs 2 "$plugin" > "evidence/clap-validator-$name.json"
+            fi
+          done
+      - name: Matching corresponding source and notices beside experimental binaries
+        if: always()
+        run: |
+          mkdir -p evidence
+          git archive --format=tar HEAD -o evidence/project-source.tar
+          if [[ -d build/_deps/juce-src && -d build/_deps/clap_juce-src ]]; then
+            tar --exclude=.git -cf evidence/dependency-source.tar -C build/_deps juce-src clap_juce-src
+          fi
+          cp LICENSE THIRD_PARTY_NOTICES.md dependencies.lock.json evidence/
+          cp -r LICENSES evidence/
+          git rev-parse HEAD > evidence/checkout-sha.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha }}" > evidence/pr-head-sha.txt
+      - name: Retain exact build bytes and diagnostic evidence (not a release)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: clap-layouts-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            build/TsunamiFixture_artefacts/Release/CLAP/
+            build/tests/clap/TsunamiMonoFixture_artefacts/Release/CLAP/
+            build/tsunami-clap-wrapper/
+            build/Testing/Temporary/
+            build/tests/clap/Testing/Temporary/
+            evidence/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,92 @@
+[
+ {
+  "find": [
+   "        const auto busDefaultLayout = bus->getDefaultLayout();"
+  ],
+  "replace": [
+   "        // Tsunami: processors offering mono/stereo configs report the selected (current) layout.",
+   "        const auto busDefaultLayout =",
+   "            tsunamiOffersMonoStereo ? bus->getCurrentLayout() : bus->getDefaultLayout();"
+  ]
+ },
+ {
+  "find": [
+   "        info->channel_count = (uint32_t)busDefaultLayout.size();"
+  ],
+  "replace": [
+   "        info->channel_count = (uint32_t)busDefaultLayout.size();",
+   "        info->port_type = nullptr; // Tsunami: deterministic for non-mono/stereo buses"
+  ]
+ },
+ {
+  "find": [
+   "        defineAudioPorts();",
+   "",
+   "        return true;"
+  ],
+  "replace": [
+   "        defineAudioPorts();",
+   "        tsunamiOffersMonoStereo = processor->getBusCount(true) == 1 &&",
+   "                                  processor->getBusCount(false) == 1 &&",
+   "                                  processor->checkBusesLayoutSupported(tsunamiLayout(1)) &&",
+   "                                  processor->checkBusesLayoutSupported(tsunamiLayout(2));",
+   "",
+   "        return true;"
+  ]
+ },
+ {
+  "find": [
+   "    uint32_t audioPortsConfigCount() const noexcept override",
+   "    {",
+   "        DBG(\"audioPortsConfigCount CALLED - returning 0\");",
+   "        return 0;",
+   "    }",
+   "    bool audioPortsGetConfig(uint32_t /*index*/,",
+   "                             clap_audio_ports_config * /*config*/) const noexcept override",
+   "    {",
+   "        return false;",
+   "    }",
+   "    bool audioPortsSetConfig(clap_id /*configId*/) noexcept override { return false; }"
+  ],
+  "replace": [
+   "    // Tsunami addition (GPL-3.0-or-later, build-local derived copy of this MIT file): host-selectable",
+   "    // mono/stereo configs, offered only for 1-in/1-out processors that accept both layouts.",
+   "    static constexpr clap_id tsunamiMonoConfigId = 1, tsunamiStereoConfigId = 2;",
+   "    bool tsunamiOffersMonoStereo{false};",
+   "    static juce::AudioProcessor::BusesLayout tsunamiLayout(int channels)",
+   "    {",
+   "        juce::AudioProcessor::BusesLayout layout;",
+   "        layout.inputBuses.add(juce::AudioChannelSet::canonicalChannelSet(channels));",
+   "        layout.outputBuses.add(juce::AudioChannelSet::canonicalChannelSet(channels));",
+   "        return layout;",
+   "    }",
+   "    bool implementsAudioPortsConfig() const noexcept override { return tsunamiOffersMonoStereo; }",
+   "    uint32_t audioPortsConfigCount() const noexcept override { return tsunamiOffersMonoStereo ? 2 : 0; }",
+   "    bool audioPortsGetConfig(uint32_t index, clap_audio_ports_config *config) const noexcept override",
+   "    {",
+   "        if (!tsunamiOffersMonoStereo || index > 1 || config == nullptr)",
+   "            return false;",
+   "        const bool mono = index == 1; // index 0 is the stereo default",
+   "        const auto type = mono ? CLAP_PORT_MONO : CLAP_PORT_STEREO;",
+   "        config->id = mono ? tsunamiMonoConfigId : tsunamiStereoConfigId;",
+   "        snprintf(config->name, sizeof(config->name), \"%s\", mono ? \"Mono\" : \"Stereo\");",
+   "        config->input_port_count = 1;",
+   "        config->output_port_count = 1;",
+   "        config->has_main_input = true;",
+   "        config->main_input_channel_count = mono ? 1 : 2;",
+   "        config->main_input_port_type = type;",
+   "        config->has_main_output = true;",
+   "        config->main_output_channel_count = mono ? 1 : 2;",
+   "        config->main_output_port_type = type;",
+   "        return true;",
+   "    }",
+   "    bool audioPortsSetConfig(clap_id configId) noexcept override",
+   "    {",
+   "        if (!tsunamiOffersMonoStereo || isActive() ||",
+   "            (configId != tsunamiMonoConfigId && configId != tsunamiStereoConfigId))",
+   "            return false;",
+   "        return processor->setBusesLayout(tsunamiLayout(configId == tsunamiMonoConfigId ? 1 : 2));",
+   "    }"
+  ]
+ }
+]
