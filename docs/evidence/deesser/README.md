@@ -1,6 +1,6 @@
 # DeEsser (Tsunami De-Esser) evidence
 
-Status: portable DSP core functionally matched on every stored genuine render case below. **Partial target**: a code-drawn editor exists (`plugins/deesser/Editor.hpp`) but is tested only in a JUCE harness and is not in a product build; no foundation (root CMake/plugin wrapper) integration, parameter automation within a block is not modelled; block-boundary changes are tested on the Tsunami core only (no genuine automation oracle). Not marked verified.
+Status: portable DSP core functionally matched on every stored genuine render case below (stored older evidence; no new reference captures). **Partial target**: the code-drawn editor (`plugins/deesser/Editor.hpp`) and core are registered through `plugins/deesser/tsunami.cmake` and compile into real VST3/CLAP with the shared Adapter, locally on Linux against the unmerged shared PR23 root only (no Windows build, no current-head native CI product job yet, no host load/scan); parameter automation within a block is not modelled; block-boundary changes are tested on the Tsunami core only (no genuine automation oracle). Not marked verified.
 
 ## Implementation
 `plugins/deesser/Processor.{h,cpp}` (C++17, namespace `tsunami::deesser`):
@@ -35,12 +35,12 @@ The comparison reads stored private oracle renders only; no vendor code or audio
 The genuine oracle (`runtime/oracle.py`, RUNNER_CONTRACT.md) fixes controls before processing: "sampled automation timeline not yet supported". No genuine automation comparison is therefore possible. Instead, `tests/deesser/test_automation.cpp` steps Threshold (0 <-> -40 dB) and Freq (4000 <-> 12000 Hz) between 512-sample blocks on a 7 kHz 0.5-amplitude tone at 48 kHz, in Wideband and Split, against thresholds predeclared in `thresholds.json` (`block_boundary_automation`: max per-sample gain step <= 0.05, grounded on the recovered 0.5 ms fast attack smoother, 1-exp(-1/24)=0.0408; click excess over input slew <= 0.03).
 TDD witness: RED = test failed to compile (`'class tsunami::deesser::Processor' has no member named 'gainReductionDb'`); GREEN = all 8 cases PASS, worst max_gain_step 0.0341 (threshold 0->-40 Wideband), click_excess 0 everywhere (`automation-block-boundary.txt`).
 Threshold changes are smoothed by the recovered attack/release gain smoothers; Freq changes recompute coefficients immediately with filter state retained (the core adds no parameter ramp, since no recovered evidence shows one).
-Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, positive dB) and `detectorLevelDb()` (peak detector envelope, dBFS) are lock-free relaxed atomics written once per `process()`; audio output is unchanged (stored genuine comparison re-run: all PASS).
+Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `detectorLevelDb()` (peak detector envelope, Threshold scale) are lock-free relaxed atomics folded in with a CAS max on every `process()` and held until `take*()`/`reset()` (see round 2 task 4); audio output is unchanged (stored genuine comparison re-run: all PASS).
 
 ## Remaining limitations
 - Parameter changes mid-stream not compared to the genuine plugin (oracle has no automation path); intra-block (sample-accurate) changes not modelled.
 - Sample rates outside 44.1/48/96 kHz, and Freq near 16 kHz at 44.1 kHz (Nyquist clamp path), not compared.
-- Editor tested only in a harness (not in CMake/CI); no host wrapper; root build integration belongs to the foundation worker. Energy/Atten have no data in the product build until the foundation Adapter exposes the core meters.
+- Native product wrapper: see "Native wrapper integration" at the end. Energy/Atten have no data in the product build (drawn empty, readouts `--`): the core's meters are max-since-`take*()`, while the shared Adapter's `meterCount`/`meter()` hook (PR23) publishes a const peek after every block, which would hold the maximum until the next `reset()`. Hooking them needs either a take-on-publish meter contract in the shared Adapter or a core accessor change; neither is done here.
 
 ## Round 2: editor and mid-stream automation
 - `tests/deesser/test_editor_model.cpp` (ctest `deesser_editor_model`, no JUCE): every control maps to a genuine parameter, and no control is invented. Covers clamp/quantise, the Freq taper, display text, all-or-nothing state restore, Energy/Atten fed from the core's realtime-safe meters, and infinite peak hold with click reset.
@@ -50,7 +50,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, p
   - Atten/Energy readings taken from the core
   - Output readings taken from MeterSource
 
-  It was compiled against the pinned JUCE9 build cache, using origin/main `shared/` and the adapter_test link line, and run under xvfb. It is not wired into CMake because the root build integrates only s1.
+  It was compiled against the pinned JUCE9 build cache, using origin/main `shared/` and the adapter_test link line, and run under xvfb. It is still a harness test; the real-Adapter product test is `tests/deesser/adapter_test.cpp` (below).
 - `automation-midstream.txt`: the genuine oracle cannot apply mid-render parameter changes. The splice model was measured against the predeclared criteria in `thresholds.json` and is invalid for Threshold, Freq, SideChain (both directions) and Audio Wideband->Split; valid on the core only for Monitor and Audio Split->Wideband. No genuine mid-stream claim is made.
 - `ui-checklist.md`: a control-by-control comparison against the manual figure.
 
@@ -61,3 +61,29 @@ Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, p
 - Freq slider: the ineffective JUCE skew call was removed. A slider-side custom `NormalisableRange` (2000*8^n, whole Hz, `ui::proportionToFreq`/`freqToProportion`, test 6c) is set after the attachment. The JUCE editor test was NOT re-run in this round.
 - Atten readout shows "0.0" when idle instead of "-0.0" (`ui::attenReadout`, test 6d).
 - `thresholds.json` `ordering_note`: values unchanged; the self-reported declaration stamps are not provable from git.
+
+## Native wrapper integration (Linux local build only; PR23 dependency)
+- `plugins/deesser/tsunami.cmake`: plugin-local registration `tsunami_plugin(TsunamiDeEsser "${TSUNAMI_PLUGIN_DIR}" deesser "Tsunami De-Esser" TsDE "tsunami::deesser::Processor")` plus ctest `deesser.adapter`. `TsDE` is not used by any other registration (TsFx, TsS1, TsRV). It takes effect only with the shared root from PR23 (`integration/shared-foundation` @ 3b64a12): `include("${TSUNAMI_PLUGIN_DIR}/tsunami.cmake")` and generic `TSUNAMI_PLUGIN_ID`. On main (7781f52), `tools/release.py` does not discover it yet; it discovers only s1.
+- The generator picks up `Editor.hpp` and emits `PluginSpec::createEditor` -> `tsunami::createPluginEditor`, so hosts get this editor, not the fixture fallback. Parameter ranges, choice labels and the log taper come from PR23's metadata generator; DSP and parameter mapping are unchanged in this slice.
+- `tests/deesser/adapter_test.cpp` (real `Adapter<PluginSpec>` via `createPluginFilter()`) checks:
+  - identity and the 6 parameters (order, range, default, choice labels)
+  - that this editor is attached, with UI->parameter and host->UI bindings
+  - state round trip into parameters and UI
+  - a stereo 7 kHz render bit-identical to `tsunami::deesser::Processor` and attenuated at Threshold -40 dB
+  - Output meters fed by `MeterSource`
+  - Energy/Atten not fed (`--`, bars empty) and no `CoreMeterSource`/`DetectorMeterSource` exposed
+  - the painted editor snapshot is 380x380
+- Witness (logs in campaign state `state/deesser-native/`):
+  - RED: configuring the PR23 root with `TSUNAMI_PLUGIN_ID=deesser` failed with `plugins/deesser has no tsunami.cmake registration`.
+  - GREEN: configure OK, then `TsunamiDeEsser_VST3`, `TsunamiDeEsser_CLAP` and `deesser_adapter_test` built with pinned JUCE 3fb5cbc and the cached clap-juce-extensions.
+  - Exports: `GetPluginFactory`/`ModuleEntry`/`ModuleExit` (VST3 .so) and `clap_entry` (.clap).
+  - Test result: `xvfb-run ctest -R deesser.adapter` Passed (`PASS DeEsser real Adapter: identity, editor bindings, state, render parity, meters`).
+- Reproduce: `cmake -S <PR23 root> -B build -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT=<this repo> -DTSUNAMI_PLUGIN_ID=deesser -DTSUNAMI_JUCE_SOURCE=<pinned JUCE> -DTSUNAMI_CLAP_SOURCE=<clap-juce-extensions>`, then `cmake --build build --target deesser_adapter_test TsunamiDeEsser_VST3 TsunamiDeEsser_CLAP`, then `xvfb-run -a ctest --test-dir build -R deesser.adapter`.
+- Not claimed:
+  - Windows build
+  - current-head native CI product job
+  - host scan/load (pluginval/clap-validator)
+  - release packaging
+  - acceptance
+
+  Generic S1/foundation CI results are not DeEsser evidence. Sidechain input and mono buses are not exposed: the wrapper is stereo in/out only, and the internal SideChain filter and Monitor modes are the existing parameters.
