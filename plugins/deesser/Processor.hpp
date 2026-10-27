@@ -51,6 +51,7 @@ private:
  static void foldMax(std::atomic<float>& a,float v) noexcept {float cur=a.load(std::memory_order_relaxed);while(v>cur&&!a.compare_exchange_weak(cur,v,std::memory_order_relaxed)){}}
  std::atomic<float> gainReductionDb_{0.f},detectorLevelDb_{-120.f};
  float blockGainReductionDb_=0.f,blockDetectorLevelDb_=-120.f;
+ bool unsupportedRate_=false;
 };
 namespace detail {constexpr double pi=3.14159265358979323846; inline float clip(float x) noexcept{return std::clamp(x,-1.0f,0.999999f);}}
 inline double Processor::Section::tick(double x) noexcept {
@@ -73,8 +74,12 @@ inline void Processor::updateFilters() noexcept {
  }
 }
 inline void Processor::prepare(double r,unsigned c,unsigned){
- if(!std::isfinite(r)||r<8000||r>384000||c<1||c>2)throw std::invalid_argument("deesser: unsupported sample rate/channel layout");
- rate_=r;channels_=c;
+ if(c<1||c>2)throw std::invalid_argument("deesser: unsupported channel layout");
+ // Host-rate policy (not vendor parity): outside the accepted 8-384 kHz DSP domain the core does not
+ // throw into the host; it passes audio through unchanged (as Bypass) until prepared at a supported rate.
+ channels_=c;unsupportedRate_=!std::isfinite(r)||r<8000||r>384000;
+ if(unsupportedRate_){reset();return;}
+ rate_=r;
  const auto pole=[r](double ms){return float(std::exp(-1/(r*ms*.001)));};
  envelopeRise_=pole(.00434294);envelopeFall_=pole(.434294);
  attack_={pole(.5),pole(3.98)};
@@ -100,7 +105,7 @@ inline void Processor::process(const float* const* in,float* const* out,unsigned
  double minGain=1;float peakEnvelope=0;
  for(unsigned i=0;i<n;++i){
   float x[2]={in[0][i],0}; if(channels_==2)x[1]=in[1][i];
-  if(params_[5]>.5f){for(unsigned c=0;c<channels_;++c)out[c][i]=x[c];continue;}
+  if(params_[5]>.5f||unsupportedRate_){for(unsigned c=0;c<channels_;++c)out[c][i]=x[c];continue;}
   for(auto& v:x)if(!std::isfinite(v))v=0; // non-finite input must not poison filter/detector state
   double side=channels_==2?(x[0]+x[1])*.5f:x[0];
   for(auto& s:detector_)side=s.tick(side);

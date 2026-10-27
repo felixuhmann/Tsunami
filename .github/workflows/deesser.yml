@@ -9,6 +9,7 @@ concurrency:
   group: deesser-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  # Evidence steps after a successful build run even if an earlier gate failed; any failed gate still fails the job.
   native:
     name: deesser-native-${{ matrix.os }} (hosted DeEsser core + product editor; fidelity not claimed)
     strategy:
@@ -41,8 +42,10 @@ jobs:
       - name: Configure pinned JUCE and CLAP wrapper with plugin-local registration
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_SOURCE_ROOT="$PWD" -DTSUNAMI_PLUGIN_ID=deesser
       - name: Build actual DeEsser native format modules and real-Adapter test
+        id: build
         run: cmake --build build --config Release --target TsunamiDeEsser_VST3 TsunamiDeEsser_CLAP deesser_adapter_test --parallel 2
       - name: CTest (real Adapter, product editor, meters)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           mkdir -p evidence
           if [[ "$RUNNER_OS" == Linux ]]; then
@@ -52,6 +55,7 @@ jobs:
           fi
           grep -q 'PASS DeEsser real Adapter' evidence/deesser-adapter-test.log
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           mkdir -p evidence validator
           if [[ "$RUNNER_OS" == Linux ]]; then
@@ -78,6 +82,7 @@ jobs:
             "$executable" validate --json --jobs 2 "$plugin" > evidence/clap-validator.json
           fi
       - name: Download hash-locked mature VST3 validator/editor host (pluginval 1.0.4)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           mkdir -p editor-host evidence
           if [[ "$RUNNER_OS" == Linux ]]; then
@@ -92,9 +97,11 @@ jobs:
           "$host" --version | tee evidence/pluginval-version.txt
           grep -qx 'pluginval - 1.0.4' evidence/pluginval-version.txt
       - name: Install hash-locked mature host wheels
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           python -m pip install --only-binary=:all: --require-hashes -r tools/host-requirements.txt
       - name: Native VST3 render, state and rate/block matrix (Pedalboard)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           mkdir -p evidence
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
@@ -104,12 +111,13 @@ jobs:
             timeout 300 python tests/foundation/host_smoke.py "$plugin" evidence
           fi
       - name: Windows pluginval strictness 6 (VST3 validator incl. editor tests)
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Windows' }}
         run: |
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
           timeout 300 editor-host/pluginval.exe --validate-in-process --strictness-level 6 --random-seed 17 --validate "$plugin" > evidence/deesser-pluginval-windows.log 2>&1 || { cat evidence/deesser-pluginval-windows.log; exit 1; }
           grep -E '^SUCCESS' evidence/deesser-pluginval-windows.log
       - name: Actual DeEsser hosted editor capture (exact module/PID, 380x380 product size)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiDeEsser_artefacts').rglob('Tsunami De-Esser.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then

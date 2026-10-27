@@ -145,6 +145,27 @@ int main() {
     // Paint the product editor: non-uniform image of the expected size.
     auto image = ed->createComponentSnapshot(ed->getLocalBounds());
     CHECK(image.getWidth() == 380 && image.getHeight() == 380 && image.getPixelAt(5, 5) != image.getPixelAt(158, 200), 23, "editor renders");
+    // Host-rate policy (not vendor parity): hosts/validators may prepare outside the accepted 8-384 kHz
+    // DSP domain (clap-validator 0.4.1 process-varying-sample-rates aborted on the core's thrown
+    // std::invalid_argument, run 40555152920). The core must not throw into the host; there it passes
+    // audio through unchanged (as Bypass) and resumes de-essing once prepared at a supported rate.
+    for (double rate : {1000.0, 768000.0}) {
+        try { p->prepareToPlay(rate, 512); }
+        catch (const std::exception& e) { std::cerr << "FAIL prepareToPlay(" << rate << ") threw: " << e.what() << "\n"; return 24; }
+        juce::AudioBuffer<float> dry(2, 512);
+        for (int i = 0; i < 512; ++i) for (int c = 0; c < 2; ++c) dry.setSample(c, i, .5f * std::sin(.3f * float(i + c)));
+        b.makeCopyOf(dry); p->processBlock(b, m);
+        for (int i = 0; i < 512; ++i) for (int c = 0; c < 2; ++c)
+            CHECK(b.getSample(c, i) == dry.getSample(c, i), 25, "unsupported host rate passes audio through unchanged");
+        CHECK(coreMeters->coreMeter(1) == 0.f, 26, "no gain reduction reported at an unsupported rate");
+    }
+    p->prepareToPlay(48000, 512);
+    for (int k = 0; k < 8; ++k) {
+        for (int i = 0; i < 512; ++i) for (int c = 0; c < 2; ++c)
+            b.setSample(c, i, .5f * std::sin(2.f * 3.14159265f * 7000.f * float(k * 512 + i) / 48000.f));
+        p->processBlock(b, m);
+    }
+    CHECK(coreMeters->coreMeter(1) >= 3.f, 27, "de-essing resumes after re-prepare at a supported rate");
     ed.reset();
     p->releaseResources();
     std::cout << "PASS DeEsser real Adapter: identity, editor bindings, state, render parity, meters\n";
