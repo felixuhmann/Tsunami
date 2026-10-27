@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #define CHECK(cond, code, what) do { if (!(cond)) { std::cerr << "FAIL " << what << "\n"; return code; } } while (0)
 
@@ -295,6 +296,16 @@ int main() {
         ed.mouseUp(event(ed, {340.f, 312.f}, {120.f, 92.f}, true));
         return dynamic_cast<tsunami::rvox::Editor&>(ed).isLinked("compression");
     };
+    // The leader's own write must also sit in exactly one host gesture; failures are
+    // collected so every leader path is reported before the check.
+    std::vector<std::string> leaderFailures;
+    auto leaderCheck = [&](const std::string& what, size_t li, const Bracketed::Counts& before) {
+        const int changes = host.changes[li] - before.changes[li], loose = host.loose[li] - before.loose[li],
+                  begins = host.begins[li] - before.begins[li];
+        std::cout << "LEADER " << what << " changes=" << changes << " unbracketed=" << loose << " begins=" << begins
+                  << " ends=" << host.ends[li] - before.ends[li] << "\n";
+        if (changes == 0 || loose != 0 || begins != 1) leaderFailures.push_back(what);
+    };
     p.addListener(&host);
     const char* paths[] = {"drag", "close-mid-drag", "key", "wheel", "double-click reset", "alt-click reset", "value entry",
                            "comp-led close-mid-drag"};
@@ -338,7 +349,44 @@ int main() {
         CHECK(host.begins[fi] == before.begins[fi] + 1, 84, "one follower host gesture per user action");
         CHECK(!host.invalid && (host.open == std::array<int, 3>{}) && host.begins == host.ends, 85, "follower gestures balanced");
         CHECK(host.changes[1] == before.changes[1] && host.begins[1] == before.begins[1], 86, "unlinked gate untouched");
+        leaderCheck(paths[k], k == 7 ? 0 : 2, before);
     }
+    {
+        // Unlinked leaders: own gesture only, no write or gesture on the other fader.
+        p.removeListener(&host); setPhysical(0, -20.f); setPhysical(1, -80.f); setPhysical(2, -10.f); p.addListener(&host);
+        std::unique_ptr<juce::AudioProcessorEditor> ed(p.createEditor());
+        auto* g = child<juce::Slider>(*ed, "gain");
+        auto* c = child<juce::Slider>(*ed, "compression");
+        auto unlinked = [&](const char* what, size_t li, auto&& action) {
+            const auto before = host.c;
+            action();
+            leaderCheck(what, li, before);
+            const size_t other = li == 2 ? 0 : 2;
+            if (host.changes[other] != before.changes[other] || host.begins[other] != before.begins[other] ||
+                !(host.open == std::array<int, 3>{}) || host.invalid)
+                leaderFailures.push_back(std::string(what) + " isolation/balance");
+        };
+        unlinked("unlinked gain key", 2, [&] { g->keyPressed(juce::KeyPress(juce::KeyPress::downKey)); });
+        unlinked("unlinked comp key", 0, [&] { c->keyPressed(juce::KeyPress(juce::KeyPress::upKey)); });
+        unlinked("unlinked gain value entry", 2, [&] { child<juce::Label>(*ed, "gain_value")->setText("-4.5", juce::sendNotificationSync); });
+        unlinked("unlinked comp value entry", 0, [&] { child<juce::Label>(*ed, "comp_value")->setText("-25", juce::sendNotificationSync); });
+        // Inputs that change nothing open no gesture: unhandled key, modified arrow, same value.
+        const auto quiet = host.c;
+        CHECK(!g->keyPressed(juce::KeyPress('x')), 94, "unhandled key ignored");
+        CHECK(!g->keyPressed(juce::KeyPress(juce::KeyPress::upKey, juce::ModifierKeys::shiftModifier, 0)), 94, "modified arrow ignored");
+        child<juce::Label>(*ed, "gain_value")->setText("-4.5", juce::sendNotificationSync);
+        CHECK(host.begins == quiet.begins && host.changes == quiet.changes, 95, "no gesture without a change");
+        // A key during a live drag joins that drag's gesture rather than nesting one.
+        const auto dragBefore = host.c;
+        g->mouseDown(event(*g, {16.f, 90.f}, {16.f, 90.f}, false));
+        g->mouseDrag(event(*g, {16.f, 110.f}, {16.f, 90.f}, true));
+        CHECK(g->keyPressed(juce::KeyPress(juce::KeyPress::upKey)), 96, "key during drag handled");
+        g->mouseUp(event(*g, {16.f, 110.f}, {16.f, 90.f}, true));
+        CHECK(!host.invalid && host.begins[2] == dragBefore.begins[2] + 1 && host.loose[2] == dragBefore.loose[2] &&
+              (host.open == std::array<int, 3>{}), 96, "key during drag does not nest a gesture");
+    }
+    for (const auto& what : leaderFailures) std::cerr << "LEADER UNBRACKETED " << what << "\n";
+    CHECK(leaderFailures.empty(), 93, "leader key and value-entry writes bracketed by host gestures");
     {
         // Host automation and state recall reach linked faders without user origin:
         // no follower write and no editor-originated gesture.

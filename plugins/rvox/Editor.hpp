@@ -14,6 +14,7 @@
 #include <array>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -125,8 +126,19 @@ public:
         const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseDoubleClick(e);
     }
     bool keyPressed(const juce::KeyPress& e) override {
-        const juce::ScopedValueSetter<bool> origin(userChange, true); return juce::Slider::keyPressed(e);
+        const juce::ScopedValueSetter<bool> origin(userChange, true);
+        // JUCE's arrow-key step writes outside a drag; give it the host gesture the
+        // pointer, wheel and reset paths already get, unless a drag is already open.
+        const bool step = !e.getModifiers().isAnyModifierKeyDown() &&
+                          (e == juce::KeyPress::upKey || e == juce::KeyPress::downKey ||
+                           e == juce::KeyPress::leftKey || e == juce::KeyPress::rightKey);
+        std::optional<juce::Slider::ScopedDragNotification> gesture;
+        if (step && drags == 0) gesture.emplace(*this);
+        return juce::Slider::keyPressed(e);
     }
+    int drags = 0; // open drag notifications on this slider
+    void startedDragging() override { ++drags; }
+    void stoppedDragging() override { --drags; }
     void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override {
         const juce::ScopedValueSetter<bool> origin(userChange, true); juce::Slider::mouseWheelMove(e, w);
     }
@@ -302,7 +314,11 @@ private:
         f.value.onTextChange = [&f, minimum] {
             const juce::ScopedValueSetter<bool> origin(f.slider.userChange, true);
             const auto text = f.value.getText();
-            f.slider.setValue(text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue(), juce::sendNotificationSync);
+            const double target = juce::jlimit(minimum, f.slider.getMaximum(), text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue());
+            // Same rule as JUCE's own value box: an edited value that changes is a gesture.
+            std::optional<juce::Slider::ScopedDragNotification> gesture;
+            if (f.slider.drags == 0 && !juce::approximatelyEqual(target, f.slider.getValue())) gesture.emplace(f.slider);
+            f.slider.setValue(target, juce::sendNotificationSync);
         };
         f.slider.onValueChange = [this, &f, minimum, id = juce::String(id)] {
             const double now = f.slider.getValue(), delta = now - f.last;
