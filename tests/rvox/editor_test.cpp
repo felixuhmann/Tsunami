@@ -460,6 +460,9 @@ int main() {
                 if (!approx(physical(1), -35.5f) || child<juce::Label>(*ed, "gate_value")->getText() != "-35.5") entryFailures.push_back("gate finite -35.5");
                 child<juce::Label>(*ed, "gate_value")->setText("-Infinity", juce::sendNotificationSync);
                 if (physical(1) != -80.f || child<juce::Label>(*ed, "gate_value")->getText() != "-inf") entryFailures.push_back("gate -Infinity is off");
+                // Malformed entry with the gate off restores the gate's own "-inf" readout.
+                child<juce::Label>(*ed, "gate_value")->setText("nan", juce::sendNotificationSync);
+                if (physical(1) != -80.f || child<juce::Label>(*ed, "gate_value")->getText() != "-inf") entryFailures.push_back("gate off readout after nan");
             } else {
                 // Host automation and state recall after malformed entry: no follower write, no gesture.
                 juce::MemoryBlock saved; p.getStateInformation(saved);

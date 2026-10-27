@@ -312,14 +312,14 @@ private:
         f.value.setBounds(readout);
         f.last = f.slider.getValue();
         f.value.setText(formatDb(f.last, juce::String(id) == "gate" ? minimum : -1e9), juce::dontSendNotification);
-        f.value.onTextChange = [&f, minimum, floor = juce::String(id) == "gate" ? minimum : -1e9] {
+        f.value.onTextChange = [&f, minimum, readoutFloor = juce::String(id) == "gate" ? minimum : -1e9] {
             const juce::ScopedValueSetter<bool> origin(f.slider.userChange, true);
             const auto text = f.value.getText();
             const double parsed = text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue();
             // JUCE parses "nan" to NaN and an overflowing exponent to +/-inf; reject those
             // before any clamp, gesture or write and show the current value again.
             if (!std::isfinite(parsed)) {
-                f.value.setText(formatDb(f.slider.getValue(), floor), juce::dontSendNotification);
+                f.value.setText(formatDb(f.slider.getValue(), readoutFloor), juce::dontSendNotification);
                 return;
             }
             const double target = juce::jlimit(minimum, f.slider.getMaximum(), parsed);
