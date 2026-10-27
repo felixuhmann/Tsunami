@@ -113,5 +113,50 @@ int main() {
         for (float v : outv) check(v == 0.0f, "unprepared process outputs silence");
     }
     std::cout << "PASS gain ceiling recompute and unprepared guard\n";
+    // Lifecycle (project API contract, replacement policy): host wrappers apply
+    // controls before prepare(). Accepted controls survive prepare, reprepare and
+    // reset; the result equals the same controls applied after prepare().
+    {
+        std::vector<float> in(3000);
+        std::uint32_t seed = 21;
+        for (unsigned i = 0; i < in.size(); ++i) in[i] = signal(seed, i);
+        const auto render = [&in](MonoProcessor& m) {
+            std::vector<float> out(in.size());
+            m.process(in.data(), out.data(), static_cast<unsigned>(in.size()));
+            return out;
+        };
+        MonoProcessor after;
+        check(after.prepare(96000) && after.configureWet(compressing())
+              && after.setOutput(6.0f, -3.0f, 40.0f), "reference after prepare");
+        const std::vector<float> expected = render(after);
+
+        MonoProcessor before;
+        check(before.setOutput(6.0f, -3.0f, 40.0f), "setOutput accepted before prepare");
+        check(before.configureWet(compressing()), "configureWet accepted before prepare");
+        check(before.wetCoefficients().ceiling == static_cast<float>(ceilingForGainDb(6.0)),
+              "pre-prepare Gain sets the ceiling");
+        check(!before.setOutput(31.0f, 0.0f, 0.0f) && !before.setOutput(NAN, 0.0f, 0.0f)
+              && !before.setOutput(0.0f, 19.0f, 0.0f), "pre-prepare invalid rejected");
+        check(before.prepare(96000), "prepare after controls");
+        check(render(before) == expected, "pre-prepare controls survive prepare");
+
+        // Reprepare at another rate then back: identical to a fresh prepare.
+        check(before.prepare(44100) && before.prepare(96000), "reprepare");
+        check(render(before) == expected, "reprepare keeps accepted controls");
+        check(!before.prepare(-1), "invalid reprepare");
+        before.reset();
+        check(render(before) == expected, "reset/failed prepare keep accepted controls");
+
+        // In-place and zero-frame processing.
+        before.reset();
+        std::vector<float> inplace = in;
+        before.process(inplace.data(), inplace.data(), static_cast<unsigned>(inplace.size()));
+        check(inplace == expected, "in-place equals out-of-place");
+        before.process(nullptr, nullptr, 0);
+        MonoProcessor idle;
+        idle.reset();
+        idle.process(nullptr, nullptr, 0);
+    }
+    std::cout << "PASS pre-prepare controls, reprepare/reset preservation, in-place/zero-frame\n";
     return 0;
 }

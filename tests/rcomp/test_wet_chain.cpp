@@ -91,5 +91,34 @@ int main() {
     check(!loud.configure(bad), "invalid coefficients rejected");
     check(!loud.prepare(0), "invalid rate rejected");
     std::cout << "PASS history-domain entry, below-knee identity, reduction, validation\n";
+
+    // Lifecycle (project API policy): makeup set before prepare() is kept and
+    // applied by prepare(); unprepared ticks are silent instead of indexing an
+    // empty history. Invalid pre-prepare makeup is rejected without mutation.
+    {
+        WetPath early;
+        check(early.tick(1.0f, 0.5f) == 0.0f, "unprepared WetPath tick is silent");
+        check(!early.setMakeup(31.0f) && !early.setMakeup(NAN), "pre-prepare invalid makeup");
+        check(early.setMakeup(4.0f), "pre-prepare WetPath makeup accepted");
+        WetPath late;
+        check(early.prepare(96000) && late.prepare(96000) && late.setMakeup(4.0f), "wet prep");
+        check(early.makeupScale() == late.makeupScale(), "pre-prepare makeup applied");
+
+        WetChain before;
+        const WetPath::Aligned silent = before.tickAligned(0.7f);
+        check(silent.wet == 0.0f && silent.dry == 0.0f, "unprepared WetChain tick is silent");
+        check(before.setMakeup(4.0f) && before.configure(compressing()), "pre-prepare chain");
+        check(!before.setMakeup(-31.0f), "pre-prepare chain invalid makeup");
+        WetChain after;
+        check(before.prepare(48000) && after.prepare(48000) && after.configure(compressing())
+              && after.setMakeup(4.0f), "chain prep");
+        check(before.wetPath().makeupScale() == after.wetPath().makeupScale(),
+              "pre-prepare chain makeup applied");
+        for (int i = 0; i < 800; ++i) {
+            const float x = 0.9f * std::sin(0.05f * static_cast<float>(i));
+            check(before.tick(x) == after.tick(x), "pre-prepare chain equals post-prepare");
+        }
+    }
+    std::cout << "PASS pre-prepare makeup retention and unprepared silence\n";
     return 0;
 }
