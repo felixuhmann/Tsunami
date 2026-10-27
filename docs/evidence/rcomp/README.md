@@ -1,4 +1,4 @@
-# RComp: partial coefficient-domain DSP milestone
+# RComp: partial detector, gain and fixed-point audio-history milestone
 
 **Not a complete plugin, not reference-equivalent, and not adapter-ready.**
 Related issue: <https://github.com/felixuhmann/Tsunami/issues/6>.
@@ -30,6 +30,20 @@ real-time timing/allocation instrumentation and denormal policy remain unverifie
 The public static gain-law function requires finite nonnegative magnitude and the
 same validated coefficient domain. Reset-to-unity/zero-history is an independently
 chosen stage initialization, not yet proven to match the wrapper's initialization.
+
+`plugins/rcomp/GainHistory.h` now adds an independently written **fixed-point
+history → delayed wet-audio slice**, beyond the earlier control-gain helper:
+float32-to-integer quantization, signed right shifts, modulo-32-bit second-order
+smoothing, and aligned audio delay. Its restricted ring reduction and synthetic
+internal geometry are explicit; physical-control mapping is still unknown.
+[Detailed recovery, TDD and limitations](history-slice.md).
+
+An actual differential execution against the unmodified original auxiliary ELF
+passed **320 synthetic-coefficient cases / 327,680 samples with zero mismatches
+and maximum absolute error 0**. This is **not a full-plugin physical-control
+comparison or equivalence claim**. The separately written direct-FIR unit-test
+path also passed 327,680 exact sample comparisons. Sanitized provenance and
+results: [history-kernel-comparison.json](history-kernel-comparison.json).
 
 `parameters.json` inventories 11 observed user controls, excludes generic MIDI
 controls, and explicitly marks metadata-only status. Its indices are proposed
@@ -114,10 +128,12 @@ cmake --build /path/outside/source/rcomp-build -j2
 ctest --test-dir /path/outside/source/rcomp-build --output-on-failure
 ```
 
-Actual GCC 11.4.0/Linux result: **1/1 CTest passed**, warnings treated as errors.
-The same executable passed with AddressSanitizer and UndefinedBehaviorSanitizer;
-see [native-tests.txt](native-tests.txt). This proves the partial stage tests,
-not a hosted VST3/CLAP or native Windows build.
+Actual GCC 11.4.0/Linux result at this checkpoint: **2/2 CTests passed**, warnings
+treated as errors. Debug AddressSanitizer + UndefinedBehaviorSanitizer +
+float-cast-overflow also passed **2/2 CTests**; see
+[history-native-tests.txt](history-native-tests.txt). The earlier helper-only
+checkpoint is retained in [native-tests.txt](native-tests.txt). This proves partial
+standalone DSP tests, not a hosted VST3/CLAP or native Windows build.
 
 ## Exact remaining blockers / next bounded slice
 
@@ -125,8 +141,10 @@ not a hosted VST3/CLAP or native Windows build.
    contents/initialization and sample-rate dependence. Do not infer milliseconds
    from a generic exponential envelope or reinterpret normalized ratio as linear.
 2. Recover/integrate the kernel's maximum-history tree and ARC gain-increase table
-   update, soft gain scale/offset, fixed-point integer gain smoother, audio delay,
-   wet/dry coefficient smoothing, output gain/trim and metering.
+   update, soft gain scale/offset, wet/dry coefficient smoothing, output gain/trim
+   and metering. Integrate the recovered restricted fixed-point smoother/audio
+   delay with the wrapper's actual geometry and startup/prefill protocol; the new
+   slice does not establish those mappings.
 3. Cover stereo linking, Opto/Electro, Warm/Smooth and expansion ratios below one.
 4. Only then implement the complete `tsunami::rcomp::Processor` portable contract
    (`prepare/reset/setParameter/getParameter/process/latencySamples/tailSeconds`).

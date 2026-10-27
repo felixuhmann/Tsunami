@@ -1,0 +1,71 @@
+Native Linux standalone partial DSP verification
+
+COMMAND: ['cmake', '-S', 'plugins/rcomp', '-B', '/home/felix/work/tsunami-reference/analysis/rcomp/history-build', '-DCMAKE_BUILD_TYPE=Release']
+EXIT: 0
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/felix/work/tsunami-reference/analysis/rcomp/history-build
+
+COMMAND: ['cmake', '--build', '/home/felix/work/tsunami-reference/analysis/rcomp/history-build', '-j2']
+EXIT: 0
+Consolidate compiler generated dependencies of target rcomp_gain_history_tests
+Consolidate compiler generated dependencies of target rcomp_gain_stage_tests
+[ 75%] Built target rcomp_gain_stage_tests
+[ 75%] Building CXX object CMakeFiles/rcomp_gain_history_tests.dir/home/felix/work/tsunami-campaign/worktrees/rcomp/tests/rcomp/test_gain_history.cpp.o
+[100%] Linking CXX executable rcomp_gain_history_tests
+[100%] Built target rcomp_gain_history_tests
+
+COMMAND: ['ctest', '--test-dir', '/home/felix/work/tsunami-reference/analysis/rcomp/history-build', '--output-on-failure']
+EXIT: 0
+Internal ctest changing into directory: /home/felix/work/tsunami-reference/analysis/rcomp/history-build
+Test project /home/felix/work/tsunami-reference/analysis/rcomp/history-build
+    Start 1: rcomp_gain_stage
+1/2 Test #1: rcomp_gain_stage .................   Passed    0.00 sec
+    Start 2: rcomp_gain_history
+2/2 Test #2: rcomp_gain_history ...............   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.04 sec
+
+COMMAND: ['/home/felix/work/tsunami-reference/analysis/rcomp/history-build/rcomp_gain_history_tests']
+EXIT: 0
+PASS fixed-point gain history and delayed audio
+PASS reset clears both histories
+PASS invalid preparation is atomic
+PASS defined x86 quantization and signed shifts
+PASS independent direct FIR: 320 geometries, 327680 exact sample comparisons
+
+COMMAND: ['cmake', '-S', 'plugins/rcomp', '-B', '/home/felix/work/tsunami-reference/analysis/rcomp/history-asan', '-DCMAKE_BUILD_TYPE=Debug', '-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined,float-cast-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer']
+EXIT: 0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/felix/work/tsunami-reference/analysis/rcomp/history-asan
+
+COMMAND: ['cmake', '--build', '/home/felix/work/tsunami-reference/analysis/rcomp/history-asan', '-j2']
+EXIT: 0
+[ 25%] Building CXX object CMakeFiles/rcomp_gain_stage_tests.dir/home/felix/work/tsunami-campaign/worktrees/rcomp/tests/rcomp/test_gain_stage.cpp.o
+[ 50%] Building CXX object CMakeFiles/rcomp_gain_history_tests.dir/home/felix/work/tsunami-campaign/worktrees/rcomp/tests/rcomp/test_gain_history.cpp.o
+[ 75%] Linking CXX executable rcomp_gain_stage_tests
+[ 75%] Built target rcomp_gain_stage_tests
+[100%] Linking CXX executable rcomp_gain_history_tests
+[100%] Built target rcomp_gain_history_tests
+
+COMMAND: ['ctest', '--test-dir', '/home/felix/work/tsunami-reference/analysis/rcomp/history-asan', '--output-on-failure']
+EXIT: 0
+Internal ctest changing into directory: /home/felix/work/tsunami-reference/analysis/rcomp/history-asan
+Test project /home/felix/work/tsunami-reference/analysis/rcomp/history-asan
+    Start 1: rcomp_gain_stage
+1/2 Test #1: rcomp_gain_stage .................   Passed    0.03 sec
+    Start 2: rcomp_gain_history
+2/2 Test #2: rcomp_gain_history ...............   Passed    0.21 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.25 sec
