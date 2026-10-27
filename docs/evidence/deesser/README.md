@@ -180,7 +180,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
   - stereo restored and bit-identical to the 2-channel core (47-48);
   - all earlier tests pass, and the stereo render hash is unchanged (`c19f9aa561842753`).
 - Native host smoke, `tests/deesser/mono_host_smoke.py` (Pedalboard 0.9.26 from the hash-pinned `tools/host-requirements.txt` in a private CPython 3.11 venv). Run locally on Linux only:
-  - Negative control: the stereo-only CI module from 764825e is refused, `does not support 1-channel output`, so Pedalboard does not downmix.
-  - Mono-capable module: output (1, 8192), max diff vs the 1-channel core `0.0`, 12.27 dB of de-essing at -40 dB, transparent at 0 dB, state restore reproducible, stereo diff `0.0`.
+  - Negative control: the stereo-only CI module from 764825e (Linux `.so` sha256 `28296486b503f96f59bf103acf049c4a9ff02c7805b69946814a3c11c82fbbbf`) is refused, `does not support 1-channel output`. Pedalboard does not silently adapt a stereo plugin to mono.
+  - Mono-capable module: host-reported output (1, 8192), which is the mono proof together with Adapter check 43, max diff vs the 1-channel core `0.0` (checks processing only; with L = R a stereo core would give the same samples), 12.27 dB of de-essing at -40 dB, transparent at 0 dB, state restore reproducible, stereo diff `0.0`.
   - The workflow step was added after the pinned Pedalboard install. No Windows/Linux CI readback exists for it yet; it will fail on this branch until the generator support is merged.
 - CLAP: clap-validator 0.4.1 on the mono-capable CLAP exits 0 (31 success / 11 skipped / 2 warnings: denormal timing, random state). The plugin implements none of `audio-ports-config`, `configurable-audio-ports` or `audio-ports-activation`, so CLAP hosts are **not** offered a mono configuration. CLAP mono advertisement is unresolved, not waived.

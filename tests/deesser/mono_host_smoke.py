@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Native mono 1-in/1-out smoke of the actual DeEsser VST3 in a mature host (Pedalboard).
 
-Loads the exact module and processes a (1, N) buffer. Checks that the host really ran the plugin
-mono (output shape (1, N)) and that the output matches the 1-channel portable core renderer
-(so it is not a stereo plugin fed a duplicated/downmixed signal). Also checks active de-essing at
+Loads the exact module and processes a (1, N) buffer. Mono is proven by the host-reported output
+shape (1, N); a stereo-only module is refused by the host (negative control). Matching the
+1-channel portable core renderer checks the processing, but cannot by itself tell mono from
+duplicated-channel stereo (with L = R the core's sidechain (L+R)/2 equals the input). Also checks active de-essing at
 Threshold -40 dB, transparency at 0 dB, a state round trip, and that stereo (2, N) still matches
 the 2-channel core. Not a fidelity claim against the original plugin.
 

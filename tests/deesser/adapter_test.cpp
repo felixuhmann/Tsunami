@@ -271,7 +271,8 @@ int main() {
     }
     CHECK(coreMeters->coreMeter(1) >= 3.f, 27, "de-essing resumes after re-prepare at a supported rate");
     // Mono 1-in/1-out product layout (opt-in supports_mono; the core supports prepare(rate, 1, block)).
-    // Host-visible buses are mono and the core processes one channel: not a downmix of a stereo plugin.
+    // Mono is proven by the 1-in/1-out bus layout (43); matching the 1-channel core checks processing only
+    // (with L = R a stereo core would give the same samples).
     {
         using Layout = juce::AudioProcessor::BusesLayout;
         const auto mono = juce::AudioChannelSet::mono(), stereo = juce::AudioChannelSet::stereo();
