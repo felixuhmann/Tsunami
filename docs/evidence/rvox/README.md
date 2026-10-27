@@ -166,14 +166,17 @@ campaign owns full raw/oracle provenance and logs.
 - Hidden gate-release preset changes are not exposed/restored; only the recovered
   fresh default is implemented. Parameter display quantization/state integration
   require hosted adapter verification.
-- RVox is registered in the root build (`TSUNAMI_BUILD_RVOX`) and hosted by the
+- RVox is registered plugin-locally (`plugins/rvox/tsunami.cmake`, `TSUNAMI_PLUGIN_ID=rvox`)
+  as product **Tsunami Voice** (targets.json identity; plugin code TsRV) and hosted by the
   shared adapter as VST3/CLAP with an independently drawn product editor
   (`plugins/rvox/Editor.hpp`; Linux pluginval screenshot `hosted-editor-linux-pluginval.png`,
-  checklist `ui-checklist.md`). The Energy meter and Total Compression display read
-  existing core state through the shared `CoreMeterSource` bridge (PR #23, not yet
-  merged; without it they stay empty) -- a project-defined tap, not proven original
-  meter scale/ballistics, see `meter-tap.md`; mono layout, Dark/Legacy skins and the
-  WaveSystem toolbar are not implemented.
+  taken before the rename, checklist `ui-checklist.md`). The Energy meter and Total
+  Compression display read existing core state through the shared `CoreMeterSource`
+  bridge (merged main 094ec6d; required, asserted by `rvox.editor`) -- a project-defined
+  tap, not proven original meter scale/ballistics, see `meter-tap.md`. The hosted adapter
+  offers stereo and an opt-in 1-in/1-out mono layout (`supports_mono` in
+  `parameters.json`, `rvox.adapter` mono checks); Dark/Legacy skins and the WaveSystem
+  toolbar are not implemented.
 - Output ceiling (round-2 task3): Gain is a ceiling only for <=0 dBFS input. A
   +20 dBFS sine at Comp -6 / Gain -28.7 peaks at -23.58 dBFS in the genuine
   original and identically in the core and hosted adapter (max_abs 1.49e-8,

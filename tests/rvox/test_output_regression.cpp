@@ -4,13 +4,22 @@
 // bit-for-bit identical to the hashes captured from the core at ae4773d, before
 // the meter tap was added. This is not a comparison against the original plugin.
 // Hashes depend on the platform maths library (sin/pow/log) and were captured on
-// x86-64 Linux/glibc, so they are only enforced there.
+// x86-64 Linux/glibc, so they are only enforced there. On every platform the
+// current core is also compared bit for bit with the pinned pre-tap ae4773d core
+// (tests/rvox/baseline) built by the same compiler.
 #include "Processor.h"
+#include <algorithm>
+#include <array>
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <stdexcept>
 #include <vector>
+namespace pinned { // standard headers above are already included, so this only wraps the class
+#include "baseline/Processor_ae4773d.h"
+}
 using tsunami::rvox::Processor;
 constexpr double pi=3.14159265358979323846; // MSVC has no M_PI by default
 
@@ -35,7 +44,7 @@ static float source(unsigned c, uint64_t n, double rate, uint32_t& lcg) {
  }
 }
 
-static uint64_t render(const Case& k, Processor& p) {
+template<class Core> static uint64_t render(const Case& k, Core& p) {
  p.prepare(k.rate,k.channels,512);
  p.setParameter(0,k.threshold); p.setParameter(1,k.gate); p.setParameter(2,k.gain);
  const uint64_t frames=uint64_t(k.rate*3.1);
@@ -71,19 +80,28 @@ static const uint64_t golden[] = {
 
 int main(int argc,char**argv) {
  const bool print=argc>1 && std::strcmp(argv[1],"--print")==0;
-#if !(defined(__linux__) && defined(__x86_64__) && defined(__GLIBC__))
- if(!print) {std::puts("SKIP golden hashes are x86-64 Linux/glibc specific");return 0;}
+#if defined(__linux__) && defined(__x86_64__) && defined(__GLIBC__)
+ const bool golden_platform=true;
+#else
+ const bool golden_platform=false;
 #endif
  int failures=0; unsigned i=0;
  for(const auto& k:cases) {
   Processor p; const uint64_t h=render(k,p);
+  pinned::tsunami::rvox::Processor old; const uint64_t was=render(k,old);
+  if(was!=h) {
+   std::fprintf(stderr,"FAIL case %u (%g Hz, %u ch): differs from pinned pre-tap core\n",i,k.rate,k.channels);
+   ++failures;
+  }
   if(print) std::printf(" 0x%016llxull,\n",static_cast<unsigned long long>(h));
-  else if(i>=sizeof(golden)/sizeof(golden[0]) || golden[i]!=h) {
+  else if(golden_platform && (i>=sizeof(golden)/sizeof(golden[0]) || golden[i]!=h)) {
    std::fprintf(stderr,"FAIL case %u (%g Hz, %u ch): 0x%016llx\n",i,k.rate,k.channels,static_cast<unsigned long long>(h));
    ++failures;
   }
   ++i;
  }
- if(!print && !failures) std::puts("PASS output bit-identical to pre-meter core over 8 stored cases");
+ if(!print && !failures)
+  std::printf("PASS output bit-identical to pinned pre-tap core over 8 stored cases%s\n",
+              golden_platform?" and to ae4773d golden hashes":" (golden hashes are x86-64 Linux/glibc only)");
  return failures?1:0;
 }

@@ -19,7 +19,7 @@ Idle values: after `prepare()`/`reset()` energy 0 and total gain 1; unprepared
 core total gain 1; out-of-range index 0. Values are the state after the last
 processed sample of a block.
 
-The shared adapter bridge (`CoreMeterSource`, PR #23 at `3b64a12`) publishes
+The shared adapter bridge (`CoreMeterSource`, merged to main in 094ec6d) publishes
 them with relaxed atomics after each `processBlock`. No callbacks, locks,
 allocation or I/O on the audio thread. The editor polls at 30 Hz on the message
 thread:
@@ -38,10 +38,11 @@ thread:
   `200.0`. The bar clamps at the 40 dB scale. Whether the original display
   includes the gate is not established (editor checks run with the gate off).
 - After a host `reset()`, the bridge keeps the last published values until the
-  next block (adapter behaviour, PR #23).
-- Without the bridge (shared adapter before PR #23) the editor detects the
-  incomplete `CoreMeterSource` type at compile time. Both areas stay drawn
-  without data. `rvox.editor` prints `SKIP core meter bridge` for that build.
+  next block (shared adapter behaviour).
+- The bridge is required: the editor uses `CoreMeterSource` directly and
+  `rvox.editor` check 69 fails if the product adapter does not expose it.
+  `rvox.adapter` mono checks also compare bridge readings with a directly
+  driven 1-channel core, block by block.
 
 Not established: the original plugin's meter scale, ballistics, peak-hold
 behaviour and whether its Total Compression includes the gate. These remain an
@@ -56,7 +57,7 @@ open reference-parity boundary.
   threshold on a 0.5 sine gives total gain < 0.2 and matches the core's rational
   law at the detector level, energy differs from output peak, gate -20 dB closes
   at -60 dBFS and opens at -6 dBFS, mono tap.
-- GREEN editor (`rvox.editor` against PR #23 shared): 60 processed blocks then
+- GREEN editor (`rvox.editor` against the bridge, now merged main): 60 processed blocks then
   timer-only polling. Energy readout -6.0 dB, Total Compression ~18.5 dB,
   held-peak readout, input energy differs from output peak, 2 s silence empties
   energy and releases compression, click resets the hold.
@@ -66,10 +67,11 @@ open reference-parity boundary.
   irregular block sizes including hot >0 dBFS and gated-tail segments) were
   captured from the unmodified `ae4773d` core at -O0 and -O2 (identical) before
   any change. They still match bit for bit. The hashes depend on the platform
-  maths library, so they are enforced only on x86-64 Linux/glibc (other
-  platforms print SKIP). This is project-regression evidence only, not a new
-  comparison against the original plugin.
-- CI gap: the shared `rvox.yml` workflow runs only `rvox.adapter` and
-  `rvox.editor`, so `rvox.meters`/`rvox.output_regression` are local-only. Until
-  PR #23 merges, CI editor checks 70-77 print SKIP. Windows live-meter evidence
-  is still open.
+  maths library, so they are enforced only on x86-64 Linux/glibc. On every
+  platform the test also renders the pinned pre-tap core
+  (`tests/rvox/baseline/Processor_ae4773d.h`, unmodified project source) with
+  the same compiler and requires bit-identical output. This is
+  project-regression evidence only, not a new comparison against the original
+  plugin.
+- Native CI: `rvox.yml` builds and runs `rvox.adapter`, `rvox.editor`,
+  `rvox.meters` and `rvox.output_regression` on Ubuntu 22.04 and Windows 2022.

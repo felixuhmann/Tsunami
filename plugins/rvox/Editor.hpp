@@ -6,34 +6,18 @@
 // No vendor images are used; everything is painted here. Output meters read the
 // adapter's lock-free MeterSource. Energy and Total Compression read the core's
 // existing detector envelope and smoothed gate*compressor gain (Processor::meter)
-// through the shared CoreMeterSource bridge when the adapter provides it; the
-// scale is project-defined, not proven original meter ballistics. Without the
-// bridge they stay drawn without data rather than faked.
+// through the shared CoreMeterSource bridge; the scale is project-defined, not
+// proven original meter ballistics.
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Adapter.hpp"
 #include <array>
 #include <cmath>
 #include <memory>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-namespace tsunami { struct CoreMeterSource; } // defined by the shared adapter's core meter bridge
-
 namespace tsunami::rvox {
-namespace bridge {
-template<class T, class = void> struct Complete : std::false_type {};
-template<class T> struct Complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
-inline constexpr bool available = Complete<CoreMeterSource>::value;
-template<class T = CoreMeterSource> T* find(juce::AudioProcessor& p) {
-    if constexpr (Complete<T>::value) return dynamic_cast<T*>(&p); else return nullptr;
-}
-template<class T = CoreMeterSource> float read(const T* source, unsigned index) noexcept {
-    if constexpr (Complete<T>::value) return source && index < source->coreMeterCount() ? source->coreMeter(index) : 0.f;
-    else return 0.f;
-}
-}
 namespace colour {
 inline const juce::Colour body{0xffe9e6de}, bodyShade{0xffd6d2c8}, ink{0xff4a4a48}, value{0xff262626},
     accent{0xffee8a1c}, track{0xff23466b}, display{0xff16324f}, displayEdge{0xff0c1b2b},
@@ -150,9 +134,8 @@ public:
 
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-    static constexpr bool hasCoreMeterBridge = bridge::available;
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
-        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), coreMeters(bridge::find(p)) {
+        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), coreMeters(dynamic_cast<CoreMeterSource*>(&p)) {
         setOpaque(true);
         struct Spec { Fader* f; const char* id; juce::Rectangle<int> bounds; juce::Rectangle<int> readout; };
         const Spec specs[]{{&gate, "gate", {41, 105, 33, 195}, {22, 80, 70, 18}},
@@ -343,7 +326,8 @@ private:
     // The bridge publishes 0/0 before the first block; that pair is shown as no data.
     void refreshCoreMeters() {
         if (!coreMeters) return;
-        const float envelope = bridge::read(coreMeters, 0), total = bridge::read(coreMeters, 1);
+        if (coreMeters->coreMeterCount() < 2) return;
+        const float envelope = coreMeters->coreMeter(0), total = coreMeters->coreMeter(1);
         if (!(std::isfinite(envelope) && std::isfinite(total)) || (envelope <= 0.f && total <= 0.f)) return;
         const float db = juce::Decibels::gainToDecibels(envelope, -80.f);
         energyFraction = envelope > 0.f ? (db + 80.f) / 80.f : 0.f;

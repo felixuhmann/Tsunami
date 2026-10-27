@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Actual Tsunami RVox hosted editor capture on Linux (mirrors tests/s1).
+"""Actual Tsunami Voice (RVox) hosted editor capture on Linux (mirrors tests/s1).
 
 Reuses the reviewed foundation pluginval strictness-6 capture with the RVox
 product identity. The RVox view is 371 px wide, below the foundation's 400 px
@@ -33,7 +33,7 @@ def main():
         min_width, argv = int(argv[1]), argv[2:]
     assert 100 <= min_width <= 371, 'min width must still admit the 371 px RVox editor and reject stubs'
     capture = load(min_width)
-    capture.TITLE = 'Tsunami RVox'
+    capture.TITLE = 'Tsunami Voice'
     sys.argv = [sys.argv[0], *argv]
     capture.main()
     output = Path(argv[1])

@@ -168,7 +168,9 @@ int main() {
     // Energy and Total Compression show the core's existing detector envelope and
     // smoothed gate*compressor gain through the shared CoreMeterSource bridge,
     // polled by the editor's own timer (no direct refresh call).
-    if constexpr (tsunami::rvox::Editor::hasCoreMeterBridge) {
+    {
+        auto* bridge = dynamic_cast<tsunami::CoreMeterSource*>(&p);
+        CHECK(bridge && bridge->coreMeterCount() == 2, 69, "product adapter exposes the RVox core meter bridge");
         // Let the editor's 30 Hz timer expire, then deliver it on this message thread. JUCE's
         // timer thread only re-counts after a 300 ms wait for its undispatched message.
         auto pump = [] { for (int k = 0; k < 4; ++k) { juce::Thread::sleep(350); juce::Timer::callPendingTimersSynchronously(); } };
@@ -205,8 +207,6 @@ int main() {
         auto* attnPeak = editor->findChildWithID("attn_peak");
         attnPeak->mouseDown(event(*attnPeak, {2.f, 2.f}, {2.f, 2.f}, false));
         CHECK(child<juce::Label>(*editor, "attn_peak")->getText().getFloatValue() < .1f, 77, "click resets compression hold");
-    } else {
-        std::cout << "SKIP core meter bridge (shared adapter without CoreMeterSource)\n";
     }
 
     // Paint the real editor (no fixture) to an image without errors.

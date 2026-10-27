@@ -133,16 +133,12 @@ int hiddenStateMatrix() {
         p.reset();
         if (!lockstep(p, direct, 48000, 128, 9600, [](unsigned) {})) return fail(33, "core diverges from host-visible control after hostile preset");
     }
-    // KNOWN SHARED-FOUNDATION DEFECT (expected failure, reported not hidden):
-    // shared/Adapter.hpp setStateInformation hands a NaN preset value to APVTS,
-    // which publishes NaN to the host while the RVox core ignores the nonfinite
-    // write and keeps its previous control. Fixing it needs a shared edit that is
-    // outside the RVox scope; flip to a hard failure once the shared fix lands.
+    // A nonfinite preset value is rejected by the shared adapter's transactional
+    // state restore (merged main), so the host never sees NaN.
     {
         const auto state = withValue(saved, "gain", "nan");
         p.setStateInformation(state.getData(), int(state.getSize()));
-        if (inRange()) std::cout << "XPASS nonfinite preset value now sanitized; make this a hard check\n";
-        else std::cout << "XFAIL shared adapter publishes NaN for a nonfinite preset value (gain=nan)\n";
+        if (!inRange()) return fail(56, "nonfinite preset value reached host parameters");
     }
     std::cout << "rvox.adapter hidden-state matrix PASS: block-boundary automation, preset recall, hostile preset values\n";
     return 0;
@@ -184,6 +180,57 @@ int hotInputMeter() {
               << juce::Decibels::gainToDecibels(held[0]) << '/' << juce::Decibels::gainToDecibels(held[1]) << " dBFS\n";
     return 0;
 }
+// Opt-in mono: 1-in/1-out hosted layout drives a 1-channel core bit-identically,
+// keeps state/parameters, publishes the core meters; unsupported layouts are refused.
+int monoLayout() {
+    using Set = juce::AudioChannelSet;
+    tsunami::Adapter<Spec> p;
+    auto layout = [](Set in, Set out) { juce::AudioProcessor::BusesLayout l; l.inputBuses.add(in); l.outputBuses.add(out); return l; };
+    if (!p.checkBusesLayoutSupported(layout(Set::mono(), Set::mono()))) return fail(60, "mono 1-in/1-out not offered");
+    if (!p.checkBusesLayoutSupported(layout(Set::stereo(), Set::stereo()))) return fail(61, "stereo layout lost");
+    if (p.checkBusesLayoutSupported(layout(Set::mono(), Set::stereo())) || p.checkBusesLayoutSupported(layout(Set::stereo(), Set::mono()))
+        || p.checkBusesLayoutSupported(layout(Set::create5point1(), Set::create5point1())))
+        return fail(62, "mismatched or surround layout accepted");
+    if (!p.setBusesLayout(layout(Set::mono(), Set::mono())) || p.getTotalNumOutputChannels() != 1) return fail(63, "host could not select mono");
+    const auto& params = p.getParameters();
+    setPhysical(params[0], -24.f); setPhysical(params[1], -60.f); setPhysical(params[2], -2.f);
+    const double rate = 48000; const int block = 96;
+    p.prepareToPlay(rate, block);
+    Spec::Core direct;
+    for (int i = 0; i < 3; ++i) direct.setParameter(unsigned(i), physical(params[i]));
+    direct.prepare(rate, 1, unsigned(block)); direct.reset();
+    if (p.getLatencySamples() != int(direct.latencySamples())) return fail(64, "mono latency differs from core");
+    const unsigned frames = unsigned(rate);
+    const auto x = program(frames, rate, 0);
+    std::vector<float> ref(frames), out(frames); juce::MidiBuffer midi;
+    auto* meters = dynamic_cast<tsunami::CoreMeterSource*>(&p);
+    if (!meters || meters->coreMeterCount() != Spec::Core::meterCount) return fail(65, "mono adapter lacks core meter bridge");
+    for (unsigned at = 0; at < frames; at += unsigned(block)) {
+        const unsigned n = std::min(unsigned(block), frames - at);
+        juce::AudioBuffer<float> b(1, int(n));
+        std::memcpy(b.getWritePointer(0), x.data() + at, n * sizeof(float));
+        p.processBlock(b, midi);
+        std::memcpy(out.data() + at, b.getReadPointer(0), n * sizeof(float));
+        const float* in[]{x.data() + at}; float* o[]{ref.data() + at};
+        direct.process(in, o, n);
+        for (unsigned m = 0; m < Spec::Core::meterCount; ++m)
+            if (meters->coreMeter(m) != direct.meter(m)) return fail(66, "mono bridge meter differs from core");
+    }
+    if (std::memcmp(out.data(), ref.data(), frames * sizeof(float)) != 0) return fail(67, "mono hosted output differs from 1-channel core");
+    if (!(levelSpread(out, rate) < levelSpread(x, rate) - 3) || !(meters->coreMeter(1) < .5f)) return fail(68, "mono path not compressing");
+    juce::MemoryBlock saved; p.getStateInformation(saved);
+    tsunami::Adapter<Spec> fresh;
+    if (!fresh.setBusesLayout(layout(Set::mono(), Set::mono()))) return fail(63, "fresh mono layout");
+    fresh.setStateInformation(saved.getData(), int(saved.getSize()));
+    const auto& fp = fresh.getParameters();
+    if (std::abs(physical(fp[0]) + 24) > 1e-3 || std::abs(physical(fp[1]) + 60) > 1e-3 || std::abs(physical(fp[2]) + 2) > 1e-3)
+        return fail(69, "mono state restore lost controls");
+    juce::AudioBuffer<float> wrong(2, block); wrong.clear(); wrong.setSample(0, 0, 1.f); wrong.setSample(1, 0, 1.f);
+    p.processBlock(wrong, midi); // a stereo buffer while prepared mono is silenced, never misread
+    if (wrong.getMagnitude(0, block) != 0.f) return fail(70, "mismatched channel count not silenced");
+    std::cout << "rvox.adapter mono PASS: 1-in/1-out bit-identical to 1-channel core, meters, state, layout refusal\n";
+    return 0;
+}
 // Genuine-comparison mode: recall a preset through saved state into a fresh
 // hosted instance, render interleaved stereo float32 at the original block size.
 int presetRender(char** a) {
@@ -213,7 +260,9 @@ int main(int argc, char** argv) {
     // rvox_adapter_test in.raw out.raw rate block compression gate gain
     if (argc == 8) return presetRender(argv);
     if (std::strcmp(Spec::id, "rvox") != 0) return fail(2, "hosted product is not RVox");
+    if (std::strcmp(Spec::name, "Tsunami Voice") != 0) return fail(2, "product identity is not targets.json 'Tsunami Voice'");
     tsunami::Adapter<Spec> p;
+    if (p.getName() != "Tsunami Voice") return fail(2, "hosted name is not 'Tsunami Voice'");
     const auto& params = p.getParameters();
     const char* ids[]{"compression", "gate", "gain"};
     const float ranges[][3]{{-36, 0, 0}, {-80, 0, -80}, {-36, 0, 0}};
@@ -250,6 +299,7 @@ int main(int argc, char** argv) {
     if (!editor) return fail(9, "no editor");
     if (int r = hiddenStateMatrix()) return r;
     if (int r = hotInputMeter()) return r;
+    if (int r = monoLayout()) return r;
     std::cout << "rvox.adapter PASS: hosted RVox core bit-identical across 3 rates x 3 blocks, state restore exact\n";
     return 0;
 }

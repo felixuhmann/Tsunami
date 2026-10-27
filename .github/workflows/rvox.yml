@@ -34,15 +34,15 @@ jobs:
         with:
           python-version: '3.11'
       - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_BUILD_RVOX=ON
-      - name: Build actual RVox native format modules, hosted adapter and editor tests
-        run: cmake --build build --config Release --target rvox_adapter_test rvox_editor_test TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_PLUGIN_ID=rvox
+      - name: Build actual RVox native format modules, hosted adapter/editor and core meter/unchanged-audio tests
+        run: cmake --build build --config Release --target rvox_adapter_test rvox_editor_test rvox_test_meters rvox_test_output_regression TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
       - name: CTest
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
-            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.(adapter|editor)$' --output-on-failure
+            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|meters|output_regression)$' --no-tests=error --output-on-failure
           else
-            ctest --test-dir build -C Release -R '^rvox\.(adapter|editor)$' --output-on-failure
+            ctest --test-dir build -C Release -R '^rvox\.(adapter|editor|meters|output_regression)$' --no-tests=error --output-on-failure
           fi
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
         run: |
@@ -85,7 +85,7 @@ jobs:
       - name: Native VST3 render, state and rate/block matrix (Windows also opens the editor)
         run: |
           mkdir -p evidence
-          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami RVox.vst3')).resolve())")"
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami Voice.vst3')).resolve())")"
           if [[ "$RUNNER_OS" == Linux ]]; then
             # Audio/state only here; the attached editor is captured by the next step.
             timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/foundation/host_smoke.py "$plugin" evidence
@@ -97,7 +97,7 @@ jobs:
         env:
           RVOX_EDITOR_MIN_WIDTH: '360'
         run: |
-          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami RVox.vst3')).resolve())")"
+          plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiRVox_artefacts').rglob('Tsunami Voice.vst3')).resolve())")"
           timeout 90 xvfb-run -a -s '-screen 0 1600x1000x24' python tests/rvox/linux_editor_capture.py "$plugin" evidence/ui "$PWD/editor-host/pluginval"
           python -c "from PIL import Image; im=Image.open('evidence/ui/host-editor.png'); print('editor', im.size); assert im.size[0] >= 360"
       - name: Matching corresponding source and notices beside experimental binaries
