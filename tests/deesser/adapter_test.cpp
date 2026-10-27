@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <vector>
 using namespace tsunami::deesser;
 using Product = tsunami::Adapter<tsunami::PluginSpec>;
@@ -231,6 +232,52 @@ int main() {
         CHECK(physical(*p, "sidechain") == 1.f && shape->isHighPass() && gestures.begins == gestures.ends, 55, "pictogram click selects HighPass");
         p->removeListener(&gestures);
         // Restore the values the later sections expect.
+        setPhysical(*p, "freq", 4500.f);
+    }
+    // 57/58: invalid entry (typed nonfinite text; accessibility setValue NaN/+-Inf) changes nothing: host parameters,
+    // serialised state, slider value, canonical text and host gestures stay exactly as they were.
+    {
+        struct Gestures final : juce::AudioProcessorListener {
+            int begins = 0, ends = 0;
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) override { ++begins; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override { ++ends; }
+        } gestures;
+        p->addListener(&gestures);
+        setPhysical(*p, "freq", 5585.65f); setPhysical(*p, "threshold", -33.37f); // non-boundary, nonintegral
+        auto entryOf = [](juce::Slider* s) { juce::Label* l = nullptr; for (auto* c : s->getChildren()) if (auto* x = dynamic_cast<juce::Label*>(c)) l = x; return l; };
+        struct Snapshot { std::vector<float> norm; juce::MemoryBlock state; double slider; juce::String text; };
+        auto take = [&](juce::Slider* s) { Snapshot r; for (auto* q : params) r.norm.push_back(q->getValue()); p->getStateInformation(r.state);
+                                           r.slider = s->getValue(); r.text = entryOf(s)->getText(); return r; };
+        auto same = [](const Snapshot& a, const Snapshot& b) { return a.norm == b.norm && a.state == b.state && a.slider == b.slider && a.text == b.text; };
+        for (auto* slider : {freq, threshold})
+            for (const char* text : {"nan", "-NaN", "inf", "-inf", "1e999", "-1e999"}) {
+                const auto before = take(slider); const int b = gestures.begins, e = gestures.ends;
+                entryOf(slider)->setText(text, juce::sendNotificationSync);
+                if (!same(before, take(slider)) || gestures.begins != b || gestures.ends != e) {
+                    std::cerr << "FAIL typed '" << text << "' changed " << slider->getComponentID() << ": value " << before.slider << " -> "
+                              << slider->getValue() << ", text '" << entryOf(slider)->getText() << "', gestures +" << gestures.begins - b << "\n";
+                    return 57;
+                }
+            }
+        // 58: accessibility value entry. JUCE's slider AccessibilityValueInterface::setValue is exactly
+        // { Slider::ScopedDragNotification drag(slider); slider.setValue(v, sendNotificationSync); } (juce_Slider.cpp);
+        // the handler itself needs a native peer, which headless xvfb without a window manager cannot create.
+        auto atSet = [](juce::Slider* s, double v) { juce::Slider::ScopedDragNotification drag(*s); s->setValue(v, juce::sendNotificationSync); };
+        for (auto* slider : {freq, threshold})
+            for (double v : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()}) {
+                const auto before = take(slider);
+                atSet(slider, v);
+                if (!same(before, take(slider)) || gestures.begins != gestures.ends) {
+                    std::cerr << "FAIL accessibility setValue(" << v << ") changed " << slider->getComponentID() << ": " << before.slider << " -> "
+                              << slider->getValue() << " host " << physical(*p, slider == freq ? "freq" : "threshold") << "\n"; return 58;
+                }
+            }
+        atSet(freq, 7000.4); atSet(threshold, -20.5);
+        CHECK(std::abs(physical(*p, "freq") - 7000.f) < .01f && std::abs(physical(*p, "threshold") + 20.5f) < .01f && gestures.begins == gestures.ends,
+              58, "finite accessibility entry still works (Freq whole-Hz snap)");
+        p->removeListener(&gestures);
         setPhysical(*p, "freq", 4500.f);
     }
 

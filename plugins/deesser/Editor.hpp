@@ -13,6 +13,7 @@
 #include "Adapter.hpp"
 #include "EditorModel.hpp"
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 
 namespace tsunami::deesser {
@@ -161,6 +162,7 @@ public:
         threshold.textFromValueFunction = [](double v) { return juce::String(ui::valueText(1, float(v))); };
         threshold.updateText();
         rejectNonfiniteEntry(freq); rejectNonfiniteEntry(threshold);
+        keepValueOnNonfinite(freq); keepValueOnNonfinite(threshold);
 
         energy.fill = colour::energy; energy.fraction = [](float db) { return ui::thresholdFraction(db); }; energy.setComponentID("energy_meter");
         atten.fill = colour::atten; atten.fromTop = true; atten.fraction = [](float db) { return ui::attenFraction(db); }; atten.setComponentID("atten_meter");
@@ -252,14 +254,27 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> sidechainAttachment;
     std::unique_ptr<juce::ParameterAttachment> monitorAttachment, sidechainShapeAttachment;
 
-    // Typed entry keeps the host's text parsing (installed by the attachment); a NaN result keeps the
-    // current value, because NaN passes the range clamp and reached the host parameter before (adapter
-    // test 52). The host parser already clamps "inf"/"1e999" to the range end; garbage parses as the start.
+    // Typed entry keeps the host's text parsing (installed by the attachment), but text whose raw number is
+    // nonfinite ("nan", "inf", overflow such as "1e999") keeps the current value before that parser can
+    // clamp it to a range end: no write, no gesture (adapter tests 52, 57).
     static void rejectNonfiniteEntry(juce::Slider& s) {
         s.valueFromTextFunction = [&s, parse = s.valueFromTextFunction](const juce::String& text) {
+            const auto raw = text.trim().toStdString();
+            if (!std::isfinite(std::strtod(raw.c_str(), nullptr))) return s.getValue();
             const double v = parse ? parse(text) : text.getDoubleValue();
             return std::isfinite(v) ? v : s.getValue();
         };
+    }
+    // Value entry that bypasses text (accessibility setValue): a nonfinite value passes the range clamp, so the
+    // existing range (law, snap, interval unchanged) is wrapped to keep the current value instead (adapter test 58).
+    static void keepValueOnNonfinite(juce::Slider& s) {
+        const auto base = s.getNormalisableRange();
+        juce::NormalisableRange<double> guarded(base.start, base.end,
+            [base](double, double, double n) { return base.convertFrom0to1(n); },
+            [base](double, double, double v) { return base.convertTo0to1(v); },
+            [base, &s](double, double, double v) { return std::isfinite(v) ? base.snapToLegalValue(v) : s.getValue(); });
+        guarded.interval = base.interval;
+        s.setNormalisableRange(guarded);
     }
     static void tick(juce::Graphics& g, juce::Rectangle<int> bar, float f, const juce::String& text) {
         const int y = bar.getY() + juce::roundToInt(f * float(bar.getHeight()));
