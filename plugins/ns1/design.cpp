@@ -56,8 +56,11 @@ DesignParameters controlParameters(float control){
  // {control, lowerHz, upperHz, attenuationDb, relativeThreshold, floorCapDb}
  static const double knots[4][6]={{0,60,16000,0,0,0},{.2,60,14000,-10,.02,-6},{.8,80,12000,-70,.07,-6},{1,110,8000,-70,.8,-6}};
  unsigned k=c<.2?0u:(c<.8?1u:2u);
- const double* a=knots[k];const double* b=knots[k+1];const double t=(c-a[0])/(b[0]-a[0]);
- auto at=[&](unsigned i){return a[i]+(b[i]-a[i])*t;};
+ // Interpolation is evaluated in float32 (as the host-side parameter value): the 1 Hz
+ // rounding of the front edges makes this observable (0.95 -> lowerHz 102.5 -> 103 Hz).
+ const double* a=knots[k];const double* b=knots[k+1];
+ const float t=(float(c)-float(a[0]))/(float(b[0])-float(a[0]));
+ auto at=[&](unsigned i){return double(float(a[i])+(float(b[i])-float(a[i]))*t);};
  DesignParameters p{};
  p.lowerHz=at(1);p.upperHz=at(2);p.attenuationDb=at(3);p.relativeThreshold=float(at(4));
  p.nominalFloor=float(gain(-18.6*17.9/32));p.floorCap=float(gain(at(5)));

@@ -28,5 +28,10 @@ int main() {
   const auto da=designMono(48000,p),db=designMono(48000,b);
   for(unsigned k=0;k<2;++k)if(da.front[k].second.a1!=db.front[k].second.a1||da.front[k].first!=db.front[k].first)return 6;
   if(da.bands[1].audio[0].a1==db.bands[1].audio[0].a1)return 7;}
+ // The segment interpolation is evaluated in float32 (derivation: 95 % render requires the
+ // 1 Hz front lower edge 103, i.e. lowerHz(0.95f)==102.5 exactly; double gives 102.4999982 -> 102).
+ {const auto s=controlParameters(.95f);
+  if(!(s.lowerHz==102.5&&s.upperHz==9000&&std::round(s.lowerHz)==103))return 8;
+  const auto u=controlParameters(.85f);if(!(u.lowerHz==87.5&&u.upperHz==11000))return 9;}
  std::cout<<"sampled-control design checks passed\n";
 }
