@@ -4,8 +4,15 @@
 #include "Parameter.hpp"
 #include <array>
 #include <memory>
+#include <type_traits>
+#include <utility>
 
 namespace tsunami {
+namespace detail {
+template<class Spec, class = void> struct HasEditorFactory : std::false_type {};
+template<class Spec> struct HasEditorFactory<Spec, std::void_t<decltype(Spec::createEditor(
+    std::declval<juce::AudioProcessor&>(), std::declval<juce::AudioProcessorValueTreeState&>()))>> : std::true_type {};
+}
 // Physical-value, block-boundary automation. No claim of sample-offset automation.
 // All core calls are serialized on the host's audio/lifecycle thread.
 template<class Spec> class Adapter final : public juce::AudioProcessor {
@@ -92,7 +99,12 @@ public:
         core.process(inputs, outputs, unsigned(b.getNumSamples()));
     }
     bool hasEditor() const override { return true; }
-    juce::AudioProcessorEditor* createEditor() override { return new Editor(*this); }
+    juce::AudioProcessorEditor* createEditor() override {
+        if constexpr (detail::HasEditorFactory<Spec>::value)
+            return Spec::createEditor(*this, state);
+        else
+            return new Editor(*this); // Infrastructure fixture fallback, not a product UI.
+    }
     void getStateInformation(juce::MemoryBlock& data) override {
         auto copy=state.copyState(); copy.setProperty("plugin", Spec::id, nullptr); copy.setProperty("schema", 1, nullptr);
         if (auto xml=copy.createXml()) copyXmlToBinary(*xml, data);

@@ -2,10 +2,30 @@
 import importlib.util
 import pathlib
 import unittest
+import json
+import subprocess
+import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 class MetadataTests(unittest.TestCase):
+    def test_cli_selects_only_a_plugin_local_editor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = pathlib.Path(directory)
+            metadata = source / 'parameters.json'
+            metadata.write_text(json.dumps({'parameters': [dict(index=0, id='gain', name='Gain', min=0, max=2, default=1)]}))
+            output = source / 'Generated.hpp'
+            command = [sys.executable, str(ROOT / 'tools/generate_metadata.py'), str(metadata), str(output),
+                       '--id', 'fixture', '--product', 'Fixture', '--core', 'tsunami::fixture::Processor']
+            subprocess.run(command, check=True)
+            self.assertNotIn('#include "Editor.hpp"', output.read_text())
+            (source / 'Editor.hpp').write_text('// plugin-local header\n')
+            subprocess.run(command, check=True)
+            text = output.read_text()
+            self.assertIn('#include "Editor.hpp"', text)
+            self.assertIn('return tsunami::createPluginEditor(processor, state);', text)
+
     def test_emits_physical_parameter_descriptor(self):
         path = ROOT / 'tools' / 'generate_metadata.py'
         self.assertTrue(path.exists(), 'metadata generator is not implemented')

@@ -8,7 +8,7 @@ import math
 import re
 
 
-def generate(data, plugin_id, product, core):
+def generate(data, plugin_id, product, core, editor=False):
     descriptors = []
     seen = set()
     for index, p in enumerate(data['parameters']):
@@ -29,9 +29,9 @@ def generate(data, plugin_id, product, core):
 #pragma once
 #include "Processor.hpp"
 #include "Parameter.hpp"
-namespace tsunami {
+%snamespace tsunami {
 struct PluginSpec {
-    using Core = %s;
+%s    using Core = %s;
     static constexpr const char* id = %s;
     static constexpr const char* name = %s;
     inline static constexpr Parameter parameters[] = {
@@ -39,7 +39,12 @@ struct PluginSpec {
     };
 };
 }
-''' % (core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
+''' % ('#include "Editor.hpp"\n' if editor else '',
+       '''    static juce::AudioProcessorEditor* createEditor(juce::AudioProcessor& processor,
+                                                     juce::AudioProcessorValueTreeState& state) {
+        return tsunami::createPluginEditor(processor, state);
+    }
+''' if editor else '', core, json.dumps(plugin_id), json.dumps(product), ',\n'.join(descriptors))
 
 
 if __name__ == '__main__':
@@ -51,4 +56,5 @@ if __name__ == '__main__':
     parser.add_argument('--core', required=True)
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(generate(json.loads(args.metadata.read_text()), args.id, args.product, args.core))
+    args.output.write_text(generate(json.loads(args.metadata.read_text()), args.id, args.product, args.core,
+                                    editor=args.metadata.with_name('Editor.hpp').is_file()))
