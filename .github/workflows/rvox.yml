@@ -35,14 +35,14 @@ jobs:
           python-version: '3.11'
       - name: Configure pinned AGPL JUCE 9.0.4 and newest CLAP wrapper
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTSUNAMI_BUILD_FIXTURE=OFF -DTSUNAMI_BUILD_RVOX=ON
-      - name: Build actual RVox native format modules and hosted adapter test
-        run: cmake --build build --config Release --target rvox_adapter_test TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
+      - name: Build actual RVox native format modules, hosted adapter and editor tests
+        run: cmake --build build --config Release --target rvox_adapter_test rvox_editor_test TsunamiRVox_VST3 TsunamiRVox_CLAP --parallel 2
       - name: CTest
         run: |
           if [[ "$RUNNER_OS" == Linux ]]; then
-            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.adapter$' --output-on-failure
+            xvfb-run -a ctest --test-dir build -C Release -R '^rvox\.(adapter|editor)$' --output-on-failure
           else
-            ctest --test-dir build -C Release -R '^rvox\.adapter$' --output-on-failure
+            ctest --test-dir build -C Release -R '^rvox\.(adapter|editor)$' --output-on-failure
           fi
       - name: Native CLAP protocol, audio and state validation (upstream mature validator)
         run: |
