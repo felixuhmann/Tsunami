@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Adapter.hpp"
+#include "Theme.hpp"
 #include <array>
 #include <cmath>
 #include <memory>
@@ -19,11 +20,6 @@
 #include <vector>
 
 namespace tsunami::rvox {
-namespace colour {
-inline const juce::Colour body{0xffe9e6de}, bodyShade{0xffd6d2c8}, ink{0xff4a4a48}, value{0xff262626},
-    accent{0xffee8a1c}, track{0xff23466b}, display{0xff16324f}, displayEdge{0xff0c1b2b},
-    clipBand{0xff7d2027}, brand{0xffa3262f};
-}
 
 inline juce::String formatDb(double db, double floor) {
     return db <= floor + 0.05 ? juce::String("-inf") : juce::String(db, 1);
@@ -31,24 +27,25 @@ inline juce::String formatDb(double db, double floor) {
 
 class FaderLook final : public juce::LookAndFeel_V4 {
 public:
+    const Palette* colour = &palette(Skin::light);
     int getSliderThumbRadius(juce::Slider& s) override { return s.getComponentID() == "compression" ? 22 : 12; }
     void drawLinearSlider(juce::Graphics& g, int x, int, int width, int, float pos, float, float,
                           juce::Slider::SliderStyle, juce::Slider& s) override {
         if (s.getComponentID() == "compression") {
             // Threshold line across the display with the value pill riding on it.
             const auto pill = juce::Rectangle<float>(50.f, 21.f).withCentre({x + width * .5f, pos});
-            g.setColour(colour::accent);
+            g.setColour(colour->accent);
             g.fillRect(juce::Rectangle<float>(float(x) + 6.f, pos - 1.f, float(width) - 12.f, 2.f));
-            g.setColour(colour::display.darker(.3f));
+            g.setColour(colour->display.darker(.3f));
             g.fillRoundedRectangle(pill, 10.f);
-            g.setColour(colour::accent);
+            g.setColour(colour->accent);
             g.drawRoundedRectangle(pill.reduced(1.f), 9.f, 2.f);
             return; // the value text is the comp_value box riding on the pill
         }
         const auto ring = juce::Rectangle<float>(18.f, 11.f).withCentre({x + width * .5f, pos});
         g.setColour(juce::Colours::white.withAlpha(.35f));
         g.fillRoundedRectangle(ring, 4.f);
-        g.setColour(colour::accent);
+        g.setColour(colour->accent);
         g.drawRoundedRectangle(ring, 4.f, 2.f);
         g.drawHorizontalLine(int(pos), ring.getX() + 3.f, ring.getRight() - 3.f);
     }
@@ -57,15 +54,16 @@ public:
 // Vertical bar meter; level is 0..1 of the drawn dB span, negative means no data.
 class Meter final : public juce::Component {
 public:
+    const Palette* colour = &palette(Skin::light);
     explicit Meter(bool fromTop = false) : topDown(fromTop) { setInterceptsMouseClicks(false, false); }
     void setLevel(float fraction) { if (fraction != level) { level = fraction; repaint(); } }
     void paint(juce::Graphics& g) override {
         auto r = getLocalBounds().toFloat();
-        g.setColour(colour::track);
+        g.setColour(colour->track);
         g.fillRect(r);
         if (level <= 0.f) return;
         const float h = r.getHeight() * juce::jmin(level, 1.f);
-        g.setColour(colour::accent);
+        g.setColour(colour->accent);
         g.fillRect(topDown ? r.removeFromTop(h) : r.removeFromBottom(h));
     }
 private:
@@ -75,17 +73,18 @@ private:
 
 class AttnDisplay final : public juce::Component {
 public:
+    const Palette* colour = &palette(Skin::light);
     AttnDisplay() { setInterceptsMouseClicks(false, false); }
     // Fraction of the 40 dB scale, drawn down from the top; negative means no data.
     void setReduction(float fraction) { if (fraction != reduction) { reduction = fraction; repaint(); } }
     void paint(juce::Graphics& g) override {
         auto r = getLocalBounds().toFloat();
-        g.setColour(colour::displayEdge);
+        g.setColour(colour->displayEdge);
         g.fillRoundedRectangle(r, 8.f);
         auto inner = r.reduced(4.f);
-        g.setColour(colour::display);
+        g.setColour(colour->display);
         g.fillRoundedRectangle(inner, 6.f);
-        g.setColour(colour::clipBand);
+        g.setColour(colour->clipBand);
         g.fillRoundedRectangle(inner.removeFromTop(16.f), 5.f);
         g.setColour(juce::Colours::white.withAlpha(.12f));
         for (int k = 1; k <= 6; ++k) {
@@ -94,7 +93,7 @@ public:
         }
         if (reduction > 0.f) {
             auto bar = juce::Rectangle<float>(r.getCentreX() - 7.f, r.getY(), 14.f, r.getHeight() * juce::jmin(reduction, 1.f));
-            g.setColour(colour::accent.withAlpha(.85f));
+            g.setColour(colour->accent.withAlpha(.85f));
             g.fillRect(bar.withTrimmedTop(4.f));
         }
     }
@@ -184,6 +183,14 @@ public:
             r.onReset = [this] { resetPeaks(); };
             addAndMakeVisible(r);
         }
+        skinBox.setComponentID("skin");
+        skinBox.setTitle("Skin");
+        for (auto k : {Skin::light, Skin::dark, Skin::legacy}) skinBox.addItem(skinName(k), int(k));
+        skinBox.setWantsKeyboardFocus(true);
+        skinBox.setBounds(282, 10, 82, 20);
+        skinBox.onChange = [this] { applySkin(Skin(skinBox.getSelectedId())); SkinPreference::save(current); };
+        addAndMakeVisible(skinBox);
+        applySkin(SkinPreference::load());
         setSize(371, 357);
         startTimerHz(30);
     }
@@ -200,6 +207,7 @@ public:
         for (auto* f : linked) if (f->slider.getComponentID() == id) return true;
         return false;
     }
+    Skin skin() const { return current; }
     float outputLevel(int channel) const { return level[size_t(channel)]; }
     float energyLevel() const { return energyFraction; }
     float reductionDb() const { return reduction; }
@@ -219,20 +227,20 @@ public:
 
     void paint(juce::Graphics& g) override {
         const auto r = getLocalBounds().toFloat();
-        g.setGradientFill(juce::ColourGradient(colour::body, 0.f, 0.f, colour::bodyShade, 0.f, r.getBottom(), false));
+        g.setGradientFill(juce::ColourGradient(colour->body, 0.f, 0.f, colour->bodyShade, 0.f, r.getBottom(), false));
         g.fillRect(r);
-        g.setColour(colour::brand);
+        g.setColour(colour->brand);
         g.setFont(juce::FontOptions(26.f, juce::Font::italic));
         g.drawText("R", juce::Rectangle<int>(150, 14, 26, 32), juce::Justification::centredRight);
         g.setFont(juce::FontOptions(21.f));
         g.drawText("VOX", juce::Rectangle<int>(178, 18, 60, 28), juce::Justification::centredLeft);
         // Raised frame around the Total Compression display.
         const auto frame = juce::Rectangle<float>(126.f, 74.f, 120.f, 258.f);
-        g.setGradientFill(juce::ColourGradient(juce::Colours::white, 0.f, frame.getY(), colour::bodyShade.darker(.1f), 0.f, frame.getBottom(), false));
+        g.setGradientFill(juce::ColourGradient(colour->frameTop, 0.f, frame.getY(), colour->bodyShade.darker(.1f), 0.f, frame.getBottom(), false));
         g.fillRoundedRectangle(frame, 24.f);
-        g.setColour(colour::ink.withAlpha(.25f));
+        g.setColour(colour->ink.withAlpha(.25f));
         g.drawRoundedRectangle(frame, 24.f, 1.f);
-        g.setColour(colour::ink);
+        g.setColour(colour->ink);
         g.setFont(juce::FontOptions(13.f));
         g.drawText("Gate", juce::Rectangle<int>(22, 66, 70, 16), juce::Justification::centred);
         g.drawText("Gain", juce::Rectangle<int>(279, 66, 70, 16), juce::Justification::centred);
@@ -249,9 +257,9 @@ public:
             g.drawText(juce::String(db), juce::Rectangle<int>(128, y - 6, 16, 12), juce::Justification::centredRight);
         }
         if (!box.isEmpty()) {
-            g.setColour(colour::accent.withAlpha(.15f));
+            g.setColour(colour->accent.withAlpha(.15f));
             g.fillRect(box);
-            g.setColour(colour::accent);
+            g.setColour(colour->accent);
             g.drawRect(box, 1);
         }
     }
@@ -290,10 +298,25 @@ private:
         }
     };
 
-    static void styleReadout(juce::Label& l) {
+    void styleReadout(juce::Label& l) {
         l.setJustificationType(juce::Justification::centred);
         l.setFont(juce::FontOptions(15.f));
-        l.setColour(juce::Label::textColourId, colour::value);
+        l.setColour(juce::Label::textColourId, colour->value);
+    }
+    // Recolours this editor only; other open editors keep their own skin.
+    void applySkin(Skin s) {
+        current = s;
+        colour = look.colour = energy.colour = attn.colour = &palette(s);
+        for (auto& m : out) m.colour = colour;
+        skinBox.setSelectedId(int(s), juce::dontSendNotification);
+        for (auto* l : {&gate.value, &gain.value, static_cast<juce::Label*>(&attnPeak), &energyValue, static_cast<juce::Label*>(&peak[0]),
+                        static_cast<juce::Label*>(&peak[1])})
+            l->setColour(juce::Label::textColourId, colour->value);
+        skinBox.setColour(juce::ComboBox::backgroundColourId, colour->bodyShade);
+        skinBox.setColour(juce::ComboBox::textColourId, colour->value);
+        skinBox.setColour(juce::ComboBox::arrowColourId, colour->ink);
+        skinBox.setColour(juce::ComboBox::outlineColourId, colour->ink.withAlpha(.5f));
+        repaint();
     }
     void setUpFader(Fader& f, const char* id, juce::Rectangle<int> bounds, juce::Rectangle<int> readout) {
         f.slider.setComponentID(id);
@@ -383,6 +406,8 @@ private:
     juce::AudioProcessorValueTreeState& state;
     MeterSource* meters;
     CoreMeterSource* coreMeters;
+    const Palette* colour = &palette(Skin::light);
+    Skin current = Skin::light;
     FaderLook look;
     Fader gate, comp, gain;
     Meter energy, out[2];
@@ -396,6 +421,7 @@ private:
     juce::Point<int> boxStart;
     juce::Rectangle<int> box;
     bool propagating = false;
+    juce::ComboBox skinBox; // last member: destroyed first, its onChange touches the rest
 };
 } // namespace tsunami::rvox
 

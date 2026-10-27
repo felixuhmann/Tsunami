@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -32,6 +33,11 @@ static juce::Rectangle<int> rect(juce::Component& root, const char* id) {
 
 int main() {
     juce::ScopedJuceInitialiser_GUI gui;
+    // Never read or write the real user preference: point the skin store at a temp dir.
+    const auto prefDir = juce::File::createTempFile("rvox-skin-test");
+    prefDir.createDirectory();
+    const auto prefFile = prefDir.getChildFile("skin.txt");
+    tsunami::rvox::SkinPreference::location() = prefFile;
     tsunami::Adapter<tsunami::PluginSpec> p;
     p.prepareToPlay(48000, 256);
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
@@ -477,6 +483,150 @@ int main() {
         for (const auto& what : entryFailures) std::cerr << "ENTRY FAILED " << what << "\n";
         CHECK(entryFailures.empty(), 98, "malformed value entry leaves parameters, gestures and readout unchanged");
     }
+    // Skins (ui-checklist row 47): a Light/Dark/Legacy selector in the header. UI only:
+    // no parameter, gesture, state or audio change; readable text in every skin.
+    {
+        auto lum = [](juce::Colour c) {
+            auto ch = [](float v) { return v <= .03928f ? v / 12.92f : std::pow((v + .055f) / 1.055f, 2.4f); };
+            return .2126f * ch(c.getFloatRed()) + .7152f * ch(c.getFloatGreen()) + .0722f * ch(c.getFloatBlue());
+        };
+        auto contrast = [&](juce::Colour a, juce::Colour b) {
+            const float x = lum(a), y = lum(b);
+            return (std::max(x, y) + .05f) / (std::min(x, y) + .05f);
+        };
+        auto snap = [](juce::Component& c) { return c.createComponentSnapshot(c.getLocalBounds(), true, 1.f); };
+        // Best text-to-background contrast inside a painted caption rect.
+        auto inkContrast = [&](const juce::Image& img, juce::Rectangle<int> r, juce::Colour bg) {
+            float best = 1.f;
+            for (int y = r.getY(); y < r.getBottom(); ++y)
+                for (int x = r.getX(); x < r.getRight(); ++x) best = std::max(best, contrast(img.getPixelAt(x, y), bg));
+            return best;
+        };
+        std::unique_ptr<juce::AudioProcessorEditor> sk(p.createEditor());
+        auto* skin = child<juce::ComboBox>(*sk, "skin");
+        CHECK(skin, 100, "skin selector in the header");
+        CHECK(skin->getNumItems() == 3 && skin->getItemText(0) == "Light" && skin->getItemText(1) == "Dark" &&
+              skin->getItemText(2) == "Legacy", 101, "Light, Dark and Legacy choices");
+        CHECK(skin->getText() == "Light", 102, "Light is the clean-install default");
+        CHECK(skin->getTitle() == "Skin" && skin->getWantsKeyboardFocus() && skin->isVisible() &&
+              sk->getLocalBounds().contains(skin->getBounds()) && skin->getBottom() <= 60, 103,
+              "accessible, focusable selector inside the 371x357 header");
+        CHECK(sk->getWidth() == 371 && sk->getHeight() == 357, 104, "view size unchanged");
+        const auto light = snap(*sk);
+        CHECK(light.getPixelAt(4, 4).getARGB() == 0xffe9e6de || std::abs(int(light.getPixelAt(4, 4).getRed()) - 0xe9) <= 2, 104,
+              "Light body colour unchanged");
+        juce::MemoryBlock stateBefore; p.getStateInformation(stateBefore);
+        const auto countsBefore = host.c;
+        const std::array<float, 3> paramsBefore{physical(0), physical(1), physical(2)};
+        std::vector<std::string> skinFailures;
+        for (const auto& [id, name] : std::vector<std::pair<int, juce::String>>{{2, "Dark"}, {3, "Legacy"}, {1, "Light"}}) {
+            skin->setSelectedId(id, juce::sendNotificationSync);
+            const auto img = snap(*sk);
+            if (const char* dir = std::getenv("RVOX_SKIN_PNG_DIR")) { // optional visual-review snapshots
+                juce::FileOutputStream os(juce::File(dir).getChildFile("skin-" + name.toLowerCase() + ".png"));
+                if (os.openedOk()) { os.setPosition(0); os.truncate(); juce::PNGImageFormat().writeImageToStream(img, os); }
+            }
+            const auto bg = img.getPixelAt(4, 4), low = img.getPixelAt(4, 352);
+            const auto tag = name.toStdString();
+            if (skin->getText() != name) skinFailures.push_back(tag + " not selected");
+            if (contrast(skin->findColour(juce::ComboBox::textColourId), skin->findColour(juce::ComboBox::backgroundColourId)) < 4.5f ||
+                juce::GlyphArrangement::getStringWidth(skin->getLookAndFeel().getComboBoxFont(*skin), name) > float(skin->getWidth() - skin->getHeight() - 8))
+                skinFailures.push_back(tag + " selector text unreadable or clipped");
+            if (name != "Light" && std::abs(lum(bg) - lum(light.getPixelAt(4, 4))) < .05f) skinFailures.push_back(tag + " does not recolour body");
+            for (const char* id2 : {"gate_value", "gain_value", "energy_value", "out_peak_l", "attn_peak"}) {
+                auto* l = child<juce::Label>(*sk, id2);
+                const auto under = img.getPixelAt(l->getX() + 1, l->getY() + 1);
+                const float c = contrast(l->findColour(juce::Label::textColourId), under);
+                std::cout << "SKIN " << tag << " " << id2 << " contrast=" << c << "\n";
+                if (c < 4.5f) skinFailures.push_back(tag + " " + id2 + " readout contrast");
+            }
+            for (const auto& cap : {juce::Rectangle<int>(22, 66, 70, 16), juce::Rectangle<int>(279, 66, 70, 16)})
+                if (inkContrast(img, cap, bg) < 4.5f) skinFailures.push_back(tag + " caption contrast");
+            for (const auto& cap : {juce::Rectangle<int>(22, 308, 70, 16), juce::Rectangle<int>(279, 308, 70, 16)})
+                if (inkContrast(img, cap, low) < 4.5f) skinFailures.push_back(tag + " lower caption contrast");
+            // Controls keep working in every skin.
+            child<juce::Label>(*sk, "gain_value")->setText("-6.5", juce::sendNotificationSync);
+            if (!approx(physical(2), -6.5f)) skinFailures.push_back(tag + " gain entry");
+            setPhysical(2, paramsBefore[2]);
+            if (std::abs(child<juce::Slider>(*sk, "gain")->getValue() - paramsBefore[2]) > 1e-3) skinFailures.push_back(tag + " automation");
+        }
+        juce::MemoryBlock stateAfter; p.getStateInformation(stateAfter);
+        const auto lightAgain = snap(*sk);
+        bool same = lightAgain.getWidth() == light.getWidth() && lightAgain.getHeight() == light.getHeight();
+        for (int y = 0; same && y < light.getHeight(); ++y)
+            for (int x = 0; same && x < light.getWidth(); ++x) same = light.getPixelAt(x, y) == lightAgain.getPixelAt(x, y);
+        if (!same) skinFailures.push_back("Light not restored pixel-exactly");
+        if (!(stateAfter == stateBefore)) skinFailures.push_back("state changed by skin switches");
+        if (physical(0) != paramsBefore[0] || physical(1) != paramsBefore[1] || !approx(physical(2), paramsBefore[2]))
+            skinFailures.push_back("parameters changed");
+        if (host.c.begins[0] != countsBefore.begins[0] || host.c.begins[1] != countsBefore.begins[1] ||
+            host.c.changes[0] != countsBefore.changes[0] || host.c.changes[1] != countsBefore.changes[1])
+            skinFailures.push_back("skin switch reached gate/comp parameters or gestures");
+        // Audio through skin switches is bit-identical to an editor-less twin.
+        {
+            tsunami::Adapter<tsunami::PluginSpec> a, b;
+            for (auto* q : {&a, &b}) { q->setStateInformation(stateBefore.getData(), int(stateBefore.getSize())); q->prepareToPlay(48000, 256); }
+            std::unique_ptr<juce::AudioProcessorEditor> ae(a.createEditor());
+            auto* box = child<juce::ComboBox>(*ae, "skin");
+            juce::MidiBuffer m;
+            juce::Random rng(47);
+            bool identical = box != nullptr;
+            for (int block = 0; identical && block < 24; ++block) {
+                if (box) box->setSelectedId(1 + block % 3, juce::sendNotificationSync);
+                juce::AudioBuffer<float> x(2, 256), y(2, 256);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int n = 0; n < 256; ++n) x.setSample(ch, n, (rng.nextFloat() * 2.f - 1.f) * .6f);
+                y.makeCopyOf(x);
+                a.processBlock(x, m); b.processBlock(y, m);
+                for (int ch = 0; ch < 2; ++ch)
+                    identical = identical && std::memcmp(x.getReadPointer(ch), y.getReadPointer(ch), 256 * sizeof(float)) == 0;
+            }
+            if (!identical) skinFailures.push_back("audio differs through skin switches");
+        }
+        for (const auto& what : skinFailures) std::cerr << "SKIN FAILED " << what << "\n";
+        CHECK(skinFailures.empty(), 105, "skins recolour readably, restore Light exactly, leave controls/state/audio alone");
+    }
+    // The chosen skin becomes the default for new editors and new instances only.
+    {
+        prefFile.deleteFile();
+        tsunami::Adapter<tsunami::PluginSpec> q;
+        std::unique_ptr<juce::AudioProcessorEditor> older(p.createEditor()), chooser(q.createEditor());
+        CHECK(child<juce::ComboBox>(*older, "skin")->getText() == "Light", 106, "clean install opens Light");
+        CHECK(!prefFile.exists(), 106, "opening an editor writes no preference");
+        child<juce::ComboBox>(*chooser, "skin")->setSelectedId(2, juce::sendNotificationSync);
+        CHECK(child<juce::ComboBox>(*chooser, "skin")->getText() == "Dark", 107, "current editor follows the choice");
+        CHECK(child<juce::ComboBox>(*older, "skin")->getText() == "Light", 107, "already open editors keep their skin");
+        CHECK(prefFile.loadFileAsString().trim() == "dark", 107, "choice stored in the product preference");
+        tsunami::Adapter<tsunami::PluginSpec> fresh;
+        std::unique_ptr<juce::AudioProcessorEditor> next(fresh.createEditor());
+        CHECK(child<juce::ComboBox>(*next, "skin")->getText() == "Dark", 108, "new instance opens with the stored default");
+        child<juce::ComboBox>(*next, "skin")->setSelectedId(3, juce::sendNotificationSync);
+        next.reset();
+        next.reset(fresh.createEditor());
+        CHECK(child<juce::ComboBox>(*next, "skin")->getText() == "Legacy", 108, "reopened editor reads the new default");
+        CHECK(child<juce::ComboBox>(*chooser, "skin")->getText() == "Dark", 108, "other open editor not mutated");
+        // Malformed, oversized and unreadable preferences fall back to Light.
+        for (const auto& bad : std::vector<juce::String>{"purple", "", "dark\nlegacy", "2", juce::String::repeatedString("dark", 400), "dark" + juce::String::repeatedString(" ", 80)}) {
+            prefFile.replaceWithText(bad);
+            std::unique_ptr<juce::AudioProcessorEditor> e(fresh.createEditor());
+            CHECK(child<juce::ComboBox>(*e, "skin")->getText() == "Light", 109, "malformed preference falls back to Light");
+        }
+        prefFile.deleteFile(); prefFile.createDirectory(); // a directory where the file should be
+        {
+            std::unique_ptr<juce::AudioProcessorEditor> e(fresh.createEditor());
+            auto* box = child<juce::ComboBox>(*e, "skin");
+            CHECK(box->getText() == "Light", 110, "unreadable preference falls back to Light");
+            const auto blocker = prefDir.getChildFile("blocker");
+            blocker.replaceWithText("x"); // a regular file as parent: the store cannot be written
+            tsunami::rvox::SkinPreference::location() = blocker.getChildFile("skin.txt");
+            box->setSelectedId(2, juce::sendNotificationSync);
+            CHECK(box->getText() == "Dark" && blocker.existsAsFile() && !blocker.getChildFile("skin.txt").exists(), 110,
+                  "unwritable preference keeps the choice for this editor");
+            tsunami::rvox::SkinPreference::location() = prefFile;
+        }
+        prefFile.deleteRecursively();
+    }
+    prefDir.deleteRecursively();
     p.removeListener(&host);
     std::cout << "PASS rvox editor\n";
     return 0;
