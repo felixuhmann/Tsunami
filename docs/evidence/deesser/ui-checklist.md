@@ -45,7 +45,7 @@ Frequency/SideChain controls at 35b870a, regressions 49-58 in `tests/deesser/ada
 - 49: the bar-style slider drew a value-proportional fill behind the number (overlap seen in the hosted capture); now only a framed window.
 - 52: typing `nan` into the Frequency box set the host `freq` parameter to NaN (state corruption).
 - 57 (bcc5c09): typed `inf` still moved Frequency 5586 -> 16000 with a host gesture (the host parser clamps before the
-  old guard). Text whose raw leading number is nonfinite (`nan`, `-NaN`, `inf`, `-inf`, `1e999`, `-1e999`) now keeps the
+  old guard). Text whose raw leading number is nonfinite (`nan`, `-NaN`, `inf`, `-inf`, `1e999`, `-1e999`) or beyond the float range of the host parameter (`1e39`, `-1e300`; review follow-up, RED witnessed) now keeps the
   exact current value before the host parser runs: parameters, serialised state, slider value, canonical text and gesture
   counts unchanged (Frequency and Threshold, non-boundary nonintegral starting values). Other text keeps the host parser's
   loose behaviour; this is not a full grammar validation.

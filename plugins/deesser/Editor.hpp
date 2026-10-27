@@ -14,6 +14,7 @@
 #include "EditorModel.hpp"
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 
 namespace tsunami::deesser {
@@ -255,12 +256,15 @@ private:
     std::unique_ptr<juce::ParameterAttachment> monitorAttachment, sidechainShapeAttachment;
 
     // Typed entry keeps the host's text parsing (installed by the attachment), but text whose raw number is
-    // nonfinite ("nan", "inf", overflow such as "1e999") keeps the current value before that parser can
+    // nonfinite or beyond float range ("nan", "inf", "1e999", "1e39") keeps the current value before that parser can
     // clamp it to a range end: no write, no gesture (adapter tests 52, 57).
     static void rejectNonfiniteEntry(juce::Slider& s) {
         s.valueFromTextFunction = [&s, parse = s.valueFromTextFunction](const juce::String& text) {
+            // Host parameters are float: a number beyond the float range overflows there too ("1e39").
             const auto raw = text.trim().toStdString();
-            if (!std::isfinite(std::strtod(raw.c_str(), nullptr))) return s.getValue();
+            const double strict = std::strtod(raw.c_str(), nullptr), portable = text.trim().getDoubleValue();
+            for (double v : {strict, portable})
+                if (!std::isfinite(v) || std::abs(v) > double(std::numeric_limits<float>::max())) return s.getValue();
             const double v = parse ? parse(text) : text.getDoubleValue();
             return std::isfinite(v) ? v : s.getValue();
         };

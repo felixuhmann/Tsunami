@@ -252,7 +252,7 @@ int main() {
                                            r.slider = s->getValue(); r.text = entryOf(s)->getText(); return r; };
         auto same = [](const Snapshot& a, const Snapshot& b) { return a.norm == b.norm && a.state == b.state && a.slider == b.slider && a.text == b.text; };
         for (auto* slider : {freq, threshold})
-            for (const char* text : {"nan", "-NaN", "inf", "-inf", "1e999", "-1e999"}) {
+            for (const char* text : {"nan", "-NaN", "inf", "-inf", "1e999", "-1e999", "1e39", "-1e300"}) {
                 const auto before = take(slider); const int b = gestures.begins, e = gestures.ends;
                 entryOf(slider)->setText(text, juce::sendNotificationSync);
                 if (!same(before, take(slider)) || gestures.begins != b || gestures.ends != e) {
