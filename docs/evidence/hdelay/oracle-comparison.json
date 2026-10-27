@@ -29,7 +29,8 @@
       "dc_rel_err": 0.0
      }
     ]
-   }
+   },
+   "circular": true
   },
   {
    "label": "fb50_375ms",
@@ -66,8 +67,11 @@
       "dc_rel_err": 5.816227040907014e-07
      }
     ]
-   }
+   },
+   "circular": true
   }
  ],
- "pass": true
+ "pass": true,
+ "status_note": "Round-1 cases are CIRCULAR calibration checks, not fidelity claims: fb0_375ms is the render the tap kernel was measured from; fb50_375ms is the render the loop gain was calibrated from. 'pass' below only means the calibration reproduces its own source data. Round-2 task3 reinterpretation: the 0.88892 tap DC is the write-path saturator u/(1+|u|) applied to the 0.125 impulse (500 ms genuine echoes are exactly 1/9 and 1/37).",
+ "pass_is_circular": true
 }
