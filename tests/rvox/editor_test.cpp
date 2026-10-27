@@ -370,17 +370,25 @@ int main() {
         unlinked("unlinked comp key", 0, [&] { c->keyPressed(juce::KeyPress(juce::KeyPress::upKey)); });
         unlinked("unlinked gain value entry", 2, [&] { child<juce::Label>(*ed, "gain_value")->setText("-4.5", juce::sendNotificationSync); });
         unlinked("unlinked comp value entry", 0, [&] { child<juce::Label>(*ed, "comp_value")->setText("-25", juce::sendNotificationSync); });
-        // Inputs that change nothing open no gesture: unhandled key, modified arrow, same value.
-        const auto quiet = host.c;
+        // Inputs that change nothing open no gesture: unhandled key, modified arrow, the
+        // same value typed differently (label text differs, so onTextChange runs) and an
+        // arrow key at the range limit.
+        child<juce::Label>(*ed, "gain_value")->setText("-4.3", juce::sendNotificationSync);
+        auto quiet = host.c;
         CHECK(!g->keyPressed(juce::KeyPress('x')), 94, "unhandled key ignored");
         CHECK(!g->keyPressed(juce::KeyPress(juce::KeyPress::upKey, juce::ModifierKeys::shiftModifier, 0)), 94, "modified arrow ignored");
-        child<juce::Label>(*ed, "gain_value")->setText("-4.5", juce::sendNotificationSync);
-        CHECK(host.begins == quiet.begins && host.changes == quiet.changes, 95, "no gesture without a change");
+        child<juce::Label>(*ed, "gain_value")->setText("-4.30", juce::sendNotificationSync);
+        CHECK(host.begins == quiet.begins && host.changes == quiet.changes, 95, "same value typed differently opens no gesture");
+        setPhysical(2, float(g->getMaximum()));
+        quiet = host.c;
+        g->keyPressed(juce::KeyPress(juce::KeyPress::upKey));
+        CHECK(host.begins == quiet.begins && host.changes == quiet.changes, 95, "arrow at range limit opens no gesture");
         // A key during a live drag joins that drag's gesture rather than nesting one.
         const auto dragBefore = host.c;
         g->mouseDown(event(*g, {16.f, 90.f}, {16.f, 90.f}, false));
         g->mouseDrag(event(*g, {16.f, 110.f}, {16.f, 90.f}, true));
-        CHECK(g->keyPressed(juce::KeyPress(juce::KeyPress::upKey)), 96, "key during drag handled");
+        CHECK(g->keyPressed(juce::KeyPress(juce::KeyPress::downKey)), 96, "key during drag handled");
+        child<juce::Label>(*ed, "gain_value")->setText("-7", juce::sendNotificationSync); // value entry during the drag
         g->mouseUp(event(*g, {16.f, 110.f}, {16.f, 90.f}, true));
         CHECK(!host.invalid && host.begins[2] == dragBefore.begins[2] + 1 && host.loose[2] == dragBefore.loose[2] &&
               (host.open == std::array<int, 3>{}), 96, "key during drag does not nest a gesture");

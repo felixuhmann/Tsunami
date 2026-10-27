@@ -129,9 +129,10 @@ public:
         const juce::ScopedValueSetter<bool> origin(userChange, true);
         // JUCE's arrow-key step writes outside a drag; give it the host gesture the
         // pointer, wheel and reset paths already get, unless a drag is already open.
+        const bool up = e == juce::KeyPress::upKey || e == juce::KeyPress::rightKey;
+        const bool down = e == juce::KeyPress::downKey || e == juce::KeyPress::leftKey;
         const bool step = !e.getModifiers().isAnyModifierKeyDown() &&
-                          (e == juce::KeyPress::upKey || e == juce::KeyPress::downKey ||
-                           e == juce::KeyPress::leftKey || e == juce::KeyPress::rightKey);
+                          ((up && getValue() < getMaximum()) || (down && getValue() > getMinimum()));
         std::optional<juce::Slider::ScopedDragNotification> gesture;
         if (step && drags == 0) gesture.emplace(*this);
         return juce::Slider::keyPressed(e);
@@ -315,9 +316,10 @@ private:
             const juce::ScopedValueSetter<bool> origin(f.slider.userChange, true);
             const auto text = f.value.getText();
             const double target = juce::jlimit(minimum, f.slider.getMaximum(), text.containsIgnoreCase("inf") ? minimum : text.getDoubleValue());
-            // Same rule as JUCE's own value box: an edited value that changes is a gesture.
+            // An edited value is a gesture only if the attachment will write it (it
+            // skips equal normalised values), so the same value typed differently opens none.
             std::optional<juce::Slider::ScopedDragNotification> gesture;
-            if (f.slider.drags == 0 && !juce::approximatelyEqual(target, f.slider.getValue())) gesture.emplace(f.slider);
+            if (f.slider.drags == 0 && f.parameter->getValue() != f.parameter->convertTo0to1(float(target))) gesture.emplace(f.slider);
             f.slider.setValue(target, juce::sendNotificationSync);
         };
         f.slider.onValueChange = [this, &f, minimum, id = juce::String(id)] {
