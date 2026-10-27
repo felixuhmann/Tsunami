@@ -59,6 +59,9 @@ jobs:
           curl -fL --retry 2 "https://github.com/free-audio/clap-validator/releases/download/0.4.1/$asset" -o validator.zip
           printf '%s  validator.zip\n' "$digest" | sha256sum -c -
           python -c "import zipfile; zipfile.ZipFile('validator.zip').extractall('validator')"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            tar -xzf validator/*.tar.gz -C validator
+          fi
           chmod +x "$executable"
           "$executable" --version | tee evidence/clap-validator-version.txt
           plugin="$(python -c "from pathlib import Path; print(next(Path('build/TsunamiFixture_artefacts').rglob('*.clap')).resolve())")"
