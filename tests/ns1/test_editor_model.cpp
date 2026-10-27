@@ -76,15 +76,15 @@ int main(int argc, char** argv) {
         const auto in = noise(48000, .02f); std::vector<float> out(in.size());
         p.setParameter(Processor::Amount, 100.f);
         for (unsigned k = 0; k + 512 <= in.size(); k += 512) {
-            const float* i1[]{in.data() + k}; float* o1[]{out.data() + k}; p.process(i1, o1, 512);
+            const float* i1[2]{in.data() + k, nullptr}; float* o1[2]{out.data() + k, nullptr}; p.process(i1, o1, 512);
         }
         const float db = p.attenuationDb();
         require(db < -1.f && db >= -48.f, "steady noise at 100 % reads attenuation within -48..0 dB");
         p.setParameter(Processor::Bypass, 1.f);
-        const float* i1[]{in.data()}; float* o1[]{out.data()}; p.process(i1, o1, 512);
+        const float* i1[2]{in.data(), nullptr}; float* o1[2]{out.data(), nullptr}; p.process(i1, o1, 512);
         require(p.attenuationDb() == 0.f, "bypass reads 0 dB");
         std::vector<float> z(512, 0.f); p.setParameter(Processor::Bypass, 0.f);
-        const float* iz[]{z.data()}; float* oz[]{out.data()}; p.process(iz, oz, 512);
+        const float* iz[2]{z.data(), nullptr}; float* oz[2]{out.data(), nullptr}; p.process(iz, oz, 512);
         require(p.attenuationDb() == 0.f, "silent input reads 0 dB (no energy removed)");
         // In-place processing measures input energy before overwriting it.
         Processor q; q.prepare(48000, 2, 512); q.setParameter(Processor::Amount, 100.f);
