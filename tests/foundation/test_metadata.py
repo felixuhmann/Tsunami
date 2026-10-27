@@ -78,5 +78,34 @@ class MetadataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.generate({'parameters': [dict(index=0, id='mode', name='Mode', min=0, max=2, default=0, type='choice', choices=['A', 'B'])]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
 
+    def test_display_decimals_is_explicit_text_only_precision(self):
+        module = self.load()
+        base = dict(index=0, id='freq', name='Freq', min=2000, max=16000, default=5506, unit='Hz', logarithmic=True)
+        plain = module.generate({'parameters': [base]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        whole = module.generate({'parameters': [dict(base, display_decimals=0)]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        skew = plain.split('"Hz", 0.0f, ')[1].split('}')[0]
+        # Same physical range/step/skew; only the trailing text precision is added (choices slot nullptr).
+        self.assertIn(f'"Hz", 0.0f, {skew}, nullptr, 0}}', whole)
+        linear = module.generate({'parameters': [dict(base, logarithmic=False, display_decimals=2)]}, 'fixture', 'Fixture',
+                                 'tsunami::fixture::Processor')
+        self.assertIn('"Hz", 0.0f, 1.0f, nullptr, 2}', linear)
+        for bad in (-1, True, False, 0.5, 1.0, '0', None, 7):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                module.generate({'parameters': [dict(base, display_decimals=bad)]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+        with self.assertRaises(ValueError):  # choices already define their text
+            module.generate({'parameters': [dict(index=0, id='mode', name='Mode', min=0, max=1, default=0, type='choice',
+                                                 choices=['A', 'B'], display_decimals=0)]}, 'fixture', 'Fixture', 'tsunami::fixture::Processor')
+
+    def test_default_generated_bytes_unchanged(self):
+        import hashlib
+        module = self.load()
+        s1 = module.generate(json.loads((ROOT / 'plugins/s1/parameters.json').read_text()), 's1', 'Tsunami Stereo',
+                             'tsunami::s1::Processor', editor=True)
+        fixture = module.generate(json.loads((ROOT / 'tests/foundation/fixture/parameters.json').read_text()), 'fixture',
+                                  'Tsunami Infrastructure Fixture', 'tsunami::fixture::Processor')
+        # Recorded from the generator at cb25f1e before display_decimals existed.
+        self.assertEqual(hashlib.sha256(s1.encode()).hexdigest(), '261f03dfe349a1f45b8eb1172a56758e0e5df4d0a284289a0df354b9d20ed82f')
+        self.assertEqual(hashlib.sha256(fixture.encode()).hexdigest(), '58d21e1afd3a95ec0318d35152d6db3cfc3be35c19e3c8a06fbb02fe170ac62e')
+
 if __name__ == '__main__':
     unittest.main()

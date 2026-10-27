@@ -7,6 +7,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Generated.hpp"
 #include "Editor.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -47,6 +48,52 @@ int main() {
     }
     CHECK(params[2]->getCurrentValueAsText() == "HighPass" && params[3]->getCurrentValueAsText() == "Split"
           && params[4]->getCurrentValueAsText() == "Output", 5, "choice labels exposed to hosts");
+
+    // CLAP text round trip as clap-validator 0.4.1 param-conversions runs it through clap-juce-extensions
+    // (normalised value -> float -> getText(v, size) -> getValueForText -> getText): grid of
+    // N = clamp(ceil(4000 / parameterCount), 5, 100) evenly spaced values per parameter (6 params: 600 cases).
+    // Native run 40555152920 failed Freq at i=49: '5585.6484375' -> 0.49494943 -> '5585.6474609'.
+    {
+        std::vector<float> before; for (auto* q : params) before.push_back(q->getValue());
+        const int n = std::clamp(int(std::ceil(4000.0 / params.size())), 5, 100);
+        CHECK(n == 100, 28, "validator grid size");
+        int cases = 0;
+        for (auto* q : params)
+            for (int i = 0; i < n; ++i, ++cases) {
+                const float v = float(double(i) / double(n - 1));
+                const auto text = q->getText(v, 256);
+                const float parsed = q->getValueForText(text);
+                const auto again = q->getText(parsed, 256);
+                const float reparsed = q->getValueForText(again);
+                if (text != again || parsed != reparsed || !std::isfinite(parsed) || parsed < 0.f || parsed > 1.f) {
+                    std::cerr << "FAIL text round trip " << q->getName(64) << " i=" << i << " '" << text << "' -> " << parsed
+                              << " -> '" << again << "' -> " << reparsed << "\n";
+                    return 29;
+                }
+            }
+        CHECK(cases == 600, 30, "600 validator cases");
+        std::vector<float> after; for (auto* q : params) after.push_back(q->getValue());
+        CHECK(before == after, 31, "text queries do not change parameter state");
+        // Text only: Freq stays continuous (interval 0, same skew/law); non-integral Hz are still values.
+        auto* freqParam = dynamic_cast<juce::RangedAudioParameter*>(params[0]);
+        const auto& range = freqParam->getNormalisableRange();
+        CHECK(range.interval == 0.f && range.skew == tsunami::PluginSpec::parameters[0].skew
+              && std::abs(range.convertFrom0to1(range.convertTo0to1(5585.65f)) - 5585.65f) < 1e-2f, 32, "Freq physical law unchanged");
+        CHECK(freqParam->getText(range.convertTo0to1(5585.65f), 256) == "5586" && freqParam->getText(range.convertTo0to1(2000.f), 256) == "2000"
+              && freqParam->getText(range.convertTo0to1(16000.f), 256) == "16000" && freqParam->getText(range.convertTo0to1(5585.65f), 3) == "558",
+              33, "Freq text is whole Hz (requested length respected)");
+        for (int hz = 2000; hz <= 16000; ++hz) {
+            const auto text = juce::String(hz);
+            const float parsed = freqParam->getValueForText(text);
+            if (freqParam->getText(parsed, 256) != text || freqParam->getText(freqParam->getValueForText(freqParam->getText(parsed, 256)), 256) != text) {
+                std::cerr << "FAIL whole-Hz text " << hz << " -> '" << freqParam->getText(parsed, 256) << "'\n"; return 34;
+            }
+        }
+        // Unspecified precision keeps JUCE's default (interval 0: 7 decimals); choices keep labels.
+        auto* thresholdParam = dynamic_cast<juce::RangedAudioParameter*>(params[1]);
+        CHECK(thresholdParam->getText(thresholdParam->convertTo0to1(-43.6f), 256) == juce::String(-43.6f, 7)
+              && params[2]->getText(0.f, 256) == "BandPass", 35, "default formatting and choice labels unchanged");
+    }
 
     p->setPlayConfigDetails(2, 2, 48000, 512);
     p->prepareToPlay(48000, 512);

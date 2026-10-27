@@ -3,7 +3,7 @@
   "component": "Tsunami De-Esser",
   "source": "Genuine reference parameter enumeration (names, ranges, defaults, choice order); physical values passed to Processor::setParameter",
   "parameters": [
-    {"index": 0, "id": "freq", "name": "Freq", "min": 2000, "max": 16000, "default": 5506, "unit": "Hz", "type": "float", "logarithmic": true, "steps": 1001, "taper": "2000*8^normalized", "group": "detector"},
+    {"index": 0, "id": "freq", "name": "Freq", "min": 2000, "max": 16000, "default": 5506, "unit": "Hz", "type": "float", "logarithmic": true, "steps": 1001, "taper": "2000*8^normalized", "display_decimals": 0, "group": "detector"},
     {"index": 1, "id": "threshold", "name": "Threshold", "min": -80, "max": 0, "default": 0, "unit": "dB", "type": "float", "logarithmic": false, "step": 0.1, "group": "detector"},
     {"index": 2, "id": "sidechain", "name": "SideChain", "min": 0, "max": 1, "default": 1, "unit": "", "type": "choice", "logarithmic": false, "choices": ["BandPass", "HighPass"], "group": "detector"},
     {"index": 3, "id": "audio", "name": "Audio", "min": 0, "max": 1, "default": 0, "unit": "", "type": "choice", "logarithmic": false, "choices": ["Split", "Wideband"], "group": "processing"},
