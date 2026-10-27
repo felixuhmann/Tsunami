@@ -156,3 +156,26 @@ head's native CI is **pending** and is not accepted.
 - RT re-run: `rt-green-followup.log`, 0 allocations.
 - **Windows full-width capture is not changed.** The runner desktop is 1024 wide and clips about 24 px of the
   1048 body. No supported resolution change was proven within this slice, so this remains an open blocker.
+
+## Linked Asymmetry/Rotation slice 5 (manual p6)
+`65c9f23` is still under its own native run, 40516362962. This new head's native CI is **pending** and is not accepted.
+- **Behaviour:** dragging the strip between the Asymmetry and Rotation rows (`link_strip`, x365–682, y474–496)
+  moves both controls together, like a balance. A purple outline marks the linked pair. Clicking the editor
+  background unlinks them.
+- **Replacement policy, not measured original sensitivity:** one common normalized delta, `dx / 317 px`
+  (the track width, sub-pixel), applied to both. The delta is clamped so neither control leaves its range, which
+  preserves their normalized offset. Gestures begin and end only on `asymmetry` and `rotation`. Physical ranges and
+  the DSP are unchanged. Modifiers are ignored on the strip, so Alt does not reset. Individual sliders, text boxes,
+  the graph drag and the meters are unchanged.
+- **TDD:**
+  - `link-red.log`: runtime FAIL 44, no link strip.
+  - `link-green.log`: FAIL 46. The integer `getDistanceFromDragStartX` rounded 31.7 px to 32.
+  - `link-debug.log`: the diagnostic run that printed asym 28.17 / rot 4.085.
+  - Fix: a float drag distance. `link-green-2.log` and `link-green-final.log` PASS.
+  - The test uses real `MouseEvent`s with Alt held and counts begin/end gestures through an
+    `AudioProcessorListener`. It covers boundary clamping with the offset kept (90 / 5), a state restore while
+    linked followed by a linked drag from the restored values, and unlinking on a background click.
+- RT re-run: `rt-green-link.log`, 0 allocations.
+- In-process snapshot (not hosted): `s1-ui-logs/candidates/candidate-linked.png`.
+- **Not implemented:** rectangular multi-control selection (manual p8–9). Interaction parity is partial.
+- **Windows framing blocker carried:** the 1024-wide runner desktop clips about 24 px of the 1048 body.

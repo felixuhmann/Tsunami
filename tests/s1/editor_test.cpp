@@ -21,6 +21,12 @@ static juce::MouseEvent mouseAt(juce::Component& c, juce::ModifierKeys mods, int
                             &c, &c, juce::Time::getCurrentTime(), centre, juce::Time::getCurrentTime(), clicks, false);
 }
 
+static juce::MouseEvent dragAt(juce::Component& c, float dx, juce::ModifierKeys mods = {}) {
+    const auto centre = c.getLocalBounds().getCentre().toFloat();
+    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), centre.translated(dx, 0.f), mods, 0.f, 0.f, 0.f, 0.f, 0.f,
+                            &c, &c, juce::Time::getCurrentTime(), centre, juce::Time::getCurrentTime(), 1, dx != 0.f);
+}
+
 int main() {
     juce::ScopedJuceInitialiser_GUI gui;
     tsunami::Adapter<tsunami::PluginSpec> p;
@@ -215,6 +221,49 @@ int main() {
         }
         setPhysical(7, 0.f);
     }
+    // Manual p6: dragging the space between Asymmetry and Rotation links them (balance-like).
+    // Replacement policy: common normalized delta = dx / 317 px track width; the delta is clamped
+    // so neither control leaves its range (offset preserved); gestures only on the two params.
+    {
+        struct Gestures : juce::AudioProcessorListener {
+            std::array<int, 9> begins{}, ends{};
+            void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+            void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails&) override {}
+            void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int i) override { ++begins[size_t(i)]; }
+            void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int i) override { ++ends[size_t(i)]; }
+        } gestures;
+        auto* strip = editor->findChildWithID("link_strip");
+        CHECK(strip, 44, "link strip between asymmetry and rotation rows");
+        const auto sb = strip->getBounds();
+        CHECK(sb.getY() >= 454 && sb.getBottom() <= 499 && sb.getX() >= 340 && sb.getRight() <= 712, 45, "strip lies between the two rows");
+        setPhysical(3, 10.f); setPhysical(2, -5.f); setPhysical(0, -3.f); setPhysical(1, 1.5f);
+        p.addListener(&gestures);
+        strip->mouseDown(dragAt(*strip, 0.f, juce::ModifierKeys(juce::ModifierKeys::altModifier | juce::ModifierKeys::leftButtonModifier)));
+        strip->mouseDrag(dragAt(*strip, 31.7f, juce::ModifierKeys(juce::ModifierKeys::altModifier | juce::ModifierKeys::leftButtonModifier)));
+        if (std::abs(physical(3) - 28.f) >= .05f || std::abs(physical(2) - 4.f) >= .05f) std::cerr << "asym " << physical(3) << " rot " << physical(2) << "\n";
+        CHECK(std::abs(physical(3) - 28.f) < .05f && std::abs(physical(2) - 4.f) < .05f, 46, "linked common normalized delta (alt does not reset)");
+        strip->mouseUp(dragAt(*strip, 31.7f));
+        p.removeListener(&gestures);
+        CHECK(gestures.begins[2] == 1 && gestures.ends[2] == 1 && gestures.begins[3] == 1 && gestures.ends[3] == 1, 47, "balanced gestures on linked pair");
+        for (int i : {0, 1, 4, 5, 6, 7, 8}) CHECK(gestures.begins[size_t(i)] == 0 && gestures.ends[size_t(i)] == 0, 48, "no gestures on other params");
+        CHECK(std::abs(physical(0) + 3.f) < 1e-3 && std::abs(physical(1) - 1.5f) < 1e-3, 49, "gain/width untouched");
+        CHECK(bool(editor->getProperties()["s1_linked"]), 50, "pair shown linked after drag");
+        // Boundary: asymmetry 80 / rotation 0, drag far right -> stops when asymmetry reaches 90, offset kept.
+        setPhysical(3, 80.f); setPhysical(2, 0.f);
+        strip->mouseDown(dragAt(*strip, 0.f)); strip->mouseDrag(dragAt(*strip, 400.f)); strip->mouseUp(dragAt(*strip, 400.f));
+        CHECK(std::abs(physical(3) - 90.f) < .05f && std::abs(physical(2) - 5.f) < .05f, 51, "clamped common delta preserves offset");
+        // State restore while linked: controls follow restored values; next linked drag starts from them.
+        juce::MemoryBlock linkedState; setPhysical(3, -20.f); setPhysical(2, 10.f); p.getStateInformation(linkedState);
+        setPhysical(3, 50.f); setPhysical(2, -30.f);
+        p.setStateInformation(linkedState.getData(), int(linkedState.getSize()));
+        CHECK(std::abs(child<juce::Slider>(*editor, "asymmetry")->getValue() + 20.) < 1e-3 && std::abs(child<juce::Slider>(*editor, "rotation")->getValue() - 10.) < 1e-3, 52, "restore while linked");
+        strip->mouseDown(dragAt(*strip, 0.f)); strip->mouseDrag(dragAt(*strip, -31.7f)); strip->mouseUp(dragAt(*strip, -31.7f));
+        CHECK(std::abs(physical(3) + 38.f) < .05f && std::abs(physical(2) - 1.f) < .05f, 53, "linked drag from restored values");
+        // Click elsewhere unlinks.
+        editor->mouseDown(mouseAt(*editor, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier)));
+        CHECK(!bool(editor->getProperties()["s1_linked"]), 54, "click elsewhere unlinks");
+        for (int i = 0; i < 4; ++i) setPhysical(i, ranged(i)->convertFrom0to1(ranged(i)->getDefaultValue()));
+    }
     if (auto* dir = std::getenv("TSUNAMI_S1_SNAPSHOT_DIR")) { // in-process component renders, not host captures
         auto shot = [&](const char* name, float width, float rotation) {
             setPhysical(1, width); setPhysical(2, rotation);
@@ -222,7 +271,7 @@ int main() {
             juce::File file = juce::File(dir).getChildFile(name); file.deleteFile(); juce::FileOutputStream out(file);
             juce::PNGImageFormat().writeImageToStream(editor->createComponentSnapshot(editor->getLocalBounds()), out);
         };
-        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f);
+        shot("candidate-default.png", 1.f, 0.f); shot("candidate-width2.png", 2.f, 0.f); shot("candidate-rotation20.png", 1.f, 20.f); s1->setLinked(true); shot("candidate-linked.png", 1.f, 10.f); s1->setLinked(false);
     }
     std::cout << "S1 editor controls, attachments, automation sync, vector model, reset image, drag, meters PASS\n";
     return 0;

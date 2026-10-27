@@ -165,10 +165,44 @@ public:
     }
 };
 
+// Manual p6: dragging the space between Asymmetry and Rotation links them like a balance.
+// Replacement policy (not measured original sensitivity): one common normalized delta of
+// dx / trackWidth for both; the delta is clamped so neither leaves its range, which keeps
+// their normalized offset. Gestures cover only the two linked parameters.
+class LinkStrip final : public juce::Component {
+public:
+    LinkStrip(juce::AudioProcessorValueTreeState& s) : state(s) {
+        setComponentID("link_strip"); setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
+    }
+    std::function<void()> onLinked;
+    static constexpr float trackWidth=317.f;
+    void mouseDown(const juce::MouseEvent&) override {
+        for(size_t i=0;i<2;++i) { auto* p=state.getParameter(ids[i]); p->beginChangeGesture(); start[i]=p->getValue(); }
+        dragging=true;
+        if(onLinked) onLinked();
+    }
+    void mouseDrag(const juce::MouseEvent& e) override {
+        if(!dragging) return;
+        float delta=(e.position.x-e.mouseDownPosition.x)/trackWidth; // sub-pixel (int distance rounds)
+        for(size_t i=0;i<2;++i) delta=juce::jlimit(-start[i], 1.f-start[i], delta);
+        for(size_t i=0;i<2;++i) state.getParameter(ids[i])->setValueNotifyingHost(start[i]+delta);
+    }
+    void mouseUp(const juce::MouseEvent&) override {
+        if(!dragging) return;
+        dragging=false;
+        for(auto* id : ids) state.getParameter(id)->endChangeGesture();
+    }
+private:
+    static constexpr const char* ids[2]{"asymmetry","rotation"};
+    juce::AudioProcessorValueTreeState& state;
+    std::array<float,2> start{};
+    bool dragging=false;
+};
+
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
-        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), display(s) {
+        : AudioProcessorEditor(p), state(s), meters(dynamic_cast<MeterSource*>(&p)), display(s), linkStrip(s) {
         vertical(gain, "gain", 0.0, 1); vertical(width, "width", 1.0, 2);
         horizontal(asymmetry, "asymmetry", 0.0, 0); horizontal(rotation, "rotation", 0.0, 1);
         toggle(inputMode, "input_mode", "L-R | M-S"); toggle(invertLeft, "invert_left", "+/-");
@@ -183,6 +217,9 @@ public:
             addAndMakeVisible(lamps[size_t(k)]); addAndMakeVisible(readouts[size_t(k)]);
         }
         addAndMakeVisible(display);
+        linkStrip.onLinked=[this] { setLinked(true); };
+        addAndMakeVisible(linkStrip);
+        setLinked(false);
         setWantsKeyboardFocus(true);
         refreshPolarity();
         setSize(1048, 665);
@@ -217,6 +254,9 @@ public:
     std::array<float,2> meterReadings() const { return displayed; }
     // Channel label above its clip lamp, centred on the bar and clear of the shared tick scale.
     juce::Rectangle<int> channelLabelBounds(int k) const { return {(k ? 988 : 886)-10, 38, 20, 14}; }
+    void setLinked(bool on) { getProperties().set("s1_linked", on); repaint(); }
+    bool isLinked() const { return bool(getProperties()["s1_linked"]); }
+    void mouseDown(const juce::MouseEvent&) override { setLinked(false); } // click elsewhere unlinks
     float heldPeakDb(int k) const { return held[size_t(k)]; }
     bool clipped(int k) const { return clip[size_t(k)]; }
     void resetHold(int k) { held[size_t(k)]=-100.f; clip[size_t(k)]=false; repaint(); }
@@ -234,6 +274,10 @@ public:
         g.drawText("Gain", gain.getX()-10, 40, gain.getWidth()+20, 20, juce::Justification::centred);
         g.drawText("Width", width.getX()-10, 40, width.getWidth()+20, 20, juce::Justification::centred);
         g.drawText("Input Mode", leftPanel.getX(), inputMode.getY()-24, leftPanel.getWidth(), 20, juce::Justification::centred);
+        if(isLinked()) { // visible selection outline around the linked pair
+            g.setColour(juce::Colour(0xff6b5fb4)); g.drawRoundedRectangle(juce::Rectangle<float>(234.f, 406.f, 548.f, 154.f), 6.f, 2.f);
+        }
+        g.setColour(ui::ink); g.setFont(ui::font(16.f));
         g.drawText("Asymmetry", 240, 414, 110, 26, juce::Justification::centredLeft);
         g.drawText("Rotation", 240, 499, 110, 26, juce::Justification::centredLeft);
         // Scales: Gain 0/-12/-24, Width 3.0/0.0 (dense minor ticks), Asymmetry -90/0/90, Rotation -45/0/45.
@@ -294,6 +338,7 @@ public:
         invertLeft.setBounds(leftPanel.getX()+36, 556, 44, 28); swap.setBounds(leftPanel.getX()+86, 556, 50, 28);
         invertRight.setBounds(leftPanel.getX()+142, 556, 44, 28);
         display.setBounds(244, 32, 560, 321);
+        linkStrip.setBounds(365, 474, 317, 22);
         asymmetry.setBounds(340, 414, 435, 40);
         rotation.setBounds(340, 499, 435, 40);
         meterArea=juce::Rectangle<int>(850, 50, 176, 395);
@@ -354,6 +399,7 @@ private:
     juce::TextButton invertLeft, swap, invertRight, bypass;
     ModeSwitch inputMode, meterMode;
     VectorDisplay display;
+    LinkStrip linkStrip;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>> buttonAttachments;
     juce::Rectangle<int> leftPanel, centrePanel, rightPanel, meterArea;
