@@ -1,4 +1,5 @@
 {
+ "ordering_note": "Threshold VALUES unchanged since first commit. The declared_* stamps are self-reported and NOT verifiable: block_boundary_automation first appears in commit 8acbbcd (committed 2026-10-27T15:48:58Z, earlier than its 16:05Z stamp), and midstream_genuine_automation first appears in 243fa0b (committed 16:08:29Z) together with splice_validity.cpp and its output. Each thresholds.json change was committed together with its results (2f377e9, 8acbbcd, 243fa0b), so declaration-before-measurement cannot be proven from git. The splice criterion is a fixed 1e-6 equality used only to refuse claims.",
   "schema": 1,
   "declared_before_comparison": "2026-10-27T15:37Z",
   "target": "deesser",

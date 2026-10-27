@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <limits>
 #include <vector>
-#include "Processor.h"
+#include "Processor.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

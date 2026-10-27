@@ -1,6 +1,6 @@
 # DeEsser (Tsunami De-Esser) evidence
 
-Status: portable DSP core functionally matched on every stored genuine render case below. **Partial target**: no editor/UI, no foundation (root CMake/plugin wrapper) integration, parameter automation within a block is not modelled; block-boundary changes are tested on the Tsunami core only (no genuine automation oracle). Not marked verified.
+Status: portable DSP core functionally matched on every stored genuine render case below. **Partial target**: a code-drawn editor exists (`plugins/deesser/Editor.hpp`) but is tested only in a JUCE harness and is not in a product build; no foundation (root CMake/plugin wrapper) integration, parameter automation within a block is not modelled; block-boundary changes are tested on the Tsunami core only (no genuine automation oracle). Not marked verified.
 
 ## Implementation
 `plugins/deesser/Processor.{h,cpp}` (C++17, namespace `tsunami::deesser`):
@@ -40,7 +40,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, p
 ## Remaining limitations
 - Parameter changes mid-stream not compared to the genuine plugin (oracle has no automation path); intra-block (sample-accurate) changes not modelled.
 - Sample rates outside 44.1/48/96 kHz, and Freq near 16 kHz at 44.1 kHz (Nyquist clamp path), not compared.
-- No editor/UI or host wrapper; root build integration belongs to the foundation worker.
+- Editor tested only in a harness (not in CMake/CI); no host wrapper; root build integration belongs to the foundation worker. Energy/Atten have no data in the product build until the foundation Adapter exposes the core meters.
 
 ## Round 2: editor and mid-stream automation
 - `tests/deesser/test_editor_model.cpp` (ctest `deesser_editor_model`, no JUCE): every control maps to a genuine parameter, and no control is invented. Covers clamp/quantise, the Freq taper, display text, all-or-nothing state restore, Energy/Atten fed from the core's realtime-safe meters, and infinite peak hold with click reset.
@@ -51,5 +51,13 @@ Meters: `Processor::gainReductionDb()` (largest attenuation in the last block, p
   - Output readings taken from MeterSource
 
   It was compiled against the pinned JUCE9 build cache, using origin/main `shared/` and the adapter_test link line, and run under xvfb. It is not wired into CMake because the root build integrates only s1.
-- `automation-midstream.txt`: the genuine oracle cannot apply mid-render parameter changes. The splice model was measured against the predeclared criteria in `thresholds.json` and is invalid for Threshold and Freq.
+- `automation-midstream.txt`: the genuine oracle cannot apply mid-render parameter changes. The splice model was measured against the predeclared criteria in `thresholds.json` and is invalid for Threshold, Freq, SideChain (both directions) and Audio Wideband->Split; valid on the core only for Monitor and Audio Split->Wideband. No genuine mid-stream claim is made.
 - `ui-checklist.md`: a control-by-control comparison against the manual figure.
+
+## Round 2 task 4: review fixes (deesser-review-0480502)
+- Core is header-only (`plugins/deesser/Processor.hpp`, INTERFACE library) so it fits `tsunami_plugin`, which compiles only `shared/Plugin.cpp` and includes `Processor.hpp`.
+- Energy meter is on the Threshold scale: `detectorLevelDb()` reports the envelope / sqrt(0.5), which is exactly what the detector compares with 10^(threshold/20). Attenuation therefore starts when the slider goes below the bar's peak (manual ch.2). Before the fix it was about 3.01 dB off. Tested in `deesser_editor_model` 6a.
+- Energy/Atten peak hold: the core folds every block into its meter atomics with a lock-free CAS max, and `take*()` exchanges them back to idle. `MeterModel::poll(Processor&)` takes, so blocks between UI polls are not lost (test 6b). The JUCE harness `DetectorMeterSource` path still peeks; the product path needs the foundation meter tap.
+- Freq slider: the ineffective JUCE skew call was removed. A slider-side custom `NormalisableRange` (2000*8^n, whole Hz, `ui::proportionToFreq`/`freqToProportion`, test 6c) is set after the attachment. The JUCE editor test was NOT re-run in this round.
+- Atten readout shows "0.0" when idle instead of "-0.0" (`ui::attenReadout`, test 6d).
+- `thresholds.json` `ordering_note`: values unchanged; the self-reported declaration stamps are not provable from git.

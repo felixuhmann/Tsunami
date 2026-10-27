@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Test-only planar float32 stdin/stdout adapter. Arguments: rate channels frames block six physical controls.
-#include "Processor.h"
+#include "Processor.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <vector>

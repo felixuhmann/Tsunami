@@ -56,11 +56,16 @@ public:
         audio.setClickingTogglesState(true); audio.setComponentID("audio");
         audioAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, "audio", audio);
         audio.onStateChange = [this] { audio.setButtonText(ui::valueText(3, audio.getToggleState() ? 1.f : 0.f)); };
-        // Frequency: value window, drag to change; skewed to the genuine 2000*8^n taper.
+        // Frequency: value window, drag to change; genuine 2000*8^n taper (slider-side range).
         freq.setSliderStyle(juce::Slider::LinearBarVertical); freq.setComponentID("freq");
         freq.setTextBoxStyle(juce::Slider::TextBoxAbove, false, 60, 20);
         freqAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "freq", freq);
-        freq.setSkewFactorFromMidPoint(2000.0 * std::sqrt(8.0));
+        // Genuine 2000*8^n taper on the slider side: the attachment converts in physical Hz, so a
+        // custom range set AFTER it gives the taper even when the host parameter range is linear.
+        freq.setNormalisableRange(juce::NormalisableRange<double>(2000.0, 16000.0,
+            [](double, double, double n) { return ui::proportionToFreq(n); },
+            [](double, double, double hz) { return ui::freqToProportion(hz); },
+            [](double, double, double hz) { return std::round(std::clamp(hz, 2000.0, 16000.0)); }));
         freq.textFromValueFunction = [](double v) { return juce::String(ui::valueText(0, float(v))); };
         // SideChain filter shape selector.
         sidechain.addItem("BandPass", 1); sidechain.addItem("HighPass", 2); sidechain.setComponentID("sidechain");
@@ -159,7 +164,7 @@ private:
     void refreshReadouts() {
         auto db = [](float v) { return v <= -120.f ? juce::String("--") : juce::String(v, 1); };
         energyReadout.text = detectorMeters ? db(meters.energyPeakDb) : "--";
-        attenReadout.text = detectorMeters ? juce::String(-meters.attenPeakDb, 1) : "--";
+        attenReadout.text = detectorMeters ? juce::String(ui::attenReadout(meters.attenPeakDb)) : "--";
         for (int k = 0; k < 2; ++k) outReadout[k].text = outputMeters ? db(meters.outputPeakDb[size_t(k)]) : "--";
         for (juce::Component* c : std::initializer_list<juce::Component*>{&energyReadout, &attenReadout, &outReadout[0], &outReadout[1]}) c->repaint();
     }

@@ -3,7 +3,7 @@
 // value bindings/text, state save/restore and meter model fed from the core's
 // realtime-safe meters. Mirrors the S1 EditorModel split (model testable without JUCE).
 #pragma once
-#include "Processor.h"
+#include "Processor.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -118,6 +118,15 @@ inline float attenFraction(float grDb) noexcept {
         if (grDb <= db[k]) return at[k - 1] + (grDb - db[k - 1]) * (at[k] - at[k - 1]) / (db[k] - db[k - 1]);
     return std::min(1.f, at[4] + (grDb - 18.f) * (at[4] - at[2]) / 12.f);
 }
+// Genuine Frequency taper: value = 2000*8^n Hz for normalised n in [0,1] (whole Hz). Used by the
+// editor's slider-side NormalisableRange so the taper holds even when the host parameter is linear.
+inline double proportionToFreq(double n) noexcept { return std::round(2000.0 * std::pow(8.0, std::clamp(n, 0.0, 1.0))); }
+inline double freqToProportion(double hz) noexcept { return std::clamp(std::log(std::clamp(hz, 2000.0, 16000.0) / 2000.0) / std::log(8.0), 0.0, 1.0); }
+// Atten readout: attenuation shown as negative dB with one decimal; idle shows "0.0", never "-0.0".
+inline std::string attenReadout(float grDb) {
+    const float tenths = std::round((std::isfinite(grDb) ? std::max(0.f, grDb) : 0.f) * 10.f) / 10.f;
+    char buf[16]; std::snprintf(buf, sizeof buf, "%.1f", tenths > 0 ? double(-tenths) : 0.0); return buf;
+}
 inline float toDbfs(float linear) noexcept { return linear > 1e-6f ? 20.f * std::log10(linear) : -120.f; }
 
 // Readouts below the meters show infinite peak hold; clicking resets (manual ch.2/ch.4).
@@ -129,7 +138,7 @@ struct MeterModel {
         attenDb = std::isfinite(grDb) ? std::max(0.f, grDb) : 0.f;
         energyPeakDb = std::max(energyPeakDb, energyDb); attenPeakDb = std::max(attenPeakDb, attenDb);
     }
-    void poll(const Processor& p) noexcept { pollDetector(p.detectorLevelDb(), p.gainReductionDb()); }
+    void poll(Processor& p) noexcept { pollDetector(p.takeDetectorLevelDb(), p.takeGainReductionDb()); }
     void poll(const DetectorMeterSource& s) noexcept { pollDetector(s.detectorLevelDb(), s.gainReductionDb()); }
     void pollOutput(float leftPeak, float rightPeak) noexcept {
         outputDb = {toDbfs(leftPeak), toDbfs(rightPeak)};

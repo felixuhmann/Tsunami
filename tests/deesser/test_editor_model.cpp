@@ -72,9 +72,9 @@ int main(int argc, char** argv) {
     std::vector<float> x(4096), y(4096);
     for (unsigned i = 0; i < 4096; ++i) x[i] = .5f * float(std::sin(2 * 3.14159265358979 * 7000.0 * i / 48000.0));
     const float* in[]{x.data()}; float* out[]{y.data()};
-    q.process(in, out, 4096); m.poll(q);
-    require(m.attenDb >= 3 && near(m.attenDb, q.gainReductionDb()), "Atten meter reads core gain reduction");
-    require(m.energyDb > -40 && near(m.energyDb, q.detectorLevelDb()), "Energy meter reads core detector level");
+    q.process(in, out, 4096); const float coreGr = q.gainReductionDb(), coreE = q.detectorLevelDb(); m.poll(q);
+    require(m.attenDb >= 3 && near(m.attenDb, coreGr), "Atten meter reads core gain reduction");
+    require(m.energyDb > -40 && near(m.energyDb, coreE), "Energy meter reads core detector level");
     const float held = m.attenPeakDb;
     q.reset(); m.poll(q);
     require(m.attenDb == 0 && near(m.attenPeakDb, held), "infinite peak hold keeps the maximum");
@@ -88,5 +88,36 @@ int main(int argc, char** argv) {
     require(near(ui::attenFraction(0), 0) && ui::attenFraction(3) < ui::attenFraction(6) && ui::attenFraction(18) < 1 &&
             near(ui::attenFraction(1000), 1), "Atten scale monotone to Inf");
     require(near(ui::outputFraction(0), 0) && near(ui::outputFraction(-30), 1) && near(ui::outputFraction(-60), 1), "Output scale 0..-30");
+
+    // 6. Round-2 review fixes.
+    // 6a. Energy bar on the Threshold scale: attenuation starts when the slider goes below the bar's peak (manual ch.2).
+    auto toneRun = [&](float thr, float* energy) {
+        Processor r; r.prepare(48000, 1, 512); r.setParameter(3, 1); r.setParameter(1, thr);
+        r.process(in, out, 4096); if (energy) *energy = r.detectorLevelDb(); return r.gainReductionDb(); };
+    float e = 0; toneRun(0, &e);
+    require(toneRun(e + .3f, nullptr) < .05f, "no attenuation while threshold is above the Energy peak");
+    require(toneRun(e - .5f, nullptr) > .05f, "attenuation once threshold is below the Energy peak");
+    // 6b. Peak hold accumulates the maximum since the last UI read (blocks between polls are not lost).
+    {
+        Processor loud; loud.prepare(48000, 1, 512); loud.setParameter(1, -40);
+        const float* li[]{x.data()}; float* lo[]{y.data()}; loud.process(li, lo, 512);
+        const float blockGr = loud.gainReductionDb(), blockE = loud.detectorLevelDb();
+        Processor h; h.prepare(48000, 1, 512); h.setParameter(1, -40); h.process(li, lo, 512);
+        std::vector<float> z(512, 0.f); const float* zi[]{z.data()}; float* zo[]{y.data()};
+        for (int k = 0; k < 4; ++k) h.process(zi, zo, 512);
+        ui::MeterModel mm; mm.poll(h);
+        require(blockGr >= 3 && mm.attenDb >= blockGr - 1e-3f, "Atten poll holds the largest GR since the last read");
+        require(mm.energyDb >= blockE - 1e-3f, "Energy poll holds the largest level since the last read");
+        require(h.gainReductionDb() == 0 && h.detectorLevelDb() <= -120, "reading resets the core accumulator");
+        h.process(zi, zo, 512); mm.poll(h);
+        require(mm.attenDb < blockGr && mm.attenPeakDb >= blockGr - 1e-3f, "next read sees only new blocks; readout keeps peak");
+    }
+    // 6c. Freq slider taper is the genuine 2000*8^n mapping (not a power-law skew).
+    require(near(float(ui::freqToProportion(2000)), 0) && near(float(ui::freqToProportion(16000)), 1) &&
+            near(float(ui::freqToProportion(2000 * std::sqrt(8.0))), .5f, 1e-6f), "freq taper 2000*8^n");
+    require(near(float(ui::proportionToFreq(.5)), 5657) && near(float(ui::proportionToFreq(0)), 2000) &&
+            near(float(ui::proportionToFreq(1)), 16000) && near(float(ui::proportionToFreq(1.0 / 3)), 4000), "inverse taper, whole Hz");
+    // 6d. Idle Atten readout is "0.0", never "-0.0".
+    require(ui::attenReadout(0.f) == "0.0" && ui::attenReadout(-0.f) == "0.0" && ui::attenReadout(3.24f) == "-3.2", "Atten readout text");
     std::puts("PASS editor model bindings, state and meters");
 }

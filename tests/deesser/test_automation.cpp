@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Block-boundary parameter changes in the Tsunami core (no genuine automation oracle exists;
 // thresholds predeclared in docs/evidence/deesser/thresholds.json "block_boundary_automation").
-#include "Processor.h"
+#include "Processor.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
