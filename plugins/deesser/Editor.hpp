@@ -48,6 +48,27 @@ public:
     void mouseDown(const juce::MouseEvent&) override { if (onClick) onClick(); }
 };
 
+// SideChain selector in the 90 px left column: 12 pt text and a 14 px arrow zone so both filter
+// names show whole (JUCE V4 reserves 30 px for the arrow and uses up to 16 pt text).
+class CompactComboLookAndFeel final : public juce::LookAndFeel_V4 {
+public:
+    juce::Font getComboBoxFont(juce::ComboBox&) override { return juce::Font(withDefaultMetrics(juce::FontOptions(12.f))); }
+    void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override {
+        label.setBounds(1, 1, box.getWidth() - 17, box.getHeight() - 2);
+        label.setBorderSize({1, 3, 1, 1});
+        label.setFont(getComboBoxFont(box));
+    }
+    void drawComboBox(juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box) override {
+        const auto r = juce::Rectangle<float>(float(width), float(height)).reduced(.5f);
+        g.setColour(box.findColour(juce::ComboBox::backgroundColourId)); g.fillRoundedRectangle(r, 3.f);
+        g.setColour(box.findColour(juce::ComboBox::outlineColourId)); g.drawRoundedRectangle(r, 3.f, 1.f);
+        const float x = float(width) - 12.f, y = float(height) * .5f;
+        juce::Path arrow; arrow.startNewSubPath(x, y - 2.f); arrow.lineTo(x + 4.f, y + 2.f); arrow.lineTo(x + 8.f, y - 2.f);
+        g.setColour(box.findColour(juce::ComboBox::arrowColourId).withAlpha(box.isEnabled() ? .9f : .2f));
+        g.strokePath(arrow, juce::PathStrokeType(2.f));
+    }
+};
+
 class Editor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     Editor(juce::AudioProcessor& p, juce::AudioProcessorValueTreeState& s)
@@ -69,7 +90,9 @@ public:
             [](double, double, double hz) { return ui::freqToProportion(hz); },
             [](double, double, double hz) { return std::round(std::clamp(hz, 2000.0, 16000.0)); }));
         freq.textFromValueFunction = [](double v) { return juce::String(ui::valueText(0, float(v))); };
+        freq.updateText(); // the attachment already filled the box with the host text
         // SideChain filter shape selector.
+        sidechain.setLookAndFeel(&compactCombo);
         sidechain.addItem("BandPass", 1); sidechain.addItem("HighPass", 2); sidechain.setComponentID("sidechain");
         sidechainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(state, "sidechain", sidechain);
         // Monitor: Audio / S Chain pair, one parameter; lamp lit in SideChain mode.
@@ -83,6 +106,7 @@ public:
         threshold.setTextBoxStyle(juce::Slider::TextBoxLeft, false, 48, 18);
         thresholdAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "threshold", threshold);
         threshold.textFromValueFunction = [](double v) { return juce::String(ui::valueText(1, float(v))); };
+        threshold.updateText();
 
         energy.fill = colour::energy; energy.fraction = [](float db) { return ui::thresholdFraction(db); }; energy.setComponentID("energy_meter");
         atten.fill = colour::atten; atten.fromTop = true; atten.fraction = [](float db) { return ui::attenFraction(db); }; atten.setComponentID("atten_meter");
@@ -99,10 +123,13 @@ public:
             addAndMakeVisible(c);
         if (monitorAttachment) monitorAttachment->sendInitialUpdate();
         audio.onStateChange();
+        // Idle until the first poll: empty Energy/Output bars (floor), readouts show their idle text.
+        energy.value = out[0].value = out[1].value = -120.f;
+        refreshReadouts();
         setSize(380, 380);
         startTimerHz(30);
     }
-    ~Editor() override { stopTimer(); }
+    ~Editor() override { stopTimer(); sidechain.setLookAndFeel(nullptr); }
 
     void paint(juce::Graphics& g) override {
         g.fillAll(colour::body);
@@ -127,7 +154,7 @@ public:
     void resized() override {
         audio.setBounds(15, 24, 60, 24);
         freq.setBounds(15, 88, 60, 24);
-        sidechain.setBounds(15, 140, 60, 24);
+        sidechain.setBounds(6, 140, 78, 24); // centred in the 90 px column like the 60 px controls
         monitorAudio.setBounds(15, 220, 60, 22); monitorSideChain.setBounds(15, 244, 60, 22);
         threshold.setBounds(96, 24, 74, 230);
         energy.setBounds(150, 30, 16, 218); atten.setBounds(200, 30, 16, 218);
@@ -147,6 +174,7 @@ private:
     ui::MeterModel meters;
     juce::TextButton audio, monitorAudio{"Audio"}, monitorSideChain{"S Chain"};
     juce::Slider freq, threshold;
+    CompactComboLookAndFeel compactCombo; // declared before (destroyed after) the combo using it
     juce::ComboBox sidechain;
     BarMeter energy, atten, out[2];
     Readout energyReadout, attenReadout, outReadout[2];
@@ -166,7 +194,10 @@ private:
         repaint();
     }
     void refreshReadouts() {
-        auto db = [](float v) { return v <= -120.f ? juce::String("--") : juce::String(v, 1); };
+        auto db = [](float v) { // one decimal; values that round to zero show "0.0", never "-0.0" (display only)
+            if (v <= -120.f) return juce::String("--");
+            const float tenths = std::round(v * 10.f) / 10.f;
+            return juce::String(tenths == 0.f ? 0.f : tenths, 1); };
         energyReadout.text = hasDetectorMeters() ? db(meters.energyPeakDb) : "--";
         attenReadout.text = hasDetectorMeters() ? juce::String(ui::attenReadout(meters.attenPeakDb)) : "--";
         for (int k = 0; k < 2; ++k) outReadout[k].text = outputMeters ? db(meters.outputPeakDb[size_t(k)]) : "--";

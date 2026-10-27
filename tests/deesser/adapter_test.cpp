@@ -111,6 +111,39 @@ int main() {
     CHECK(audio && freq && threshold && sidechain && monA && monS, 7, "panel controls present");
     CHECK(audio->getButtonText() == "Split" && std::lround(freq->getValue()) == 5506 && sidechain->getText() == "HighPass"
           && monA->getToggleState() && !monS->getToggleState(), 8, "default display from Adapter state");
+    // Value boxes show the editor's own text from the start (native Windows c99d1b2 showed Threshold
+    // '0.000...': the text function was installed after the attachment's first text update).
+    auto boxText = [](juce::Slider& sl) {
+        for (auto* c : sl.getChildren()) if (auto* l = dynamic_cast<juce::Label*>(c)) return l->getText();
+        return juce::String("<no value box>"); };
+    CHECK(boxText(*threshold) == "0.0" && boxText(*freq) == "5506", 36, "initial Threshold/Freq value-box text");
+    // Before the first meter poll (hosted capture c99d1b2+fixes caught this frame) bars must not show
+    // full scale and readouts must already show their idle text, not the '--' placeholder for Atten.
+    {
+        auto* energyBar = dynamic_cast<BarMeter*>(ed->findChildWithID("energy_meter"));
+        auto* outBar = dynamic_cast<BarMeter*>(ed->findChildWithID("output_left"));
+        auto* attenText = dynamic_cast<Readout*>(ed->findChildWithID("atten_readout"));
+        CHECK(energyBar && outBar && attenText && energyBar->fraction(energyBar->value) == 1.f && outBar->fraction(outBar->value) == 1.f
+              && attenText->text == "0.0", 41, "idle meters before the first poll (empty bars, Atten 0.0)");
+    }
+    // SideChain shows both whole labels inside the left column (native captures showed 'B...'/'Hi...').
+    {
+        const auto box = sidechain->getBounds();
+        CHECK(box.getX() >= 0 && box.getRight() <= 90 && box.getY() == 140 && box.getHeight() == 24, 37, "SideChain stays in the left column row");
+        const int selected = sidechain->getSelectedItemIndex();
+        for (int item = 0; item < 2; ++item) {
+            sidechain->setSelectedItemIndex(item, juce::dontSendNotification);
+            juce::Label* text = nullptr;
+            for (auto* c : sidechain->getChildren()) if (auto* l = dynamic_cast<juce::Label*>(c)) text = l;
+            CHECK(text != nullptr, 38, "SideChain text label");
+            const auto area = text->getBorderSize().subtractedFrom(text->getLocalBounds());
+            const float width = juce::GlyphArrangement::getStringWidth(text->getFont(), text->getText());
+            if (!(text->getText() == (item ? "HighPass" : "BandPass") && width <= float(area.getWidth()) && text->getRight() <= box.getWidth() - 14)) {
+                std::cerr << "FAIL SideChain '" << text->getText() << "' needs " << width << " px, has " << area.getWidth() << "\n"; return 39;
+            }
+        }
+        sidechain->setSelectedItemIndex(selected, juce::dontSendNotification);
+    }
     // UI -> host parameter.
     audio->setToggleState(true, juce::sendNotificationSync);
     freq->setValue(4500, juce::sendNotificationSync);
@@ -194,6 +227,25 @@ int main() {
     // Paint the product editor: non-uniform image of the expected size.
     auto image = ed->createComponentSnapshot(ed->getLocalBounds());
     CHECK(image.getWidth() == 380 && image.getHeight() == 380 && image.getPixelAt(5, 5) != image.getPixelAt(158, 200), 23, "editor renders");
+    // Readouts never show '-0.0' (native captures showed Output '-0.0' for peaks just below 0 dBFS);
+    // real negative tenths still show. Display only: the meter values themselves are unchanged.
+    {
+        setPhysical(*p, "bypass", 1.f);
+        auto outReadout = [&](int x) -> Readout* { // by layout position (the unattached editor is not visible)
+            for (auto* c : ed->getChildren()) if (auto* r = dynamic_cast<Readout*>(c); r && r->getBounds().contains(x, 270)) return r;
+            return nullptr; };
+        for (auto [peak, expected] : {std::pair{.99f, "-0.1"}, std::pair{.9995f, "0.0"}}) {
+            for (int i = 0; i < 512; ++i) for (int c = 0; c < 2; ++c) b.setSample(c, i, i == 100 ? peak : 0.f);
+            p->processBlock(b, m);
+            editor->pollMetersForTest();
+            auto* left = outReadout(300); auto* right = outReadout(344);
+            if (!(left && right && left->text == expected && right->text == expected)) {
+                std::cerr << "FAIL output readout for peak " << peak << ": '" << (left ? left->text : "<none>") << "' expected '" << expected << "'\n";
+                return 40;
+            }
+        }
+        setPhysical(*p, "bypass", 0.f);
+    }
     // Host-rate policy (not vendor parity): hosts/validators may prepare outside the accepted 8-384 kHz
     // DSP domain (clap-validator 0.4.1 process-varying-sample-rates aborted on the core's thrown
     // std::invalid_argument, run 40555152920). The core must not throw into the host; there it passes
