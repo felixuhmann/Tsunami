@@ -30,11 +30,11 @@ outside the deesser scope:
 1. `tools/generate_metadata.py` rejects `logarithmic: true` (Freq).
 2. The generator emits step 0 for `choice` parameters.
 3. The root CMake only integrates `s1`.
-4. The shared Adapter exposes no detector or gain-reduction tap, so Energy and Atten have no data.
+4. Energy/Atten data in the product build is live since c6f406c (core `meter()` via the shared `CoreMeterSource`; current post-block values, not genuine-original ballistics). Previously: no detector tap.
 
 The core is now header-only `Processor.hpp`, which matches what the foundation includes.
 
-Readout and label fixes at 948e848, each RED->GREEN in `tests/deesser/adapter_test.cpp`:
+Readout and label fixes at 948e848, regressions in `tests/deesser/adapter_test.cpp` (RED witnessed for 36, 39, 40 and 41; 37/38 are guards that passed before the fix):
 - Initial Threshold/Freq value-box text uses the editor's own text (36).
 - Both SideChain names show whole (37-39).
 - Readouts never show `-0.0` (40).

@@ -152,7 +152,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
 
 ## Editor readout/label fixes (948e848; local, not pushed)
 - These defects were seen in the native c99d1b2 captures (Windows Threshold `0.000...`, SideChain `B...`/`Hi...`, Output `-0.0`) and in a local hosted frame captured before the first meter poll (full Energy/Output bars, Atten `--`).
-- Each has a RED->GREEN regression in the real-Adapter test, against the real editor:
+- Each has a regression in the real-Adapter test, against the real editor. RED was witnessed for 36, 39, 40 and 41; 37/38 are guards that passed before the fix:
   - initial value-box text, `updateText()` after installing the text function (code 36);
   - whole SideChain labels: compact combo look-and-feel at 12 pt with a 14 px arrow zone; the box is 78 px, centred in the 90 px column, in the same row (37-39). RED: `'BandPass' needs 65.3 px, has 20`;
   - display-only `-0.0` normalisation for the Energy/Output readouts; real `-0.1` is still shown (40);
@@ -160,6 +160,7 @@ Meters: `Processor::gainReductionDb()` (largest attenuation, positive dB) and `d
 - The render hash is unchanged (`c19f9aa561842753`). DSP, parameters and shared code are unchanged.
 - Fresh hosted Linux capture of the rebuilt module (pluginval 1.0.4 strictness 6, Xvfb): SUCCESS, PID 476318, 380x380, module sha256 `63ca0b30...`, screenshot `b901a3ec...`. Visually inspected:
   - SideChain shows `BandPass` whole;
+  - Energy reads `--` in that frame (no detector data in pluginval's state at capture), so the capture does not show Energy live;
   - the Frequency and Threshold boxes show editor text;
   - Atten and Output read `0.0`.
 

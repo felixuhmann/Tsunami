@@ -122,9 +122,12 @@ int main() {
     {
         auto* energyBar = dynamic_cast<BarMeter*>(ed->findChildWithID("energy_meter"));
         auto* outBar = dynamic_cast<BarMeter*>(ed->findChildWithID("output_left"));
+        auto* outBarR = dynamic_cast<BarMeter*>(ed->findChildWithID("output_right"));
         auto* attenText = dynamic_cast<Readout*>(ed->findChildWithID("atten_readout"));
-        CHECK(energyBar && outBar && attenText && energyBar->fraction(energyBar->value) == 1.f && outBar->fraction(outBar->value) == 1.f
-              && attenText->text == "0.0", 41, "idle meters before the first poll (empty bars, Atten 0.0)");
+        auto* energyText = dynamic_cast<Readout*>(ed->findChildWithID("energy_readout"));
+        CHECK(energyBar && outBar && outBarR && attenText && energyText && energyBar->fraction(energyBar->value) == 1.f
+              && outBar->fraction(outBar->value) == 1.f && outBarR->fraction(outBarR->value) == 1.f
+              && attenText->text == "0.0" && energyText->text == "--", 41, "idle meters before the first poll (empty bars, Atten 0.0)");
     }
     // SideChain shows both whole labels inside the left column (native captures showed 'B...'/'Hi...').
     {
