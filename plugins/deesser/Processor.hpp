@@ -5,6 +5,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 namespace tsunami::deesser {
 class Processor {
@@ -53,10 +54,19 @@ private:
  float blockGainReductionDb_=0.f,blockDetectorLevelDb_=-120.f;
  bool unsupportedRate_=false;
 };
-namespace detail {constexpr double pi=3.14159265358979323846; inline float clip(float x) noexcept{return std::clamp(x,-1.0f,0.999999f);}}
+namespace detail {
+constexpr double pi=3.14159265358979323846;
+inline float clip(float x) noexcept{return std::clamp(x,-1.0f,0.999999f);}
+// Replacement numeric-domain policy, not vendor parity: avoid overflowing a finite
+// double intermediate when storing float state. Ordinary in-range casts are unchanged.
+inline float finiteFloat(double x) noexcept {
+ const double limit=std::numeric_limits<float>::max();
+ return static_cast<float>(std::clamp(x,-limit,limit));
+}
+}
 inline double Processor::Section::tick(double x) noexcept {
  const double y=b0*x+b1*x1+b2*x2-a1*y1-a2*y2;
- x2=x1;x1=static_cast<float>(x);y2=y1;y1=static_cast<float>(y);return y;
+ x2=x1;x1=detail::finiteFloat(x);y2=y1;y1=detail::finiteFloat(y);return y;
 }
 inline void Processor::updateFilters() noexcept {
  const double f=std::min(double(params_[0]),rate_*.4999);
@@ -107,9 +117,12 @@ inline void Processor::process(const float* const* in,float* const* out,unsigned
   float x[2]={in[0][i],0}; if(channels_==2)x[1]=in[1][i];
   if(params_[5]>.5f||unsupportedRate_){for(unsigned c=0;c<channels_;++c)out[c][i]=x[c];continue;}
   for(auto& v:x)if(!std::isfinite(v))v=0; // non-finite input must not poison filter/detector state
-  double side=channels_==2?(x[0]+x[1])*.5f:x[0];
+  // Preserve the original float sum unless it overflows; the double fallback
+  // keeps the average of finite stereo extremes finite before detector filtering.
+  const float sum=channels_==2?x[0]+x[1]:0.f;
+  double side=channels_==2?(std::isfinite(sum)?double(sum*.5f):(double(x[0])+double(x[1]))*.5):x[0];
   for(auto& s:detector_)side=s.tick(side);
-  const float monitored=static_cast<float>(side*std::sqrt(.5));
+  const float monitored=detail::finiteFloat(side*std::sqrt(.5));
   const float level=std::abs(monitored);
   envelope_=(envelope_-level)*(level>envelope_?envelopeRise_:envelopeFall_)+level;
   const unsigned bin=unsigned(std::min(1023.0f,envelope_*float(detectorScale_)+.5f));
@@ -121,9 +134,9 @@ inline void Processor::process(const float* const* in,float* const* out,unsigned
   for(unsigned c=0;c<channels_;++c){
    float sample;
    if(params_[3]>.5f)sample=float(x[c]*gain);
-   else {const float w=float(x[c]-splitCoefficient_*splitState_[c]);
+   else {const float w=detail::finiteFloat(x[c]-splitCoefficient_*splitState_[c]);
     const double ap=splitCoefficient_*w+splitState_[c];splitState_[c]=w;
-    sample=float((x[c]-ap)*gain+ap+x[c])*.5f;}
+    sample=detail::finiteFloat((x[c]-ap)*gain+ap+x[c])*.5f;}
    out[c][i]=detail::clip(params_[4]>.5f?monitored:sample);
   }
  }

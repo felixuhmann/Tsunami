@@ -51,5 +51,30 @@ int main(){
   for(unsigned i=0;i<1024;++i)require(std::isfinite(b[i]),"non-finite input sample does not poison output");
   require(std::isfinite(q.gainReductionDb())&&std::isfinite(q.detectorLevelDb()),"meters stay finite after non-finite input");
  }
+ { // Replacement numeric-domain policy: finite overload must not create NaN audio or poison state.
+  // The old stereo sum overflowed to infinity; in SideChain monitor the next sample became NaN.
+  for (unsigned channels : {1u, 2u}) for (unsigned audio : {0u, 1u}) for (unsigned monitor : {0u, 1u}) {
+   tsunami::deesser::Processor q; q.prepare(48000,channels,64); q.setParameter(1,-40); q.setParameter(3,float(audio)); q.setParameter(4,float(monitor));
+   std::vector<float> a(64),b(64),l(64),r(64);
+   for(unsigned i=0;i<64;++i)a[i]=b[i]=(i%2?-1.f:1.f)*std::numeric_limits<float>::max();
+   const float* input[]={a.data(),b.data()}; float* output[]={l.data(),r.data()};
+   q.process(input,output,64);
+   for(unsigned c=0;c<channels;++c)for(unsigned i=0;i<64;++i)
+    require(std::isfinite(output[c][i]),"finite overload stays finite in audio and SideChain modes");
+   for(unsigned i=0;i<64;++i)a[i]=b[i]=.25f*std::sin(float(i)*.7f);
+   q.process(input,output,64);
+   for(unsigned c=0;c<channels;++c)for(unsigned i=0;i<64;++i)
+    require(std::isfinite(output[c][i]),"valid continued audio stays finite after overload");
+   require(std::isfinite(q.gainReductionDb())&&std::isfinite(q.detectorLevelDb()),"meters stay finite after finite overload");
+   q.reset(); q.process(input,output,64);
+   tsunami::deesser::Processor fresh; fresh.prepare(48000,channels,64); fresh.setParameter(1,-40); fresh.setParameter(3,float(audio)); fresh.setParameter(4,float(monitor));
+   std::vector<float> fl(64),fr(64); float* freshOutput[]={fl.data(),fr.data()}; fresh.process(input,freshOutput,64);
+   for(unsigned c=0;c<channels;++c)for(unsigned i=0;i<64;++i)
+    require(output[c][i]==freshOutput[c][i],"reset after finite overload reproduces fresh audio");
+   q.setParameter(5,1); for(unsigned i=0;i<64;++i)a[i]=b[i]=std::numeric_limits<float>::max(); q.process(input,output,64);
+   for(unsigned c=0;c<channels;++c)for(unsigned i=0;i<64;++i)
+    require(output[c][i]==input[c][i],"bypass still preserves finite extremes without saturation");
+  }
+ }
  std::puts("PASS bypass, clipping, detector, reset, compression and mode behavior");
 }
