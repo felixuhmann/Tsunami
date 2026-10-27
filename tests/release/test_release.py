@@ -366,6 +366,14 @@ class SourceTest(Tmp):
         with self.assertRaises(release.ReleaseError):
             release.stage_source(repo, deps, commit, 'v', self.tmp / 'd3')
 
+    def test_juce_tree_content_is_bound(self):
+        repo, deps, commit = self.make_repo()
+        manifest = json.loads(release.stage_source(repo, deps, commit, 'v', self.tmp / 'd').read_text())
+        self.assertEqual(manifest['dependencies'], release.verify_dependencies(repo, deps))
+        self.assertRegex(manifest['dependencies']['JUCE-tree-sha256'], '^[0-9a-f]{64}$')
+        (deps / 'juce-src' / 'JUCE.spdx.json').write_text('{"edited": true}')
+        self.assertNotEqual(manifest['dependencies'], release.verify_dependencies(repo, deps))
+
     def test_symlink_in_dependency_fails(self):
         repo, deps, commit = self.make_repo()
         os.symlink('/etc/passwd', deps / 'juce-src' / 'link')

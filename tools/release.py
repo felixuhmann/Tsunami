@@ -226,6 +226,16 @@ def _no_symlinks(base):
                 fail(f'symlink refused: {Path(dirpath) / name}')
 
 
+def _tree_digest(base):
+    digest = hashlib.sha256()
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames.sort()
+        for name in sorted(filenames):
+            path = Path(dirpath) / name
+            digest.update(path.relative_to(base).as_posix().encode() + b'\0' + sha256(path).encode() + b'\n')
+    return digest.hexdigest()
+
+
 def verify_dependencies(root, deps_dir):
     """Check fetched sources exactly match dependencies.lock.json; return observed identity."""
     deps_dir = Path(deps_dir)
@@ -248,6 +258,8 @@ def verify_dependencies(root, deps_dir):
             if not re.search(rf'project\(JUCE VERSION {re.escape(dep["version"])}[ \t\r\n]', cmake):
                 fail(f'JUCE source is not version {dep["version"]}')
             identity[dep['name']] = dep['version']
+            # URL-archive extraction has no line-ending conversion, so this digest is platform independent.
+            identity[dep['name'] + '-tree-sha256'] = _tree_digest(path)
         else:
             fail(f'{dep["name"]}: cannot verify source identity (no git metadata)')
         if '/' not in sub:
