@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <stdexcept>
 #include <array>
@@ -8,6 +9,10 @@
 #include <vector>
 namespace tsunami::rvox {
 // Independent equation implementation. See evidence for validated scope.
+// Numeric-domain policy (replacement-only, not vendor parity): nonfinite input
+// samples are processed as silence and allpass detector state saturates at
+// +/-FLT_MAX, so finite overload cannot yield Inf*0 or NaN gain state. Both
+// are identities for every ordinary finite signal, including >0dBFS audio.
 class Processor {
 public:
  void prepare(double rate, unsigned channels, unsigned) {
@@ -43,17 +48,19 @@ public:
  float getParameter(unsigned index) const noexcept {return index<3?parameters_[index]:0;}
  unsigned latencySamples() const noexcept { return lookahead_; }
  double tailSeconds() const noexcept { return double(lookahead_)/rate_; }
+ float makeupCoefficient() const noexcept { return makeup_; }
  void process(const float* const* input,float* const* output,unsigned frames) noexcept {
   if(minima_.empty()) return;
   constexpr float ap[3]={.6303f,.3583f,.1607f};
   for(unsigned n=0;n<frames;++n) {
-   float samples[2]={input[0][n], channels_==2?input[1][n]:0.f};
+   const auto finite=[](float x) noexcept {return std::isfinite(x)?x:0.f;};
+   float samples[2]={finite(input[0][n]), channels_==2?finite(input[1][n]):0.f};
    float peak=0;
    for(unsigned c=0;c<channels_;++c) {
     const float x=samples[c]; peak=std::max(peak,std::abs(x));
     for(unsigned k=0;k<3;++k) {
      auto& state=allpass_[c];
-     const float v=(x-state[k*2+1])*ap[k]+state[k*2];
+     const float v=std::clamp((x-state[k*2+1])*ap[k]+state[k*2],-FLT_MAX,FLT_MAX);
      state[k*2]=x; state[k*2+1]=v; peak=std::max(peak,std::abs(v));
     }
    }
@@ -88,8 +95,10 @@ public:
 private:
  float pole(double ms) const noexcept {return static_cast<float>(std::pow(.367879441,1./(rate_*ms*.001)));}
  void updateControls() noexcept {
-  threshold_=static_cast<float>(std::pow(10.,parameters_[0]/20.));
-  makeup_=static_cast<float>(std::pow(10.,parameters_[2]/20.)*normalization_*.99/threshold_);
+  // Recovered builder: hot-loop threshold is float, makeup uses the double one.
+  const double threshold=std::pow(10.,parameters_[0]/20.);
+  threshold_=static_cast<float>(threshold);
+  makeup_=static_cast<float>(std::pow(10.,parameters_[2]/20.)*(normalization_*.99/threshold));
   gateScale_=static_cast<float>(std::pow(10.,-parameters_[1]/20.));
  }
  void generateRelease() noexcept {

@@ -366,5 +366,131 @@
     "changing_level_48k_mono_pass": false
   },
   "native_replacement_host_verified": false,
-  "rvox_ui_verified": false
+  "rvox_ui_verified": false,
+  "changed_head_rerender": {
+    "source_sha256": "5a278aa0fef3db88e52109f492e34fc80dcd980c89f0c7e56e74633cce3d6427",
+    "change": "double-domain inverse-threshold makeup; numeric-domain policy (identity for finite ordinary audio)",
+    "scope": "existing captures re-rendered once; no original host run, no tuning; heldout is final validation only",
+    "rows": [
+      {
+        "name": "mono_fresh",
+        "role": "training",
+        "candidate_sha256": "8f9c1c4cc05cee93b24bdf4e044c43f51881d85945407f99662d845ab14f8306",
+        "metric": {
+          "frames": 96000,
+          "channels": 1,
+          "max_abs": 7.599592208862305e-06,
+          "rms_error": 1.2110014851527963e-07,
+          "relative_rms": 9.225358570282582e-07
+        },
+        "delta_max_abs": -8.940696716308594e-08,
+        "delta_rms": -1.8742933025189668e-09,
+        "worst_channel": 0,
+        "worst_frame": 34559,
+        "samples_exceeding_1e-6": 141,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "stereo_fresh",
+        "role": "training",
+        "candidate_sha256": "573172a9e68c59c4783dcec202ffea603ae488b9f2bbba948de2f478ea3871c8",
+        "metric": {
+          "frames": 96000,
+          "channels": 2,
+          "max_abs": 3.159046173095703e-06,
+          "rms_error": 1.3524318206850508e-08,
+          "relative_rms": 1.0539736933838344e-07
+        },
+        "delta_max_abs": 2.9802322387695312e-08,
+        "delta_rms": -4.780367649752899e-09,
+        "worst_channel": 1,
+        "worst_frame": 35999,
+        "samples_exceeding_1e-6": 6,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "mono_deep",
+        "role": "training",
+        "candidate_sha256": "b2f4bd5786e6704c582a44732a6c9927b91cfff7a8c874686604f38c02a468a0",
+        "metric": {
+          "frames": 96000,
+          "channels": 1,
+          "max_abs": 4.470348358154297e-06,
+          "rms_error": 5.7205215793233465e-08,
+          "relative_rms": 6.779958688638221e-07
+        },
+        "delta_max_abs": 2.9802322387695312e-08,
+        "delta_rms": -8.347530124974661e-11,
+        "worst_channel": 0,
+        "worst_frame": 28999,
+        "samples_exceeding_1e-6": 56,
+        "tight_1e-6_1e-8_pass": false,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "rate96000",
+        "role": "training",
+        "candidate_sha256": "a0a63bb9053f0d797fac633ecdb1a8ed4b448d37968c79a09a1737a1df6edb41",
+        "metric": {
+          "frames": 192000,
+          "channels": 1,
+          "max_abs": 2.980232238769531e-07,
+          "rms_error": 9.50049860867105e-09,
+          "relative_rms": 4.241587607102569e-08
+        },
+        "delta_max_abs": -2.9802322387695312e-08,
+        "delta_rms": -1.6606951848065036e-08,
+        "worst_channel": 0,
+        "worst_frame": 170823,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "rate44100",
+        "role": "training",
+        "candidate_sha256": "537b5ff98716516ddde913abbae15695438497dcf1ae3b696a224ab3862b6990",
+        "metric": {
+          "frames": 88200,
+          "channels": 2,
+          "max_abs": 1.1920928955078125e-07,
+          "rms_error": 5.106885058442502e-09,
+          "relative_rms": 2.279634886892101e-08
+        },
+        "delta_max_abs": -5.960464477539063e-08,
+        "delta_rms": -1.8304078157580552e-08,
+        "worst_channel": 0,
+        "worst_frame": 22908,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      },
+      {
+        "name": "heldout",
+        "role": "final validation only (not tuned)",
+        "candidate_sha256": "a5a20ef7920d3d6ab5fd855941d60334d90424ac46c2d654b44bbc0a16a30d21",
+        "metric": {
+          "frames": 384000,
+          "channels": 1,
+          "max_abs": 0.0,
+          "rms_error": 0.0,
+          "relative_rms": 0.0
+        },
+        "delta_max_abs": -1.1920928955078125e-07,
+        "delta_rms": -5.783532695809065e-09,
+        "worst_channel": 0,
+        "worst_frame": 0,
+        "samples_exceeding_1e-6": 0,
+        "tight_1e-6_1e-8_pass": true,
+        "reporting_1e-5_2e-7_pass": true
+      }
+    ],
+    "tight_diagnostic_still_fails": [
+      "mono_fresh",
+      "stereo_fresh",
+      "mono_deep"
+    ]
+  }
 }

@@ -94,6 +94,43 @@ compression setting (0 instead of -18dB) on the held-out input is rejected:
 max error `0.3337684423`, RMS `0.0444648774`. The comparator therefore does not
 accept a control-insensitive/unity replacement.
 
+## Makeup precision and numeric-domain policy (after review of 5389ab8)
+
+- **Makeup precision:** the recovered coefficient builder keeps the
+  compression threshold in double for the inverse-threshold makeup and converts
+  `gain * (normalization * 0.99 / threshold)` to float once. The hot-loop
+  threshold remains float. Regression `rvox.safety makeup` checks four exact
+  float coefficients (e.g. -18/-3dB -> `11.112653732299805`); it failed before
+  the change (`11.112654685974121`).
+- **Numeric domain (replacement-only policy, not vendor parity):** nonfinite
+  input samples (NaN, +/-Inf) are processed as silence, and allpass detector
+  state saturates at +/-FLT_MAX. Before this, `FLT_MAX,-FLT_MAX` overflowed the
+  detector, produced `Inf*0 = NaN` in the rational target and reached undefined
+  float-to-integer conversions (UBSan `float-cast-overflow`, halting), then
+  inverted continued gain. Both measures are identities for every finite
+  ordinary sample, so >0dBFS audio is not clipped (regression checks +18dBFS).
+  Output can still overflow to +/-Inf only if `|delayed sample * gain|` exceeds
+  float range; that is defined IEEE arithmetic, not UB.
+- Regressions cover finite extremes, NaN, +Inf, -Inf, continued valid audio,
+  reset and mono/stereo at unity and -18dB thresholds, run under
+  `-fsanitize=undefined,float-cast-overflow,address -fno-sanitize-recover=all`.
+
+Existing captures re-rendered once at the changed source (no original-host run,
+no tuning, unchanged thresholds; held-out evaluated only as final validation):
+
+| Capture | Max abs | RMS | Tight 1e-6 / 1e-8 |
+|---|---:|---:|---|
+| mono 48k changing level | 7.599592e-6 | 1.211001e-7 | FAIL (worst frame 34559, 141 samples >1e-6) |
+| stereo 48k | 3.159046e-6 | 1.352432e-8 | FAIL |
+| deeper 48k | 4.470348e-6 | 5.720522e-8 | FAIL |
+| 96k | 2.980232e-7 | 9.500499e-9 | pass |
+| 44.1k stereo | 1.192093e-7 | 5.106885e-9 | pass |
+| held-out speech (validation only) | 0 | 0 | pass (bit-identical) |
+
+The makeup fix removes the RMS error floor at 96k/44.1k, but it does **not**
+explain the 48k changing-level transient (~7.6e-6), which remains an unlocalized
+residual. Reporting guards remain reporting-only, not equivalence proof.
+
 ## Reproduce portable checks
 
 ```sh
@@ -103,7 +140,7 @@ cmake --build build-rvox -j1
 ctest --test-dir build-rvox --output-on-failure
 ```
 
-Observed: **4/4 CTest targets passed**; warning-clean GCC11 C++17 build. Separate
+Observed: **5/5 CTest targets passed** (including `rvox.safety`); warning-clean GCC11 C++17 build. Separate
 AddressSanitizer/UndefinedBehaviorSanitizer execution of the rate/channel/reset/
 block/in-place/linked-chain test also passed. Metadata generation and generated
 `PluginSpec.hpp` syntax compilation passed against the shared parameter contract.
