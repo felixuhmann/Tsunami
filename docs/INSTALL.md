@@ -8,14 +8,18 @@ equivalent to any original product and are not a stable release.
 
 ## What is currently available
 
-Only targets with a native adapter registered in the root `CMakeLists.txt` are
-built. On the current `main` that is **one** of the twelve targets:
+Every push to `main` builds all registered native adapters for **Windows x64
+and Linux x64**, including their VST3 and CLAP formats. The workflow discovers
+root and plugin-local CMake registrations automatically; newly integrated
+plugins do not need a hand-maintained release matrix. On the current `main`
+these are:
 
 | Product | Plugin id | Formats | Platforms |
 |---|---|---|---|
 | Tsunami Stereo (S1-Imager replacement) | `s1` | VST3, CLAP | Windows x64, Linux x64 |
+| Tsunami Voice (RVox replacement) | `rvox` | VST3, CLAP | Windows x64, Linux x64 |
 
-The other eleven targets are not built yet. Each workflow run lists them with
+The remaining targets are not built yet. Each workflow run lists them with
 the reason in `unavailable.json` (in the `release-discovery` artifact). There
 is **no macOS build**.
 
@@ -24,9 +28,21 @@ independent replacements and do not load or need the originals.
 
 ## Download
 
-1. Open the repository's **Actions** tab, then pick a green run of
-   **Release packages (preview)**.
-2. Download the artifact for your platform, e.g.
+After every successful `main` push, the workflow automatically publishes an
+**experimental prerelease** on the repository's [Releases page](https://github.com/felixuhmann/Tsunami/releases).
+It is versioned `preview-<run>-<commit>` and includes every available plugin's
+Windows/Linux package ZIPs, `SHA256SUMS`, the matching complete Corresponding
+Source archive and manifest, and `unavailable.json`. Publication waits for all
+native builds, package checks and fresh downloaded-package smoke tests to pass;
+a failed gate publishes nothing. Previews are never marked as stable or latest.
+Every push has its own run; a newer push does not cancel or coalesce older main
+builds. PRs still build/test packages but cannot publish releases.
+
+1. Open **Releases**, select the preview for the commit you want and download
+   the package ZIP for your plugin and platform. No extra artifact wrapper needs
+   unzipping for a release download.
+2. Alternatively, open **Actions → Release packages (preview)**, pick a green
+   run and download the artifact for your platform, e.g.
    `Tsunami-Stereo-preview-<run>-<commit>-windows-x64` or
    `...-linux-x64`, and unzip it once (GitHub wraps artifacts in a zip). It
    contains the package zip `Tsunami-Stereo-…-<platform>.zip` and its
@@ -40,8 +56,9 @@ independent replacements and do not load or need the originals.
      `SHA256SUMS`, `licenses/` (project and upstream third-party license
      files) and this guide.
 
-Maintainers may also create draft prereleases from `main`. Treat them the same
-way. The checksums detect corrupted downloads. They do not prove who built the
+Manual runs build artifacts only by default; maintainers may opt into creating
+a draft prerelease from `main` with `publish_preview=true`. The checksums detect
+corrupted downloads. They do not prove who built the
 files, because they come from the same place as the files.
 
 ## Install on Windows (x64)
