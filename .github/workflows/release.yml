@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Builds every registered target adapter natively, packages installable zips with
 # matching Corresponding Source and smoke-tests the downloaded packages.
-# Default output is Actions artifacts only. A versioned DRAFT prerelease is created
-# only on manual dispatch with publish_preview=true; never on PRs, never stable.
+# Every main push publishes an experimental prerelease after all package checks.
+# PRs produce Actions artifacts only; manual publication remains a draft preview.
 name: Release packages (preview)
 on:
+  push:
+    branches: [main]
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -32,7 +34,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   discover:
@@ -259,8 +261,8 @@ jobs:
           retention-days: 30
 
   publish-preview:
-    name: draft prerelease (manual opt-in only)
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview == true && github.ref == 'refs/heads/main'
+    name: publish main prerelease (manual opt-in creates a draft)
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_preview == true))
     needs: [discover, source, build, downloaded-smoke]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -270,27 +272,32 @@ jobs:
       VERSION: ${{ needs.discover.outputs.version }}
       COMMIT: ${{ needs.discover.outputs.commit }}
       GH_TOKEN: ${{ github.token }}
+      EVENT_NAME: ${{ github.event_name }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: assets
           pattern: '*-${{ needs.discover.outputs.version }}*'
           merge-multiple: true
-      - name: Create DRAFT prerelease (not published, not stable)
+      - name: Create experimental prerelease (never stable)
         run: |
           cd assets
           ls -l
           test -f "Tsunami-source-$VERSION.tar.gz" && test -f "Tsunami-source-$VERSION.manifest.json"
           ls ./*.zip >/dev/null
           sha256sum ./*.zip "Tsunami-source-$VERSION.tar.gz" "Tsunami-source-$VERSION.manifest.json" > SHA256SUMS
+          release_flags=(--prerelease --latest=false)
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            release_flags+=(--draft)
+          fi
           {
-            echo "Experimental, unsigned **draft preview** built from \`$COMMIT\`. Not a stable release."
+            echo "Experimental, unsigned **preview** built from \`$COMMIT\`. Not a stable release."
             echo "Not verified as equivalent to any original product. Install guide: docs/INSTALL.md."
             echo "Corresponding Source: Tsunami-source-$VERSION.tar.gz (project + all fetched dependencies)."
             echo
             echo "Targets not included in this build:"
             python3 -c "import json; [print('- %s (%s): %s' % (u['requested_name'], u['id'], u['reason'])) for u in json.load(open('unavailable.json'))]"
           } > notes.md
-          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --prerelease --target "$COMMIT" \
-            --title "Tsunami $VERSION (experimental draft preview)" --notes-file notes.md \
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" "${release_flags[@]}" --target "$COMMIT" \
+            --title "Tsunami $VERSION (experimental preview)" --notes-file notes.md \
             ./*.zip "Tsunami-source-$VERSION.tar.gz" "Tsunami-source-$VERSION.manifest.json" SHA256SUMS unavailable.json
