@@ -3,6 +3,7 @@
 import re
 import os
 import subprocess
+import shutil
 import tempfile
 import textwrap
 import unittest
@@ -36,6 +37,17 @@ class ReleaseWorkflowTest(unittest.TestCase):
     def test_push_publishes_prerelease_but_manual_opt_in_remains_draft(self):
         publication = WORKFLOW.read_text().split('  publish-preview:\n', 1)[1]
         script = textwrap.dedent(publication.split('        run: |\n', 1)[1])
+        bash = shutil.which('bash')
+        if os.name == 'nt':
+            # A bare bash resolves to Windows' WSL launcher, even though the
+            # workflow itself runs under Git Bash. WSL has no installed distro
+            # on windows-2022. Use the Bash next to the actual Git installation.
+            git = shutil.which('git')
+            if git is None:
+                self.fail('Git for Windows is required for the publication regression')
+            bash = str(Path(git).resolve().parent.parent / 'bin' / 'bash.exe')
+        if bash is None or not Path(bash).is_file():
+            self.fail(f'Publication regression needs a real Bash executable: {bash}')
         for event in ('push', 'workflow_dispatch'):
             with self.subTest(event=event), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
@@ -54,7 +66,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
                 # Exercise the real publication shell with a recording gh function;
                 # no GitHub release or network call is made by this regression.
                 recording_gh = 'gh() { printf "%s\\0" "$@" > "$GH_ARGUMENTS"; };\n'
-                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', recording_gh + script],
+                result = subprocess.run([bash, '-euo', 'pipefail', '-c', recording_gh + script],
                                         cwd=root, env=env, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0,
                                  f'Publication shell failed on {os.name}:\n'
