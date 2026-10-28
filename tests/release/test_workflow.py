@@ -13,7 +13,30 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / '.github/workflows/release.yml'
 
 
+def git_bash(git):
+    # PATH may expose bin/git.exe, cmd/git.exe, or the real ucrt64/bin/git.exe.
+    # Find the installation's existing Bash rather than assuming a fixed depth.
+    for parent in Path(git).resolve().parents:
+        candidate = parent / 'bin' / 'bash.exe'
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError(f'No Git Bash found beside Git executable: {git}')
+
+
 class ReleaseWorkflowTest(unittest.TestCase):
+    def test_git_bash_resolution_handles_runner_git_layouts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bash = root / 'bin' / 'bash.exe'
+            bash.parent.mkdir()
+            bash.touch()
+            for layout in ('bin', 'cmd', 'ucrt64/bin', 'mingw64/bin'):
+                with self.subTest(layout=layout):
+                    git = root / layout / 'git.exe'
+                    git.parent.mkdir(parents=True, exist_ok=True)
+                    git.touch()
+                    self.assertEqual(git_bash(git), bash.resolve())
+
     def test_every_main_push_runs_without_path_filters_or_coalescing(self):
         workflow = WORKFLOW.read_text()
         push = re.search(r'^  push:\n(?P<body>(?:^    .*\n)+)', workflow, re.MULTILINE)
@@ -45,7 +68,7 @@ class ReleaseWorkflowTest(unittest.TestCase):
             git = shutil.which('git')
             if git is None:
                 self.fail('Git for Windows is required for the publication regression')
-            bash = str(Path(git).resolve().parent.parent / 'bin' / 'bash.exe')
+            bash = str(git_bash(git))
         if bash is None or not Path(bash).is_file():
             self.fail(f'Publication regression needs a real Bash executable: {bash}')
         for event in ('push', 'workflow_dispatch'):
