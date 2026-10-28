@@ -54,8 +54,11 @@ class ReleaseWorkflowTest(unittest.TestCase):
                 # Exercise the real publication shell with a recording gh function;
                 # no GitHub release or network call is made by this regression.
                 recording_gh = 'gh() { printf "%s\\0" "$@" > "$GH_ARGUMENTS"; };\n'
-                subprocess.run(['bash', '-euo', 'pipefail', '-c', recording_gh + script],
-                               cwd=root, env=env, capture_output=True, text=True, check=True)
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', recording_gh + script],
+                                        cwd=root, env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0,
+                                 f'Publication shell failed on {os.name}:\n'
+                                 f'stdout:\n{result.stdout}\nstderr:\n{result.stderr}')
                 args = arguments.read_bytes().decode().split('\0')[:-1]
                 self.assertEqual(args[:3], ['release', 'create', version])
                 self.assertIn('--prerelease', args)
